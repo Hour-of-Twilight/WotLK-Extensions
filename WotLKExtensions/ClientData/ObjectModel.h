@@ -1,0 +1,19 @@
+#pragma once
+#include <Defines.h>
+#include <ClientData/MathTypes.h>
+#include <ClientData/Units.h>
+#include <ClientData/Players.h>
+#include <ClientData/ObjectFields.h>
+
+using ClientData::C2Vector;
+using ClientData::C3Vector;
+using ClientData::MovementInfo;
+using ClientData::UnitBytes0;
+using ClientData::UnitBytes1;
+using ClientData::UnitBytes2;
+using ClientData::UnitFields;
+using ClientData::ObjectFields;
+using ClientData::PlayerFields;
+using ClientData::CGObject;
+using ClientData::CGUnit;
+using ClientData::CGPlayer;

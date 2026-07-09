@@ -1,0 +1,3 @@
+# MSDF text-rendering layer. Kept in its own (space-indented) formatting, excluded from the repo standard.
+DisableFormat: true
+SortIncludes: false

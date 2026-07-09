@@ -1,0 +1,101 @@
+### Compiled / build output ###
+*.o
+*.obj
+*.lo
+*.slo
+*.so
+*.so.*
+*.dylib
+*.dll
+*.a
+*.lib
+*.exe
+*.out
+*.app
+*.elf
+*.map
+*.exp
+*.ilk
+*.pdb
+*.idb
+*.gch
+*.pch
+*.d
+
+### Build directories ###
+/build*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+### CMake user files ###
+CMakeLists.txt.user
+*.user
+
+### Code coverage ###
+*.cov
+*.gcda
+*.gcno
+*.gcov
+lcov.info
+
+### Backups / patches / merge artifacts ###
+*.orig
+*.rej
+*.bak
+*.patch
+*.diff
+*~
+*.REMOTE.*
+*.BACKUP.*
+*.BASE.*
+*.LOCAL.*
+
+### OS files ###
+.DS_Store
+.directory
+
+### VCS misc ###
+.hg/
+.mailmap
+
+### Editors / IDEs ###
+.vscode
+.vs
+.idea/*
+.kdev*
+.browse.VC*
+nbproject/*
+
+### AI assistant / tool files ###
+/.claude*
+/CLAUDE.md
+.cursor/
+.cursorrules
+.cursorignore
+.windsurf/
+.windsurfrules
+.aider*
+.copilot/
+.github/copilot-instructions.md
+.continue/
+.codeium/
+.amazonq/
+.qodo/
+.junie/
+GEMINI.md
+.gemini/
+.codex/
+AGENTS.md
+.openai/
+
+### Project-specific ###
+/libs/unordered_dense/data/fuzz/fuzz_api/*
+/WotLKExtensions/local.cmake
+/Tools/*

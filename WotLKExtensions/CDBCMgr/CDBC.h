@@ -1,5 +1,5 @@
 #pragma once
-#include "../SharedDefines.h"
+#include <SharedDefines.h>
 #include <string>
 
 class CDBC
@@ -25,6 +25,7 @@ public:
 	void UnloadDB();
 	void GetMinMaxIndices();
 	virtual ~CDBC() = default;
+
 private:
 	bool isLoaded;
 };

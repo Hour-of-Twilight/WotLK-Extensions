@@ -1,25 +1,50 @@
 #include "Main.h"
-
+#ifdef ENABLE_DISCORD
+#include "DiscordRPC.h"
+#endif
+#include "Spell.h"
+#include "Tools/MpqScanner.h"
+#include "Streaming/BackgroundDownloader.h"
+#include "Entities/Item.h"
+#include "Lua/XMLExtensions.h"
+#include "Rendering/MSDF/MSDFBootstrap.h"
+#include <Editor/EditorRuntime.h>
+#include <Character/AnimationFixes.h>
+#include <Logger.h>
 void Main::OnAttach()
 {
+	sLog.Reset();
 	Init();
-	
+	MSDFBootstrap::initialize();
+	sMpqScanner.Start();
+	if (!(Util::ReadIniValue("disableStartupDownloader", "0", true) == "1"))
+		sBackgroundDownloader.Start();
 	// Apply patches
 	Misc::ApplyPatches();
-	Player::ApplyPatches();
-	WorldDataExtensions::ApplyPatches();
-
-	// Custom dbc loader
-	if (useCustomDBCFiles)
-		CDBCMgr::PatchAddress();
+	sPlayer.ApplyPatches();
+	EditorRuntime::Apply();
+	AnimationFixes::Apply();
+	ClientDetours::Apply();
+	FrameXMLExtensions::Apply();
+	Spells::Apply();
+	Item::Apply();
+	CDBCMgr::Load();
+#ifdef ENABLE_DISCORD
+	bool disableDiscord = Util::IsWine() || Util::ReadIniValue("discordDisabled", "0", true) == "1";
+	if (!disableDiscord)
+	{
+		sDiscord.Init();
+		sDiscord.UpdateActivity("", "Staring at the login screen.", "icon_transparent_");
+	}
+#endif
 }
 
 void Main::Init()
 {
-	Misc::SetYearOffsetMultiplier();
+	// Misc::SetYearOffsetMultiplier();
 
 	if (customPackets)
-		CustomPacket::Apply();
+		sCustomPacket.Apply();
 
 	if (outOfBoundLuaFunctions || useCustomDBCFiles || customPackets)
 	{
@@ -29,12 +54,28 @@ void Main::Init()
 	}
 
 	if (outOfBoundLuaFunctions || customPackets)
-		CustomLua::Apply();
+	{
+		sLua.Apply();
+		GlueXML::RegisterFunctions();
+	}
 }
 
 extern "C"
 {
 	__declspec(dllexport) void WotLKExtensionsDummy() {}
+}
+
+DWORD WINAPI DebuggerCheckThread(LPVOID)
+{
+	static bool displayed = false;
+
+	if (!displayed && IsDebuggerPresent())
+	{
+		displayed = true;
+		MessageBoxA(nullptr, "Hey stinky! You can just ask to see bits of code.", "Nerd", MB_OK | MB_ICONEXCLAMATION);
+	}
+
+	return 0;
 }
 
 bool __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
@@ -45,6 +86,7 @@ bool __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 		CreateThread(nullptr, 0, [](LPVOID) -> DWORD
 		{
 			Main::OnAttach();
+			CreateThread(nullptr, 0, DebuggerCheckThread, nullptr, 0, nullptr);
 			return 0;
 		}, nullptr, 0, nullptr);
 	}

@@ -39,7 +39,7 @@ void write_pos_n(streampos pos, uint8_t value, size_t n)
 int main(int argc, char** argv)
 {
 	string wow;
-	bool unlockCustomGluexml = true;
+	bool unlockCustomGluexml = false;
 
 	if (argc < 2)
 	{

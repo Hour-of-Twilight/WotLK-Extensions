@@ -1,0 +1,29 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Canonical style: tabs for indentation, width 4.
+[*.{c,cc,cxx,cpp,h,hpp,inl}]
+indent_style = tab
+indent_size = 4
+tab_width = 4
+
+# Vendored Discord Game SDK keeps its upstream formatting.
+[WotLKExtensions/discord/**]
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = false
+
+# MSDF text-rendering layer is excluded from the repo standard.
+[WotLKExtensions/Rendering/MSDF/**]
+indent_style = space
+indent_size = 4
+
+# Third-party libraries.
+[libs/**]
+trim_trailing_whitespace = false
+insert_final_newline = false
