@@ -615,8 +615,25 @@ namespace Streaming
 		return 5;
 	}
 
+	struct LuaStackGuard
+	{
+		lua_State* L;
+		int top;
+		LuaStackGuard()
+		    : L(FrameScript::GetContext()), top(L ? FrameScript::GetTop(L) : 0)
+		{
+		}
+		~LuaStackGuard()
+		{
+			if (L)
+				FrameScript::SetTop(L, top);
+		}
+	};
+
 	void BackgroundDownloader::PumpMainThread()
 	{
+		LuaStackGuard luaGuard;
+
 		static bool s_prevActive = false;
 		bool active = g_active.load();
 		if (active != s_prevActive)

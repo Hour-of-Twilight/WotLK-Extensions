@@ -92,7 +92,6 @@ void Player::AccumulateBlock(uint8 family, const uint32* classMask, SpellModOp o
 	}
 }
 
-// True as soon as any set class-mask bit has an entry for `op` (used for boolean ops).
 bool Player::BlockHasMod(uint8 family, const uint32* classMask, SpellModOp op) const
 {
 	if (family == 0 || family >= C_MAX_SPELL_MOD_FAMILY || op >= MAX_CUSTOM_SPELLMOD)

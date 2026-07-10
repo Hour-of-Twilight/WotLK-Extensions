@@ -47,7 +47,6 @@ private:
 	static void __fastcall SetMessageHandlerEx(void* _this, uint32_t unused, uint32_t opcode, void* function, void* param);
 	static int __cdecl UpdateCharacterListEx();
 
-	static void Packet_SMSG_SEND_TEMP_CVAR(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3);
 	static void Packet_SMSG_TB_BULLSHIT(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3);
 	static void Packet_SMSG_CUSTOM_STAT_TRACK(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3);
 	static void Packet_SMSG_SANITY_CHECK(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3);

@@ -60,7 +60,7 @@ void Logger::Emit(const std::string& line)
 		m_file.flush();
 	}
 	OutputDebugStringA((line + "\n").c_str());
-	CGChat::AddChatMessage(const_cast<char*>(line.c_str()), 0, 0, 0, nullptr, 0, "", 0, 0, 0, 0, 0, nullptr);
+	//CGChat::AddChatMessage(const_cast<char*>(line.c_str()), 0, 0, 0, nullptr, 0, "", 0, 0, 0, 0, 0, nullptr);
 }
 
 void Logger::Write(const char* type, const char* source, const char* msg)

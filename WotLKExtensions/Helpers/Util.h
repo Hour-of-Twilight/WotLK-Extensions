@@ -25,15 +25,7 @@ public:
 
 	static void PercToScreenPos(float x, float y, float* resX, float* resY);
 	static uint32_t CalculateAddress(uint32_t address1, uint32_t address2, bool backwards = false);
-	static fs::path GetIniPath(bool useCustomConfig);
-	static std::unordered_map<std::string, std::string> LoadIni(bool useCustomConfig);
-	static void SaveIni(const std::unordered_map<std::string, std::string>& data, bool useCustomConfig);
-	static std::string ReadIniValue(const std::string& key, const std::string& defaultValue, bool useCustomConfig);
-	static void WriteIniValue(const std::string& key, const std::string& value, bool useCustomConfig);
-	static const char* GetCVarValue(void* cvar)
-	{
-		return *(const char**)((uintptr_t)cvar + 0x28);
-	}
+	static void SetDebugOutput(bool enabled);
 	static void DebugOutput(const char* fmt, ...);
 	static fs::path GetExeDir();
 	static bool IsWine();

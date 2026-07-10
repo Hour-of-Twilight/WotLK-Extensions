@@ -4,6 +4,7 @@
 #include "MSDFManager.h"
 #include "MSDFShaders.h"
 #include "Hooks.h"
+#include <Cvars.h>
 #include <cstdlib>
 #include <cstring>
 #include <ranges>
@@ -45,7 +46,6 @@ namespace {
     CLIENT_FUNCTION(CGxString__CheckGeometry_BufferAllocFlushSite, 0x006C4C36, __cdecl, void, ())
     constexpr uintptr_t CGxString__CheckGeometry_BufferAllocFlushSite_jmpback = 0x006C4C4B;
 
-	CVar* s_cvar_MSDFMode;
     int s_msdfMode = 1;
     bool s_freeTypeInitHooked = false;
 	std::vector<uint32_t> s_prefetchPayload;
@@ -607,8 +607,8 @@ namespace {
         return 0;
     }
 
-    int CVarHandler_MSDFMode(CVar*, const char*, const char* value, void*) {
-        s_msdfMode = value ? std::atoi(value) : 1;
+    void ApplyMsdfMode(int mode) {
+        s_msdfMode = mode;
         if (s_msdfMode > 0 && !s_freeTypeInitHooked) {
             DetourTransactionBegin();
             DetourUpdateThread(GetCurrentThread());
@@ -616,19 +616,13 @@ namespace {
             DetourTransactionCommit();
             s_freeTypeInitHooked = true;
         }
-        return 1;
     }
 }
 
 void MSDF::initialize() {
-    s_cvar_MSDFMode = CVar::Register(
+    sCvars.Register(
         "MSDFMode",
         "0 = Disabled; 1 = Enabled; 2 = Enabled for unsafe/self-intersecting fonts",
-        1,
         "1",
-        CVarHandler_MSDFMode,
-        0, 0, 0, 0);
-
-    const char* value = s_cvar_MSDFMode && s_cvar_MSDFMode->m_str ? s_cvar_MSDFMode->m_str : "1";
-    CVarHandler_MSDFMode(s_cvar_MSDFMode, nullptr, value, nullptr);
+        [](Cvar& c) { ApplyMsdfMode(c.AsInt()); });
 };

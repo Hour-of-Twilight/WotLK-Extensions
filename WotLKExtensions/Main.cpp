@@ -1,15 +1,12 @@
 #include "Main.h"
-#ifdef ENABLE_DISCORD
-#include "DiscordRPC.h"
-#endif
 #include "Spell.h"
 #include "Tools/MpqScanner.h"
-#include "Streaming/BackgroundDownloader.h"
 #include "Entities/Item.h"
 #include "Lua/XMLExtensions.h"
 #include "Rendering/MSDF/MSDFBootstrap.h"
 #include <Editor/EditorRuntime.h>
 #include <Character/AnimationFixes.h>
+#include <FeatureCvars.h>
 #include <Logger.h>
 void Main::OnAttach()
 {
@@ -17,8 +14,6 @@ void Main::OnAttach()
 	Init();
 	MSDFBootstrap::initialize();
 	sMpqScanner.Start();
-	if (!(Util::ReadIniValue("disableStartupDownloader", "0", true) == "1"))
-		sBackgroundDownloader.Start();
 	// Apply patches
 	Misc::ApplyPatches();
 	sPlayer.ApplyPatches();
@@ -29,14 +24,8 @@ void Main::OnAttach()
 	Spells::Apply();
 	Item::Apply();
 	CDBCMgr::Load();
-#ifdef ENABLE_DISCORD
-	bool disableDiscord = Util::IsWine() || Util::ReadIniValue("discordDisabled", "0", true) == "1";
-	if (!disableDiscord)
-	{
-		sDiscord.Init();
-		sDiscord.UpdateActivity("", "Staring at the login screen.", "icon_transparent_");
-	}
-#endif
+
+	FeatureCvars::Apply();
 }
 
 void Main::Init()

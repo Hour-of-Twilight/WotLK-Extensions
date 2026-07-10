@@ -67,8 +67,6 @@ private:
 	static int ConvertCoordsToScreenSpace(lua_State* L);
 
 	static int CustomLfgQueue(lua_State* L);
-	static int CustomTempCvarSet(lua_State* L);
-	static int CustomTempCvarRestore(lua_State* L);
 	static int GetSpellPen(lua_State* L);
 	static int GetMagicFind(lua_State* L);
 #ifdef ENABLE_DISCORD

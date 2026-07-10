@@ -67,89 +67,41 @@ bool Util::IsWine()
 	return ntdll && GetProcAddress(ntdll, "wine_get_version") != nullptr;
 }
 
-//@todo swap out this temporary ini for a proper config as this is fucking retarded.
-fs::path Util::GetIniPath(bool useCustomConfig)
+static bool s_debugOutput = false;
+
+void Util::SetDebugOutput(bool enabled)
 {
-	if (useCustomConfig)
-		return GetExeDir() / "WTF" / "customconfig.ini";
-	return GetExeDir() / "WTF" / "tempvars.ini";
-}
-
-std::unordered_map<std::string, std::string> Util::LoadIni(bool useCustomConfig)
-{
-	std::unordered_map<std::string, std::string> data;
-	std::ifstream file(GetIniPath(useCustomConfig));
-
-	std::string line;
-	while (std::getline(file, line))
-	{
-		if (line.empty() || line[0] == ';' || line[0] == '#')
-			continue;
-
-		size_t eqPos = line.find('=');
-		if (eqPos != std::string::npos)
-		{
-			std::string key = line.substr(0, eqPos);
-			std::string value = line.substr(eqPos + 1);
-			data[key] = value;
-		}
-	}
-
-	return data;
-}
-
-void Util::SaveIni(const std::unordered_map<std::string, std::string>& data, bool useCustomConfig)
-{
-	fs::create_directories(GetIniPath(useCustomConfig).parent_path());
-	std::ofstream file(GetIniPath(useCustomConfig));
-	for (const auto& [key, value] : data)
-	{
-		file << key << "=" << value << "\n";
-	}
-}
-
-std::string Util::ReadIniValue(const std::string& key, const std::string& defaultValue, bool useCustomConfig)
-{
-	auto data = LoadIni(useCustomConfig);
-	auto it = data.find(key);
-	return (it != data.end()) ? it->second : defaultValue;
-}
-
-void Util::WriteIniValue(const std::string& key, const std::string& value, bool useCustomConfig)
-{
-	auto data = LoadIni(useCustomConfig);
-	data[key] = value;
-	SaveIni(data, useCustomConfig);
+	s_debugOutput = enabled;
 }
 
 void Util::DebugOutput(const char* fmt, ...)
 {
-	if (Util::ReadIniValue("debugOutput", "0", true) == "1")
+	if (!s_debugOutput)
+		return;
+
+	va_list args;
+	va_start(args, fmt);
+
+	va_list copy;
+	va_copy(copy, args);
+	int len = std::vsnprintf(nullptr, 0, fmt, copy);
+	va_end(copy);
+
+	if (len < 0)
 	{
-		va_list args;
-		va_start(args, fmt);
-
-		va_list copy;
-		va_copy(copy, args);
-		int len = std::vsnprintf(nullptr, 0, fmt, copy);
-		va_end(copy);
-
-		if (len < 0)
-		{
-			va_end(args);
-			return;
-		}
-
-		char* buffer = static_cast<char*>(std::malloc(len + 1));
-		if (!buffer)
-		{
-			va_end(args);
-			return;
-		}
-
-		std::vsnprintf(buffer, len + 1, fmt, args);
 		va_end(args);
-		sLog.Write("DEBUG", "Util", buffer);
-		std::free(buffer);
+		return;
 	}
+
+	char* buffer = static_cast<char*>(std::malloc(len + 1));
+	if (!buffer)
+	{
+		va_end(args);
+		return;
+	}
+
+	std::vsnprintf(buffer, len + 1, fmt, args);
+	va_end(args);
+	sLog.Write("DEBUG", "Util", buffer);
+	std::free(buffer);
 }

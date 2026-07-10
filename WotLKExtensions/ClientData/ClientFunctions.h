@@ -40,6 +40,7 @@ namespace CGGameUI
 	CLIENT_FUNCTION(GetCursorSpell, 0x005136C0, __cdecl, uint32_t, ())
 	CLIENT_FUNCTION(GetCursorItem, 0x00513660, __cdecl, uint64_t, ())
 	CLIENT_FUNCTION(ClearCursor, 0x00519280, __cdecl, void, (int arg0, int arg4))
+	CLIENT_FUNCTION(IsAutoLooting, 0x00513700, __cdecl, bool, ())
 }
 
 namespace CGTooltip
@@ -150,7 +151,7 @@ namespace CNetClient
 
 namespace CVar_C
 {
-	CLIENT_FUNCTION(SetCvar, 0x76C9C0, __thiscall, void, (void* cvar, const char* value, bool setDirty, bool setName2IfEmpty, bool setName1IfEmpty, bool forceUpdate))
+	CLIENT_FUNCTION(SetCvar, 0x7668C0, __thiscall, char, (void* cvar, const char* value, bool setValue, bool setReset, bool setDefault, bool updateConfig))
 	CLIENT_FUNCTION(LookupCvar, 0x767460, __cdecl, void*, (const char* name))
 
 	inline CVar* GetCVar(const char* name)
@@ -181,6 +182,7 @@ namespace FrameScript
 	CLIENT_FUNCTION(PushNumber, 0x84E2A0, __cdecl, int, (lua_State * L, double value))
 	CLIENT_FUNCTION(PushString, 0x84E350, __cdecl, int, (lua_State*, char const*))
 	CLIENT_FUNCTION(RegisterFunction, 0x817F90, __cdecl, int, (const char*, void*))
+	CLIENT_FUNCTION(GetContext, 0x00817DB0, __cdecl, lua_State*, ())
 	CLIENT_FUNCTION(GetTop, 0x0084DBD0, __cdecl, int, (lua_State * L))
 	CLIENT_FUNCTION(SetTop, 0x0084DBF0, __cdecl, void, (lua_State * L, int idx))
 	CLIENT_FUNCTION(Insert, 0x0084DCC0, __cdecl, void, (lua_State * L, int idx))

@@ -5,6 +5,7 @@
 #ifdef ENABLE_DISCORD
 #include <DiscordRPC.h>
 #endif
+#include <DiscordCvar.h>
 #include "XMLExtensions.h"
 #include <CustomPacket.h>
 #include <Editor/MouseFunctions.h>
@@ -699,43 +700,6 @@ int CustomLua::CustomLfgQueue(lua_State* L)
 	return 0;
 }
 
-int CustomLua::CustomTempCvarSet(lua_State* L)
-{
-	char* name = FrameScript::ToLString(L, 1, false);
-	char* value = FrameScript::ToLString(L, 2, false);
-
-	void* cvar = CVar_C::LookupCvar(name);
-	if (!cvar)
-	{
-		FrameScript::DisplayError(L, "%s not found", name);
-		return 0;
-	}
-
-	uint32_t flags = *(uint32_t*)((uintptr_t)cvar + 0x1C);
-	const char* cvarValue = Util::GetCVarValue(cvar);
-	Util::WriteIniValue(name, cvarValue, false);
-	/*if (((flags >> 2) & 1) != 0)
-	{
-	    FrameScript::DisplayError(L, "%s is read only", name);
-	    return 0;
-	}*/
-
-	// CVar_C::SetCvar(cvar, value, true, false, false, true);
-	return 0;
-}
-
-int CustomLua::CustomTempCvarRestore(lua_State* L)
-{
-	const char* name = FrameScript::ToLString(L, 1, false);
-	std::string restoreValue = Util::ReadIniValue(name, "", false);
-	if (!restoreValue.empty())
-	{
-		FrameScript::PushString(L, restoreValue.c_str());
-		return 1;
-	}
-	return 0;
-}
-
 int CustomLua::GetSpellPen(lua_State* L)
 {
 	uint8 school = FrameScript::GetNumber(L, 1);
@@ -769,18 +733,8 @@ int CustomLua::UpdateDiscordPresence(lua_State* L)
 int CustomLua::ToggleDiscord(lua_State* L)
 {
 	bool enabled = FrameScript::GetNumber(L, 1) == 1;
-	if (enabled)
-	{
-		Util::WriteIniValue("discordDisabled", "0", true);
-
-		if (!sDiscord.IsInitialized())
-			sDiscord.Init();
-	}
-	else
-	{
-		Util::WriteIniValue("discordDisabled", "1", true);
-		sDiscord.Shutdown();
-	}
+	// The enableDiscord cvar's handler does the actual init/shutdown and persists.
+	DiscordCvar::SetEnabled(enabled);
 	return 0;
 }
 #endif
@@ -1138,8 +1092,6 @@ void CustomLua::RegisterBuiltinFunctions()
 		RegisterFunction("GetMagicFind", &GetMagicFind, LuaFunctionState::FRAME);
 		// RegisterFunction("PortGraveyard", &PortGraveyard, LuaFunctionState::FRAME);
 	}
-	//RegisterFunction("StoreCVar", &CustomTempCvarSet, LuaFunctionState::ALL);
-	//RegisterFunction("GetStoredCVar", &CustomTempCvarRestore, LuaFunctionState::ALL);
 #ifdef ENABLE_DISCORD
 	RegisterFunction("UpdateDiscordPresence", &UpdateDiscordPresence, LuaFunctionState::FRAME);
 	RegisterFunction("ToggleDiscord", &ToggleDiscord, LuaFunctionState::ALL);

@@ -10,6 +10,7 @@
 #include "FeaturePackets.h"
 #include "DBCRecordPackets.h"
 #include "StreamingPackets.h"
+#include "LootWindowPackets.h"
 #include "Streaming/BackgroundDownloader.h"
 #include "SystemPackets.h"
 #include "XMLExtensions.h"
@@ -54,6 +55,7 @@ void CustomPacket::Apply()
 	sUnitLevelCache.Apply();
 	DBCRecordPackets::Apply();
 	StreamingPackets::Apply();
+	sLootWindowPackets.Apply();
 	ItemDbCachePackets::RegisterHandlers();
 
 	// Realm handlers: queued now, applied against the realm connection in SetCustomRealmHandlers.
