@@ -21,14 +21,22 @@ uint32_t UnitLevelCache::GetPlayerItemLevel(uint64_t guid) const
 	return it != m_playerItemLevels.end() ? it->second : 0;
 }
 
-void UnitLevelCache::SetPlayerItemLevel(uint64_t guid, uint32_t ilvl)
+uint8_t UnitLevelCache::GetPlayerSubClass(uint64_t guid) const
+{
+	auto it = m_playerSubClasses.find(guid);
+	return it != m_playerSubClasses.end() ? it->second : 0;
+}
+
+void UnitLevelCache::SetPlayerItemLevel(uint64_t guid, uint32_t ilvl, uint8_t subClass)
 {
 	m_playerItemLevels[guid] = ilvl;
+	m_playerSubClasses[guid] = subClass;
 }
 
 void UnitLevelCache::ClearPlayers()
 {
 	m_playerItemLevels.clear();
+	m_playerSubClasses.clear();
 }
 
 bool UnitLevelCache::HasCreatureDungeonLevel(uint64_t guid) const
@@ -55,6 +63,7 @@ void UnitLevelCache::ClearCreatures()
 void UnitLevelCache::ClearAll()
 {
 	m_playerItemLevels.clear();
+	m_playerSubClasses.clear();
 	m_creatureDungeonLevels.clear();
 }
 
@@ -78,12 +87,15 @@ uint32_t UnitLevelCache::GetUnitItemLevelOrDungeonLevel(uint64_t guid) const
 
 void UnitLevelCache::ApplyPlayerItemLevel(CGUnit* unit, uint32_t ilvl)
 {
-	// if (unit->unitData)
-	// unit->unitData->level = ilvl;
+	if (!unit)
+		return;
 
 	void* namePlate = *reinterpret_cast<void**>(reinterpret_cast<uint8_t*>(unit) + 0xC38);
 	if (namePlate)
 		CGNamePlateFrame::UpdateLevelDisplay(namePlate, unit);
+
+	if (!unit->objectBase.ObjectData)
+		return;
 
 	uint64_t guid = unit->objectBase.ObjectData->OBJECT_FIELD_GUID;
 	const char* token = Script_GetTokenFromGUID(guid);
@@ -93,8 +105,8 @@ void UnitLevelCache::ApplyPlayerItemLevel(CGUnit* unit, uint32_t ilvl)
 
 void UnitLevelCache::ApplyCreatureDungeonLevel(CGUnit* unit, uint32_t level)
 {
-	// if (unit->unitData)
-	// unit->unitData->level = level;
+	if (!unit)
+		return;
 
 	void* namePlate = *reinterpret_cast<void**>(reinterpret_cast<uint8_t*>(unit) + 0xC38);
 	if (namePlate)
@@ -116,36 +128,36 @@ void UnitLevelCache::SendRequest(uint64_t guid)
 	Packet(CMSG_UNIT_LEVEL_CACHE_REQUEST).PutUInt64(guid).Send();
 }
 
+static bool IsPlayerGuid(uint64_t guid)
+{
+	return guid != 0 && (guid >> 48) == 0;
+}
+
 void UnitLevelCache::Handler_SMSG_UNIT_LEVEL_CACHE_RESPONSE(void*, uint32_t, uint32_t, CDataStore* pkt)
 {
 	Packet r(pkt);
 	uint64_t guid = r.GetUInt64();
-	uint8_t isPlayer = r.GetUInt8();
 	uint32_t value = r.GetUInt32();
 	if (value == 0) // not a scaled unit
 		return;
-	if (isPlayer)
+
+	if (IsPlayerGuid(guid))
 	{
 		uint8_t subClass = r.GetUInt8();
-		sUnitLevelCache.SetPlayerItemLevel(guid, value);
-		Util::DebugOutput("UnitLevelCache: GUID %016llX  type=player  ilvl=%u", (unsigned long long)guid, value);
+		sUnitLevelCache.SetPlayerItemLevel(guid, value, subClass);
+		Util::DebugOutput("UnitLevelCache: GUID %016llX  type=player  ilvl=%u  subClass=%u",
+		    (unsigned long long)guid, value, subClass);
 		if (guid == ClntObjMgr::GetActivePlayer())
 			FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_PLAYER_ITEM_LEVEL"), "%u", value);
-		else
-		{
-			CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT));
-			if (unit)
-				ApplyPlayerItemLevel(unit, value);
-		}
+		//else if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
+		//	ApplyPlayerItemLevel(unit, value);
 	}
 	else
 	{
 		sUnitLevelCache.SetCreatureDungeonLevel(guid, value);
 		Util::DebugOutput("UnitLevelCache: GUID %016llX  type=creature  dlvl=%u", (unsigned long long)guid, value);
-
-		CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT));
-		if (unit)
-			ApplyCreatureDungeonLevel(unit, value);
+		//if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
+			//ApplyCreatureDungeonLevel(unit, value);
 	}
 }
 

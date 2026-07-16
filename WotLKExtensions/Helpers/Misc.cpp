@@ -154,6 +154,8 @@ void Misc::ApplyPatches()
 	Util::OverwriteBytesAtAddress((void*)0x00621766, 0x90, 6);
 	// CGSpellBook__AddKnownSpell: redirect the call at 0x00542DE3 (call CGActionBar__PutActionInSlot)
 	Util::OverwriteUInt32AtAddress(0x00542DE4, (uint32_t)&CGSpellBook__AddKnownSpell_PutActionInSlotHook - 0x00542DE8);
+	// CGSpellBook__AddKnownSpell: NOP the SPELL_ATTR7_SUMMON_PLAYER_TOTEM gate
+	Util::OverwriteBytesAtAddress((void*)0x005428B4, 0x90, 6);
 }
 
 void Misc::PackTimeDataToDword(uint32_t* packedTime, int32_t minute, int32_t hour, int32_t weekDay, int32_t monthDay, int32_t month, int32_t year, int32_t flags)

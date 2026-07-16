@@ -23,9 +23,17 @@ using ClientData::CGWorldFrame;
 
 struct CDataStore_vTable
 {
-	uint32_t padding0x00[6];
-	void* IsRead;
-	uint32_t padding0x1C[3];
+	void* fn_InternalInitialize; // 0x00
+	void* fn_InternalDestroy;    // 0x04
+	void* fn_InternalFetchRead;  // 0x08
+	void* fn_InternalFetchWrite; // 0x0C
+	void* fn_destructor;         // 0x10
+	void* IsRead;                // 0x14
+	void* Reset;                 // 0x18
+	void* fn_Finalize;           // 0x1C
+	void* fn_GetBufferParams;    // 0x20
+	void* fn_DetachBuffer;       // 0x24
+	void* fn_GetHeaderSpace;     // 0x28
 };
 
 struct CDataStore

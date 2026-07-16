@@ -66,7 +66,9 @@ namespace CDataStore_C
 	CLIENT_FUNCTION(GetCString, 0x47B480, __thiscall, void, (CDataStore*, char*, uint32))
 	CLIENT_FUNCTION(PutCString, 0x47B300, __thiscall, void, (CDataStore*, char* string))
 	CLIENT_FUNCTION(Release, 0x403880, __thiscall, void, (CDataStore*))
+	CLIENT_FUNCTION(IsRead, 0x4010D0, __thiscall, bool, (CDataStore*))
 	CLIENT_FUNCTION(FetchRead, 0x47B290, __thiscall, int, (CDataStore*, uint32_t offset, uint32_t size))
+	CLIENT_FUNCTION(GetWowGUID, 0x76DC20, __cdecl, void, (CDataStore*, uint64_t* outGuid))
 }
 
 namespace CCharacterComponent
@@ -111,6 +113,9 @@ namespace CGUnit_C
 	CLIENT_FUNCTION(UnitReaction, 0x007251C0, __thiscall, int, (void* unit, void* player))
 	CLIENT_FUNCTION(UpdateModelScale, 0x0072CBB0, __thiscall, void, (void* unit, int flags))
 	CLIENT_FUNCTION(AnimationData, 0x007385C0, __thiscall, void, (CGUnit * unit, int animationId, char flags))
+	CLIENT_FUNCTION(GetPowerRegen, 0x004F5390, __thiscall, double, (void* descriptorSlot, int power, int interrupted))
+	CLIENT_FUNCTION(GetPredictedPower, 0x0071C2E0, __thiscall, int, (CGUnit * unit, int power))
+	CLIENT_FUNCTION(SetPredictedPowerSlot, 0x00722C50, __thiscall, void, (CGUnit * unit, int power, int value))
 }
 
 namespace ClientDB

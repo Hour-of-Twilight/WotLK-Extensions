@@ -24,6 +24,8 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <deque>
+#include <functional>
 #include <utility>
 #include <filesystem>
 #include <fstream>
@@ -289,6 +291,15 @@ namespace Streaming
 		std::mutex g_mountMutex;
 		std::vector<std::string> g_mountQueue;
 
+		std::mutex g_eventMutex;
+		std::deque<std::function<void()>> g_eventQueue;
+
+		void EnqueueEvent(std::function<void()> fn)
+		{
+			std::lock_guard<std::mutex> lock(g_eventMutex);
+			g_eventQueue.push_back(std::move(fn));
+		}
+
 		void EnqueueMount(const std::wstring& path)
 		{
 			std::string p = NarrowAcp(path);
@@ -411,6 +422,9 @@ namespace Streaming
 
 		bool AcquirePatchLock()
 		{
+			if (g_patchLock)
+				return true;
+
 			uint64_t h = 1469598103934665603ULL; // FNV-1a
 			for (wchar_t c : g_installDir)
 			{
@@ -615,40 +629,27 @@ namespace Streaming
 		return 5;
 	}
 
-	struct LuaStackGuard
-	{
-		lua_State* L;
-		int top;
-		LuaStackGuard()
-		    : L(FrameScript::GetContext()), top(L ? FrameScript::GetTop(L) : 0)
-		{
-		}
-		~LuaStackGuard()
-		{
-			if (L)
-				FrameScript::SetTop(L, top);
-		}
-	};
-
 	void BackgroundDownloader::PumpMainThread()
 	{
-		LuaStackGuard luaGuard;
-
+		// Queue the active-state change instead of signalling it inline.
 		static bool s_prevActive = false;
 		bool active = g_active.load();
 		if (active != s_prevActive)
 		{
 			s_prevActive = active;
-			int id = FrameXMLExtensions::GetEventIdByName(active ? "HOT_STREAMING_STARTED" : "HOT_STREAMING_STOPPED");
-			if (id >= 0)
-				FrameScript::SignalEvent((uint32_t)id, "");
+			int eventId = FrameXMLExtensions::GetEventIdByName(
+			    active ? "HOT_STREAMING_STARTED" : "HOT_STREAMING_STOPPED");
+			EnqueueEvent([eventId]
+			{
+				if (eventId >= 0)
+					FrameScript::SignalEvent((uint32_t)eventId, "");
+			});
 		}
 
+		// Do the main-thread mount work, queuing any resulting Lua events rather than firing them.
 		std::vector<std::string> batch;
 		{
 			std::lock_guard<std::mutex> lock(g_mountMutex);
-			if (g_mountQueue.empty())
-				return;
 			batch.swap(g_mountQueue);
 		}
 		for (const std::string& path : batch)
@@ -662,10 +663,21 @@ namespace Streaming
 				DbcFromMpq::RefreshResult r = DbcFromMpq::RefreshFromArchive(hMpq);
 
 				if (r.spellDataChanged && ClientData::ObjectManager::GetActivePlayerObject())
-					ClientData::SpellBook::Refresh();
+					EnqueueEvent([] { ClientData::SpellBook::Refresh(); });
 				if (r.interfaceFiles)
 					g_uiRefreshNeeded = true;
 			}
 		}
+
+		// Fire exactly one queued event per update.
+		std::function<void()> event;
+		{
+			std::lock_guard<std::mutex> lock(g_eventMutex);
+			if (g_eventQueue.empty())
+				return;
+			event = std::move(g_eventQueue.front());
+			g_eventQueue.pop_front();
+		}
+		event();
 	}
 }

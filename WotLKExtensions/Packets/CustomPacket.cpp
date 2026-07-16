@@ -111,8 +111,7 @@ void __fastcall CustomPacket::ProcessMessageEx(void* _this, uint32_t unused, uin
 			// I've got cancer writing this, function typedefs are ugly as sin
 			((void (*)(void*, uint32_t, uint32_t, CDataStore*))data.handler[num])(data.handlerParam[num], opcode, a2, a3);
 		else
-			// Yes I know this throws C4229, I'll let you guess why
-			((void (*__thiscall)(CDataStore*))a3->vTable->IsRead)(a3);
+			CDataStore_C::IsRead(a3);
 	}
 }
 

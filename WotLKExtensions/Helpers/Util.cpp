@@ -5,6 +5,9 @@
 #include <fstream>
 #include <string>
 #include <unordered_map>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
 
 void Util::SetByteAtAddress(void* address, uint8_t byte)
 {
@@ -102,6 +105,10 @@ void Util::DebugOutput(const char* fmt, ...)
 
 	std::vsnprintf(buffer, len + 1, fmt, args);
 	va_end(args);
+
 	sLog.Write("DEBUG", "Util", buffer);
+
+	CGChat::AddChatMessage(buffer, 0, 0, 0, nullptr, 0, "", 0, 0, 0, 0, 0, nullptr);
+
 	std::free(buffer);
 }

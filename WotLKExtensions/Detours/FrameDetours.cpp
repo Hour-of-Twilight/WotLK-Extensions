@@ -3,6 +3,7 @@
 #include <SharedDefines.h>
 #include <Logger.h>
 #include "XMLExtensions.h"
+#include "MultiCastBarDetours.h"
 #include "Streaming/BackgroundDownloader.h"
 
 
@@ -108,6 +109,13 @@ void __cdecl CGSpellBook__AddKnownSpell_PutActionInSlotHook(int slot)
 {
 	uint32_t spellId = CGGameUI::GetCursorSpell();
 	if (!spellId)
+	{
+		CGGameUI::ClearCursor(1, 1);
+		return;
+	}
+
+
+	if (MultiCastBar_IsTotemSpell(spellId))
 	{
 		CGGameUI::ClearCursor(1, 1);
 		return;

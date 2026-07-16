@@ -8,11 +8,17 @@
 #include <Character/AnimationFixes.h>
 #include <FeatureCvars.h>
 #include <Logger.h>
+#include <Diagnostics/CrashDump.h>
+#include <Diagnostics/DebugSupport.h>
 void Main::OnAttach()
 {
+	CrashDump::Install();
+	DebugSupport::Apply();
+	DebugSupport::WaitForDebuggerIfRequested();
 	sLog.Reset();
 	Init();
-	MSDFBootstrap::initialize();
+	if(!Util::IsWine())
+		MSDFBootstrap::initialize();
 	sMpqScanner.Start();
 	// Apply patches
 	Misc::ApplyPatches();
@@ -58,6 +64,9 @@ DWORD WINAPI DebuggerCheckThread(LPVOID)
 {
 	static bool displayed = false;
 
+	if (DebugSupport::IntentionalDebugging())
+		return 0;
+
 	if (!displayed && IsDebuggerPresent())
 	{
 		displayed = true;
@@ -72,6 +81,7 @@ bool __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 	if (fdwReason == DLL_PROCESS_ATTACH)
 	{
 		DisableThreadLibraryCalls(hinstDLL);
+		CrashDump::Install();
 		CreateThread(nullptr, 0, [](LPVOID) -> DWORD
 		{
 			Main::OnAttach();

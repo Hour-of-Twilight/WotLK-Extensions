@@ -9,7 +9,8 @@ public:
 
 	bool HasPlayerItemLevel(uint64_t guid) const;
 	uint32_t GetPlayerItemLevel(uint64_t guid) const;
-	void SetPlayerItemLevel(uint64_t guid, uint32_t ilvl);
+	uint8_t GetPlayerSubClass(uint64_t guid) const;
+	void SetPlayerItemLevel(uint64_t guid, uint32_t ilvl, uint8_t subClass);
 	void ClearPlayers();
 
 	bool HasCreatureDungeonLevel(uint64_t guid) const;
@@ -37,9 +38,11 @@ private:
 	UnitLevelCache() = default;
 
 	std::unordered_map<uint64_t, uint32_t> m_playerItemLevels;
+	std::unordered_map<uint64_t, uint8_t> m_playerSubClasses;
 	std::unordered_map<uint64_t, uint32_t> m_creatureDungeonLevels;
 
-	// SMSG_UNIT_LEVEL_CACHE_RESPONSE: Int64 guid, UInt8 isPlayer, UInt32 value
+	// SMSG_UNIT_LEVEL_CACHE_RESPONSE: Int64 guid, UInt32 value, UInt8 subClass (player only).
+	// Player vs creature is derived from the GUID, not a wire flag.
 	static void Handler_SMSG_UNIT_LEVEL_CACHE_RESPONSE(void* param, uint32_t opcode, uint32_t a2, CDataStore* pkt);
 };
 
