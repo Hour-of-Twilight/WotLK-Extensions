@@ -187,6 +187,7 @@ namespace FrameScript
 	CLIENT_FUNCTION(PushNumber, 0x84E2A0, __cdecl, int, (lua_State * L, double value))
 	CLIENT_FUNCTION(PushString, 0x84E350, __cdecl, int, (lua_State*, char const*))
 	CLIENT_FUNCTION(RegisterFunction, 0x817F90, __cdecl, int, (const char*, void*))
+	CLIENT_FUNCTION(Execute, 0x819210, __cdecl, void, (const char* script, const char* chunkName, int taint))
 	CLIENT_FUNCTION(GetContext, 0x00817DB0, __cdecl, lua_State*, ())
 	CLIENT_FUNCTION(GetTop, 0x0084DBD0, __cdecl, int, (lua_State * L))
 	CLIENT_FUNCTION(SetTop, 0x0084DBF0, __cdecl, void, (lua_State * L, int idx))

@@ -146,6 +146,7 @@ namespace SFile
 	CLIENT_FUNCTION(CloseFile, 0x422910, __stdcall, void, (HANDLE))
 	CLIENT_FUNCTION(OpenFile, 0x424F80, __stdcall, int, (char const*, HANDLE*))
 	CLIENT_FUNCTION(GetFileSize, 0x4218C0, __stdcall, DWORD, (HANDLE, DWORD*))
+	CLIENT_FUNCTION(FileExistsEx, 0x424B10, __stdcall, int, (const char*, int))
 }
 
 namespace SMem
