@@ -43,6 +43,29 @@ void GemSocketPackets::Handler_SMSG_GEM_SOCKET_ERROR(void*, uint32_t, uint32_t, 
 	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_GEM_SOCKET_ERROR"), "%d", (int)code);
 }
 
+// SMSG_GEM_SOCKET_COST: UInt32 itemId, UInt32 cost, UInt8 purchased, UInt8 canPurchase.
+void GemSocketPackets::Handler_SMSG_GEM_SOCKET_COST(void*, uint32_t, uint32_t, CDataStore* pkt)
+{
+	Packet r(pkt);
+	GemSocketPackets& self = Instance();
+	self.m_costItemId = r.GetUInt32();
+	self.m_cost = r.GetUInt32();
+	self.m_purchased = r.GetUInt8();
+	self.m_canPurchase = r.GetUInt8();
+	self.m_hasCost = true;
+	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_GEM_SOCKET_COST_UPDATE"), "");
+}
+
+// SMSG_GEM_SOCKET_OPEN: no payload. Open the Jewelcrafting
+void GemSocketPackets::Handler_SMSG_GEM_SOCKET_OPEN(void*, uint32_t, uint32_t, CDataStore*)
+{
+	uint64_t guid = ClntObjMgr::GetActivePlayer();
+	if (!guid)
+		return;
+
+	CGTradeSkillInfo::SetTradeSkill(25229, &guid, nullptr, 0, 0);
+}
+
 int GemSocketPackets::RequestGemSocketList(lua_State*)
 {
 	Packet(CMSG_GEM_SOCKET_LIST_REQUEST).Send();
@@ -112,15 +135,47 @@ int GemSocketPackets::InsertGem(lua_State* L)
 int GemSocketPackets::RemoveGem(lua_State* L)
 {
 	int8_t slot = static_cast<int8_t>(FrameScript::GetNumber(L, 1));
+	uint8_t shatter = FrameScript::ToBoolean(L, 2) ? 1 : 0;
 
-	Packet(CMSG_GEM_SOCKET_REMOVE).PutInt8(slot).Send();
+	Packet(CMSG_GEM_SOCKET_REMOVE).PutInt8(slot).PutUInt8(shatter).Send();
 	return 0;
+}
+
+int GemSocketPackets::PurchaseGemSocket(lua_State*)
+{
+	Packet(CMSG_GEM_SOCKET_PURCHASE).Send();
+	return 0;
+}
+
+int GemSocketPackets::RequestGemSocketCost(lua_State*)
+{
+	Packet(CMSG_GEM_SOCKET_COST_REQUEST).Send();
+	return 0;
+}
+
+// Returns: itemId, cost, purchasedCount, canPurchase(bool)
+int GemSocketPackets::GetGemSocketCost(lua_State* L)
+{
+	GemSocketPackets& self = Instance();
+	if (!self.m_hasCost)
+	{
+		FrameScript::PushNil(L);
+		return 1;
+	}
+
+	FrameScript::PushNumber(L, self.m_costItemId);
+	FrameScript::PushNumber(L, self.m_cost);
+	FrameScript::PushNumber(L, self.m_purchased);
+	FrameScript::PushBoolean(L, self.m_canPurchase != 0);
+	return 4;
 }
 
 void GemSocketPackets::Apply()
 {
 	sCustomPacket.RegisterHandler(SMSG_GEM_SOCKET_LIST, &Handler_SMSG_GEM_SOCKET_LIST);
 	sCustomPacket.RegisterHandler(SMSG_GEM_SOCKET_ERROR, &Handler_SMSG_GEM_SOCKET_ERROR);
+	sCustomPacket.RegisterHandler(SMSG_GEM_SOCKET_COST, &Handler_SMSG_GEM_SOCKET_COST);
+	sCustomPacket.RegisterHandler(SMSG_GEM_SOCKET_OPEN, &Handler_SMSG_GEM_SOCKET_OPEN);
 
 	sLua.RegisterFunction("RequestGemSocketList", &RequestGemSocketList, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetGemSocketCount", &GetGemSocketCount, LuaFunctionState::FRAME);
@@ -129,4 +184,7 @@ void GemSocketPackets::Apply()
 	sLua.RegisterFunction("InsertGem", &InsertGem, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("RemoveGem", &RemoveGem, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetActiveFilledCount", &GetActiveFilledCount, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("PurchaseGemSocket", &PurchaseGemSocket, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("RequestGemSocketCost", &RequestGemSocketCost, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetGemSocketCost", &GetGemSocketCost, LuaFunctionState::FRAME);
 }

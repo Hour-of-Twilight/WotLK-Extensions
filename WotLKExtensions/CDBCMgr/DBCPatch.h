@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -33,6 +34,10 @@ private:
 
 	static ClientData::WoWClientDB* FindStorage(const char* name);
 	static bool EnsureCapacity(ClientData::WoWClientDB* db, int wantMin, int wantMax);
+
+	static void RebuildDenseArray(ClientData::WoWClientDB* db, uint32_t recordSize, bool inlineStorage);
+	static void RebuildInlineDense(ClientData::WoWClientDB* db, void** byId, int idCount, size_t count, uint32_t recordSize);
+	static void RebuildPointerDense(ClientData::WoWClientDB* db, void** byId, int idCount, size_t count);
 	static void** SlotFor(ClientData::WoWClientDB* db, uint32_t id);
 	static void FixupStrings(void* record, const std::vector<uint16_t>& strOffsets, const char* internedBlob, uint32_t blobSize);
 	static void WriteRecord(void* dst, const uint8_t* image, uint32_t recordSize, const std::vector<uint16_t>& strOffsets, const char* blob, uint32_t blobSize);

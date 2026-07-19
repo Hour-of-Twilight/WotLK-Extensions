@@ -11,6 +11,7 @@
 #include <Editor/GizmoDraw.h>
 #include <Editor/GizmoPick.h>
 #include <Editor/QuatFunctions.h>
+#include <Input/ActionRepeat.h>
 
 #include <SharedDefines.h>
 #include <cstdint>
@@ -320,6 +321,8 @@ namespace
 	{
 		bool result = CGWorldFrame_OnWorldRender(worldFrame);
 		EditorRuntime::OnWorldRender(worldFrame);
+		// Piggyback
+		sActionRepeat.OnUpdate();
 		return result;
 	}
 

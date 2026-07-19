@@ -4,6 +4,7 @@
 #include "DiscordCvar.h"
 #include "StartupDownloaderCvar.h"
 #include "DebugOutputCvar.h"
+#include "ActionRepeatCvar.h"
 
 namespace FeatureCvars
 {
@@ -13,5 +14,6 @@ namespace FeatureCvars
 		DiscordCvar::Apply();
 		StartupDownloaderCvar::Apply();
 		DebugOutputCvar::Apply();
+		ActionRepeatCvar::Apply();
 	}
 }

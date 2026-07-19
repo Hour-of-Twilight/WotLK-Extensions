@@ -35,6 +35,11 @@ namespace CGPetInfo_C
 	CLIENT_FUNCTION(GetPet, 0x5D3390, __cdecl, uint64_t, (uint32_t))
 }
 
+namespace CGTradeSkillInfo
+{
+	CLIENT_FUNCTION(SetTradeSkill, 0x5DE120, __cdecl, void, (uint32_t, uint64_t*, const char*, int, int))
+}
+
 namespace CGUnit_C
 {
 	CLIENT_FUNCTION(GetFacing, 0x6E6F60, __thiscall, double, (CGUnit*))

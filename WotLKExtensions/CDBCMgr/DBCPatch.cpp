@@ -372,6 +372,82 @@ void** DBCPatch::SlotFor(WoWClientDB* db, uint32_t id)
 	return nullptr;
 }
 
+static bool RowsAreInlineStorage(void** byId, int idCount, const void* denseBase,
+    int denseCount, uint32_t recordSize)
+{
+	if (!byId || !denseBase || idCount <= 0 || denseCount <= 0 || recordSize == 0)
+		return false;
+	uintptr_t lo = reinterpret_cast<uintptr_t>(denseBase);
+	uintptr_t hi = lo + static_cast<size_t>(denseCount) * recordSize;
+	for (int i = 0; i < idCount; ++i)
+	{
+		uintptr_t p = reinterpret_cast<uintptr_t>(byId[i]);
+		if (p >= lo && p < hi && (p - lo) % recordSize == 0)
+			return true;
+	}
+	return false;
+}
+
+void DBCPatch::RebuildInlineDense(WoWClientDB* db, void** byId, int idCount, size_t count,
+    uint32_t recordSize)
+{
+	uint8_t* dense = static_cast<uint8_t*>(
+	    SMem::Alloc(count * recordSize, "DBCDenseInline", __LINE__, 0));
+	if (!dense)
+		return;
+	AddPatchedRange(dense, dense + count * recordSize);
+
+	size_t w = 0;
+	for (int i = 0; i < idCount; ++i)
+	{
+		if (!byId[i])
+			continue;
+		uint8_t* dst = dense + w * recordSize;
+		std::memcpy(dst, byId[i], recordSize);
+		byId[i] = dst;
+		++w;
+	}
+	db->FirstRow = reinterpret_cast<int32_t*>(dense);
+	db->numRows = static_cast<int>(count);
+	LOG_DEBUG << "DBC dense rebuild (inline) rows=" << (int)count << " recSize=" << recordSize;
+}
+
+void DBCPatch::RebuildPointerDense(WoWClientDB* db, void** byId, int idCount, size_t count)
+{
+	void** dense = static_cast<void**>(
+	    SMem::Alloc(count * sizeof(void*), "DBCDensePtrs", __LINE__, 0));
+	if (!dense)
+		return;
+
+	size_t w = 0;
+	for (int i = 0; i < idCount; ++i)
+		if (byId[i])
+			dense[w++] = byId[i];
+	db->FirstRow = reinterpret_cast<int32_t*>(dense);
+	db->numRows = static_cast<int>(count);
+	LOG_DEBUG << "DBC dense rebuild (pointer) rows=" << (int)count;
+}
+
+void DBCPatch::RebuildDenseArray(WoWClientDB* db, uint32_t recordSize, bool inlineStorage)
+{
+	if (!db->Rows || db->maxIndex < db->minIndex || recordSize == 0)
+		return;
+
+	void** byId = reinterpret_cast<void**>(db->Rows);
+	int idCount = db->maxIndex - db->minIndex + 1;
+	size_t count = 0;
+	for (int i = 0; i < idCount; ++i)
+		if (byId[i])
+			++count;
+	if (count == 0)
+		return;
+
+	if (inlineStorage)
+		RebuildInlineDense(db, byId, idCount, count, recordSize);
+	else
+		RebuildPointerDense(db, byId, idCount, count);
+}
+
 void DBCPatch::FixupStrings(void* record, const std::vector<uint16_t>& strOffsets,
     const char* internedBlob, uint32_t blobSize)
 {
@@ -427,7 +503,10 @@ bool DBCPatch::ApplyRecords(const char* dbcName, uint32_t recordSize,
 		return false;
 	}
 
-	// Persistent copy of the string block: record string pointers reference it forever.
+	int idSpan = db->maxIndex - db->minIndex + 1;
+	bool inlineStorage = RowsAreInlineStorage(
+	    reinterpret_cast<void**>(db->Rows), idSpan, db->FirstRow, db->numRows, recordSize);
+
 	char* blob = nullptr;
 	if (strBlockSize && strBlock)
 	{
@@ -472,5 +551,7 @@ bool DBCPatch::ApplyRecords(const char* dbcName, uint32_t recordSize,
 		WriteRecord(rec, images + i * recordSize, recordSize, strOffsets, blob, strBlockSize);
 		*slot = rec;
 	}
+
+	RebuildDenseArray(db, recordSize, inlineStorage);
 	return true;
 }
