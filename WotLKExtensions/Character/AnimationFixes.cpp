@@ -2,10 +2,12 @@
 
 #include <ClientDetours.h>
 #include <ClientData/SharedDefines.h>
+#include <Config/LauncherSettings.h>
 
 #include <cstring>
 #include <intrin.h>
 #include <vector>
+#include <ClientData/Animation.h>
 #include <ClientData/Spell.h>
 #include <ClientData/ObjectFields.h>
 
@@ -13,11 +15,8 @@ using namespace ClientData;
 
 namespace
 {
-#ifdef ENABLE_MONK_UNARMED
 	constexpr uint32_t SPELL_AURA_MONK_UNARMED = 336;
 	constexpr uint8_t CLASS_MONK = 10;
-#endif
-	constexpr uintptr_t ANIMATION_DATA_DB = 0x00AD30C8;
 	constexpr uintptr_t UNIT_MOVEMENT_FLAGS_OFFSET = 0x7CC;
 	constexpr uint32_t MOVE_FLAG_DIRECTIONAL = 0x0000000F;
 	constexpr uint32_t MOVE_FLAG_BACKWARD = 0x00000002;
@@ -42,42 +41,6 @@ namespace
 	constexpr uintptr_t UNIT_SPECIAL_BONE_SEQUENCE_SLOT_OFFSET = 0xB84;
 	constexpr uint32_t UNIT_HAND_ITEM_MAINHAND_ACTIVE = 0x100000;
 	constexpr uint32_t UNIT_HAND_ITEM_OFFHAND_ACTIVE = 0x200000;
-	constexpr int ANIMATION_ATTACK_UNARMED = 16;
-	constexpr int ANIMATION_ATTACK_1H = 17;
-	constexpr int ANIMATION_ATTACK_2H = 18;
-	constexpr int ANIMATION_ATTACK_2H_LOOSE = 19;
-	constexpr int ANIMATION_JUMP_START = 37;
-	constexpr int ANIMATION_FALL = 40;
-	constexpr int ANIMATION_SWIM_IDLE = 41;
-	constexpr int ANIMATION_SWIM = 42;
-	constexpr int ANIMATION_SWIM_BACKWARDS = 45;
-	constexpr int ANIMATION_WALK = 4;
-	constexpr int ANIMATION_RUN = 5;
-	constexpr int ANIMATION_RUN_BACKWARDS = 13;
-	constexpr int ANIMATION_SPECIAL_1H = 57;
-	constexpr int ANIMATION_SPECIAL_2H = 58;
-	constexpr int ANIMATION_SPRINT = 143;
-	constexpr int ANIMATION_CURRENT_OR_NONE = 506;
-	constexpr int ANIMATION_CHANNEL_CAST_DIRECTED = 124;
-	constexpr int ANIMATION_CHANNEL_CAST_OMNI = 125;
-	constexpr int ANIMATION_ATTACK_1H_PIERCE = 85;
-	constexpr int ANIMATION_ATTACK_2H_LOOSE_PIERCE = 86;
-	constexpr int ANIMATION_ATTACK_OFFHAND = 87;
-	constexpr int ANIMATION_ATTACK_OFFHAND_PIERCE = 88;
-	constexpr int ANIMATION_ATTACK_UNARMED_OFFHAND = 117;
-	constexpr int ANIMATION_SPECIAL_UNARMED = 118;
-
-	struct AnimationDataRow
-	{
-		uint32_t id;
-		const char* name;
-		uint32_t weaponFlags;
-		uint32_t bodyFlags;
-		uint32_t flags;
-		uint32_t fallback;
-		uint32_t behaviorId;
-		uint32_t behaviorTier;
-	};
 
 	struct AnimationSequenceState
 	{
@@ -87,9 +50,7 @@ namespace
 		float speed;
 	};
 
-#ifdef ENABLE_MONK_UNARMED
 	CLIENT_FUNCTION(CGUnit_C__IsSpellKnown_MonkUnarmed, 0x7260E0, __thiscall, bool, (CGUnit*, uint32_t))
-#endif
 	CLIENT_FUNCTION(CMovement__CalcCurrentSpeed_ChannelLowerBody, 0x987570, __thiscall, float, (void*, int))
 	CLIENT_FUNCTION(CGUnit_C__ResolveCurrentAnimation_ChannelLowerBody, 0x724500, __thiscall, int, (void*, int, char*, void*))
 	CLIENT_FUNCTION(CGUnit_C__SetBoneSequence_ChannelLowerBody, 0x735820, __thiscall, void, (void*, uintptr_t, int, int, float, int, float, int, int, int))
@@ -106,7 +67,6 @@ namespace
 	bool CM2ModelHasDirectSequence(void* model, unsigned int animationId);
 	int ResolveExtendedModelAnimationId(uintptr_t unit, int animationId, void* model);
 
-#ifdef ENABLE_MONK_UNARMED
 	bool SpellHasAuraType(SpellRow const& row, uint32_t auraType)
 	{
 		for (size_t effectIndex = 0; effectIndex < 3; ++effectIndex)
@@ -181,6 +141,9 @@ namespace
 
 	bool ShouldPreventMeleeUnsheath(CGUnit* unit)
 	{
+		if (!sLauncherSettings.HdPatch())
+			return false;
+
 		return UnitIsMonk(unit) || UnitHasAuraType(unit, SPELL_AURA_MONK_UNARMED) || UnitKnowsAuraTypeSpell(unit, SPELL_AURA_MONK_UNARMED);
 	}
 
@@ -226,24 +189,23 @@ namespace
 			return -1;
 
 		if (IsMonkUnarmedOffhandAttackBehavior(static_cast<uint32_t>(animationId)))
-			return ANIMATION_ATTACK_UNARMED_OFFHAND;
+			return ANIMATION_MONK_ATTACK_OFFHAND;
 
 		if (IsMonkUnarmedMainhandAttackBehavior(static_cast<uint32_t>(animationId)))
-			return ANIMATION_ATTACK_UNARMED;
+			return ANIMATION_MONK_ATTACK_MAINHAND;
 
 		auto* row = reinterpret_cast<AnimationDataRow*>(ClientDB::GetRow(reinterpret_cast<void*>(ANIMATION_DATA_DB), animationId));
 		if (!row)
 			return -1;
 
 		if (IsMonkUnarmedOffhandAttackBehavior(row->behaviorId))
-			return ANIMATION_ATTACK_UNARMED_OFFHAND;
+			return ANIMATION_MONK_ATTACK_OFFHAND;
 
 		if (IsMonkUnarmedMainhandAttackBehavior(row->behaviorId))
-			return ANIMATION_ATTACK_UNARMED;
+			return ANIMATION_MONK_ATTACK_MAINHAND;
 
 		return -1;
 	}
-#endif
 
 	bool IsChannelCastAnimation(int animationId)
 	{
@@ -542,7 +504,6 @@ namespace
 		return -1;
 	}
 
-#ifdef ENABLE_MONK_UNARMED
 	uint32_t& UnitSheatheState(uintptr_t unit, uintptr_t offset)
 	{
 		return *reinterpret_cast<uint32_t*>(unit + offset);
@@ -588,7 +549,6 @@ namespace
 
 		CGUnit_C__AnimationData_MonkUnarmed(self, animationId, flags);
 	}
-#endif
 
 	CLIENT_DETOUR_THISCALL(CGUnit_C__ApplyAnimationSequence_ChannelLowerBody, 0x737EF0, void, (AnimationSequenceState * sequence, int previousAnimationId, int useSpecialBoneSlot, int currentAnimationId, int allowTransition, int primary))
 	{
@@ -617,7 +577,6 @@ namespace
 		           : -1;
 	}
 
-#ifdef ENABLE_MONK_UNARMED
 	CLIENT_DETOUR_THISCALL(CGUnit_C__HandleModelSequenceCallback_MonkUnarmed, 0x73BBD0, void, (void* model, int boneSeqSlot, int animationId, int a5, int a6))
 	{
 		const int monkUnarmedAnimationId = GetMonkUnarmedAttackAnimation(animationId);
@@ -626,15 +585,12 @@ namespace
 
 		CGUnit_C__HandleModelSequenceCallback_MonkUnarmed(self, model, boneSeqSlot, animationId, a5, a6);
 	}
-#endif
 
 	CLIENT_DETOUR_THISCALL(CGUnit_C__ResolveModelAnimationId_MonkUnarmed, 0x7176F0, int, (int animationId, void* model))
 	{
-#ifdef ENABLE_MONK_UNARMED
 		const int monkUnarmedAnimationId = GetMonkUnarmedAttackAnimation(animationId);
 		if (monkUnarmedAnimationId != -1 && ShouldPreventMeleeUnsheath(reinterpret_cast<CGUnit*>(self)))
 			animationId = monkUnarmedAnimationId;
-#endif
 
 		if (animationId > ANIMATION_CURRENT_OR_NONE)
 		{
@@ -649,7 +605,6 @@ namespace
 		return CGUnit_C__ResolveModelAnimationId_MonkUnarmed(self, animationId, model);
 	}
 
-#ifdef ENABLE_MONK_UNARMED
 	CLIENT_DETOUR_THISCALL(CGUnit_C__ApplyModelAnimationSequence_MonkUnarmed, 0x737BD0, void, (void* model, int boneSeqSlot, unsigned int sequence))
 	{
 		if (ShouldPreventMeleeUnsheath(reinterpret_cast<CGUnit*>(self)))
@@ -744,7 +699,6 @@ namespace
 
 		return CGUnit_C__AttachOffHandItem_MonkUnarmed(self);
 	}
-#endif
 
 	CLIENT_DETOUR_THISCALL(CGUnit_C__SetHandItemBoneSequence_MonkUnarmed, 0x735820, void, (uintptr_t model, int boneSeqSlot, int sequence, float sequenceTime, int a6, float speed, int a8, int a9, int a10))
 	{
@@ -759,7 +713,6 @@ namespace
 			boneSeqSlot = *reinterpret_cast<int*>(unit + UNIT_SPECIAL_BONE_SEQUENCE_SLOT_OFFSET);
 		}
 
-#ifdef ENABLE_MONK_UNARMED
 		if (ShouldPreventMeleeUnsheath(reinterpret_cast<CGUnit*>(self)))
 		{
 			if (IsHandItemAttachSequence(boneSeqSlot, sequence))
@@ -772,7 +725,6 @@ namespace
 			if (monkUnarmedAnimationId != -1)
 				sequence = monkUnarmedAnimationId;
 		}
-#endif
 
 		CGUnit_C__SetHandItemBoneSequence_MonkUnarmed(self, model, boneSeqSlot, sequence, sequenceTime, a6, speed, a8, a9, a10);
 	}
@@ -855,7 +807,6 @@ namespace
 
 	void MonkUnarmedSheathFix()
 	{
-#ifdef ENABLE_MONK_UNARMED
 		(void)CGUnit_C__SetSheatheState_MonkUnarmed__Result;
 		(void)CGUnit_C__AnimationData_MonkUnarmed__Result;
 		(void)CGUnit_C__HandleModelSequenceCallback_MonkUnarmed__Result;
@@ -866,10 +817,14 @@ namespace
 		(void)CGUnit_C__MoveHandItemAttachment_MonkUnarmed__Result;
 		(void)CGUnit_C__AttachMainHandItem_MonkUnarmed__Result;
 		(void)CGUnit_C__AttachOffHandItem_MonkUnarmed__Result;
-#endif
 		(void)CGUnit_C__ResolveModelAnimationId_MonkUnarmed__Result;
 		(void)CGUnit_C__SetHandItemBoneSequence_MonkUnarmed__Result;
 	}
+}
+
+bool AnimationFixes::ShouldUseUnarmedAnimations(void* unit)
+{
+	return ShouldPreventMeleeUnsheath(reinterpret_cast<CGUnit*>(unit));
 }
 
 void AnimationFixes::Apply()

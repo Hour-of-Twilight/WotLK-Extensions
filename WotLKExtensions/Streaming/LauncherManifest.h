@@ -19,17 +19,8 @@ namespace Streaming
 		std::vector<ManifestFile> files;
 	};
 
-	struct LauncherSettings
-	{
-		bool hdPatch = false;
-		long long maxBytesPerSecond = 0; // 0 = unlimited
-	};
-
 	// <installDir>/launcher.json -> manifest URL + patch base URL (defaults if missing).
 	void LoadLauncherUrls(const std::wstring& installDir, std::wstring& manifestUrl, std::string& patchBaseUrl);
-
-	// <installDir>/.hotlauncher/settings.json
-	LauncherSettings LoadLauncherSettings(const std::wstring& installDir);
 
 	bool ParseManifest(const std::string& json, Manifest& out);
 }

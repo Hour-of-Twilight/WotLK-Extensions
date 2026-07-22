@@ -216,6 +216,9 @@ namespace DbcFromMpq
 					size_t stemLen = stemEnd - stemStart;
 					if (stemLen >= 5 && iequal_n(stem, "spell", 5))
 						result.spellDataChanged = true;
+					// achievement, achievement_Category and achievement_Criteria all feed the index.
+					if (stemLen >= 11 && iequal_n(stem, "achievement", 11))
+						result.achievementDataChanged = true;
 					if (IsCustomDbc(stem, stemLen))
 					{
 						if (GlobalCDBCMap.hasRowWriter(std::string(stem, stemLen)))

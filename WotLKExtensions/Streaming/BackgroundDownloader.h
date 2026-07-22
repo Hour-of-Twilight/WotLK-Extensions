@@ -16,6 +16,8 @@ namespace Streaming
 
 		void Trigger();
 
+		void StartPolling();
+
 		void PumpMainThread();
 
 		bool IsActive();

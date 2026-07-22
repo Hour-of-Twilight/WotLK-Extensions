@@ -31,7 +31,6 @@ void TalentFramePackets::SendU32(uint32_t opcode, uint32_t value)
 	Packet(opcode).PutUInt32(value).Send();
 }
 
-
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_CACHE(void*, uint32_t, uint32_t, CDataStore* a3)
 {
 	Packet r(a3);

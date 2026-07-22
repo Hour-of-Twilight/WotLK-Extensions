@@ -8,6 +8,9 @@ namespace DebugOutputCvar
 	void Apply()
 	{
 		sCvars.Register("debugOutput", "Enable verbose DLL debug logging.", false,
-			[](Cvar& c) { Util::SetDebugOutput(c.AsBool()); });
+		    [](Cvar& c)
+		{
+			Util::SetDebugOutput(c.AsBool());
+		});
 	}
 }

@@ -6,18 +6,15 @@
 #include "Rendering/MSDF/MSDFBootstrap.h"
 #include <Editor/EditorRuntime.h>
 #include <Character/AnimationFixes.h>
+#include <Config/LauncherSettings.h>
 #include <FeatureCvars.h>
 #include <Logger.h>
-#include <Diagnostics/CrashDump.h>
-#include <Diagnostics/DebugSupport.h>
 void Main::OnAttach()
 {
-	CrashDump::Install();
-	DebugSupport::Apply();
-	DebugSupport::WaitForDebuggerIfRequested();
 	sLog.Reset();
+	sLauncherSettings.Load();
 	Init();
-	if(!Util::IsWine())
+	if (!Util::IsWine())
 		MSDFBootstrap::initialize();
 	sMpqScanner.Start();
 	// Apply patches
@@ -64,13 +61,10 @@ DWORD WINAPI DebuggerCheckThread(LPVOID)
 {
 	static bool displayed = false;
 
-	if (DebugSupport::IntentionalDebugging())
-		return 0;
-
 	if (!displayed && IsDebuggerPresent())
 	{
 		displayed = true;
-		MessageBoxA(nullptr, "Hey stinky! You can just ask to see bits of code.", "Nerd", MB_OK | MB_ICONEXCLAMATION);
+		MessageBoxA(nullptr, "Brother, this shit is on github, https://github.com/Hour-of-Twilight/WotLK-Extensions", "Nerd", MB_OK | MB_ICONEXCLAMATION);
 	}
 
 	return 0;
@@ -81,7 +75,6 @@ bool __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 	if (fdwReason == DLL_PROCESS_ATTACH)
 	{
 		DisableThreadLibraryCalls(hinstDLL);
-		CrashDump::Install();
 		CreateThread(nullptr, 0, [](LPVOID) -> DWORD
 		{
 			Main::OnAttach();

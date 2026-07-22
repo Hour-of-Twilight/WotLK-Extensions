@@ -8,14 +8,14 @@ namespace StartupDownloaderCvar
 	void Apply()
 	{
 		sCvars.Register("enableStartupDownloader", "Run the background asset downloader on startup.", true,
-			[](Cvar& c)
+		    [](Cvar& c)
+		{
+			static bool started = false;
+			if (c.AsBool() && !started)
 			{
-				static bool started = false;
-				if (c.AsBool() && !started)
-				{
-					started = true;
-					sBackgroundDownloader.Start();
-				}
-			});
+				started = true;
+				sBackgroundDownloader.Start();
+			}
+		});
 	}
 }

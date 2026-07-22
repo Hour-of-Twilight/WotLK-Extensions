@@ -1,6 +1,6 @@
 #include "Cvar.h"
 
-#include <ClientData/SharedDefines.h>  // ClientData::CVar
+#include <ClientData/SharedDefines.h>   // ClientData::CVar
 #include <ClientData/ClientFunctions.h> // CVar_C::SetCvar
 #include <cstdio>
 #include <cstdlib>

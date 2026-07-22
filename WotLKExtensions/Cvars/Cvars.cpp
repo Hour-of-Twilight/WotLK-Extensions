@@ -1,6 +1,6 @@
 #include "Cvars.h"
 
-#include <ClientData/SharedDefines.h>  // CVar_C::Register, ClientData::CVar
+#include <ClientData/SharedDefines.h> // CVar_C::Register, ClientData::CVar
 #include <ClientDetours.h>
 #include <cstdio>
 
@@ -60,13 +60,13 @@ Cvar& Cvars::RegisterInternal(const char* name, const char* help, const char* de
 void Cvars::CreateHandle(Cvar& cvar)
 {
 	cvar.m_handle = CVar_C::Register(
-		const_cast<char*>(cvar.m_name.c_str()),
-		const_cast<char*>(cvar.m_help.c_str()),
-		/*flags*/ 1,
-		const_cast<char*>(cvar.m_default.c_str()),
-		&OnCvarChanged,
-		/*category*/ 5,
-		0, 0, 0);
+	    const_cast<char*>(cvar.m_name.c_str()),
+	    const_cast<char*>(cvar.m_help.c_str()),
+	    /*flags*/ 1,
+	    const_cast<char*>(cvar.m_default.c_str()),
+	    &OnCvarChanged,
+	    /*category*/ 5,
+	    0, 0, 0);
 
 	if (cvar.m_handle && cvar.m_handle->m_stringValue.string)
 		cvar.m_value = cvar.m_handle->m_stringValue.string;

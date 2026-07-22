@@ -1,11 +1,13 @@
 #include "DBCRecordPackets.h"
 #include "Packet.h"
 
+#include <ClientData/Achievements.h>
 #include <CustomPacket.h>
 #include <DBCPatch.h>
 #include <SharedDefines.h>
 
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 void DBCRecordPackets::Handler_SMSG_DBC_RECORD_UPDATE(void*, uint32_t, uint32_t, CDataStore* pkt)
@@ -39,6 +41,10 @@ void DBCRecordPackets::Handler_SMSG_DBC_RECORD_UPDATE(void*, uint32_t, uint32_t,
 
 	DBCPatch::ApplyRecords(dbcName, recordSize, strOffsets, ids, images.data(),
 	    blob.empty() ? nullptr : blob.data(), blobSize);
+
+	// Achievement rows also live in CGAchievementInfo's own index, which DBC patching doesn't touch.
+	if (_strnicmp(dbcName, "achievement", 11) == 0)
+		ClientData::Achievements::RequestRebuild();
 
 	r.Release();
 }

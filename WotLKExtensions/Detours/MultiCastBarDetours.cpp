@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <cstring>
 
-
 static constexpr uint32_t kSummonPropertiesDB = 0x00AD4B38 + 0x18;
 
 // Match server SharedDefines.

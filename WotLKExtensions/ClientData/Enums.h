@@ -91,6 +91,10 @@ enum CustomOpcodes
 	SMSG_GEM_SOCKET_COST = 1379,
 	SMSG_GEM_SOCKET_OPEN = 1380,
 
+	// Sent after the client rebuilds CGAchievementInfo's index (which drops the earned/criteria
+	// progress) to ask the server to resend the achievement data. See ClientData/Achievements.h.
+	CMSG_ACHIEVEMENT_DATA_REQUEST = 1381,
+
 	NUM_CUSTOM_MSG_TYPES
 };
 

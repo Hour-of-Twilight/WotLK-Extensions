@@ -149,15 +149,15 @@ void UnitLevelCache::Handler_SMSG_UNIT_LEVEL_CACHE_RESPONSE(void*, uint32_t, uin
 		    (unsigned long long)guid, value, subClass);
 		if (guid == ClntObjMgr::GetActivePlayer())
 			FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_PLAYER_ITEM_LEVEL"), "%u", value);
-		//else if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
+		// else if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
 		//	ApplyPlayerItemLevel(unit, value);
 	}
 	else
 	{
 		sUnitLevelCache.SetCreatureDungeonLevel(guid, value);
 		Util::DebugOutput("UnitLevelCache: GUID %016llX  type=creature  dlvl=%u", (unsigned long long)guid, value);
-		//if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
-			//ApplyCreatureDungeonLevel(unit, value);
+		// if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
+		// ApplyCreatureDungeonLevel(unit, value);
 	}
 }
 

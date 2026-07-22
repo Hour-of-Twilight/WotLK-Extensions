@@ -107,11 +107,6 @@ if(AUTO_UPDATER_IGNORES_DLL)
     target_compile_definitions(WotLKExtensions PRIVATE AUTO_UPDATER_IGNORES_DLL)
 endif()
 
-option(ENABLE_MONK_UNARMED "Build unarmed animation detours" OFF)
-if(ENABLE_MONK_UNARMED)
-    target_compile_definitions(WotLKExtensions PRIVATE ENABLE_MONK_UNARMED)
-endif()
-
 # ---- Logging configuration ----
 set(LOG_LEVELS DEBUG INFO WARN ERROR NONE)
 set(LOG_LEVEL DEBUG CACHE STRING "Logging level")

@@ -9,9 +9,12 @@
 #include "DbcFromMpq.h"
 #include <ClientData/SharedDefines.h>
 #include <ClientData/Spell.h>
+#include <ClientData/Achievements.h>
 #include <ClientData/ObjectManager.h>
+#include <Packets/Packet.h>
 #include <ClientDetours.h>
 #include <ClientData/ClientFunctions.h>
+#include <Config/LauncherSettings.h>
 #include <Helpers/Util.h>
 #include <Logger.h>
 #include "Lua/CustomLua.h"
@@ -21,10 +24,13 @@
 
 #include <atomic>
 #include <thread>
+#include <chrono>
 #include <mutex>
 #include <string>
 #include <vector>
 #include <deque>
+#include <map>
+#include <set>
 #include <functional>
 #include <utility>
 #include <filesystem>
@@ -33,6 +39,7 @@
 #include <cstring>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <iterator>
 
@@ -44,7 +51,10 @@ namespace Streaming
 	{
 		std::atomic<bool> g_started{ false };
 		std::atomic<bool> g_running{ false };
+		std::atomic<bool> g_pollerStarted{ false };
 		std::wstring g_installDir;
+
+		constexpr unsigned kPollIntervalMs = 5 * 60 * 1000;
 
 		std::atomic<bool> g_active{ false };
 		std::atomic<long long> g_baseBytes{ 0 };
@@ -57,6 +67,18 @@ namespace Streaming
 		std::mutex g_statusMutex;
 		std::string g_currentFile;
 
+		constexpr unsigned long long kProgressJoinMs = 30000;
+		std::atomic<unsigned long long> g_lastProgressMs{ 0 };
+
+		void ResetProgress()
+		{
+			g_filesDone = 0;
+			g_filesTotal = 0;
+			g_baseBytes = 0;
+			g_doneBytes = 0;
+			g_totalBytes = 0;
+		}
+
 		void StreamLog(const char* fmt, ...)
 		{
 			char buf[1024];
@@ -67,7 +89,8 @@ namespace Streaming
 			sLog.Write("DEBUG", "stream", buf);
 		}
 
-		constexpr int kMountPriority = 1000000;
+		constexpr int kMountPriorityBase = 1000000;
+		std::atomic<int> g_nextMountPriority{ kMountPriorityBase };
 
 		std::wstring Widen(const std::string& s)
 		{
@@ -114,15 +137,44 @@ namespace Streaming
 			return ext == ".mpq";
 		}
 
-		std::wstring StagedPath(const std::wstring& local, bool isMpq)
+		std::wstring LowerPath(std::wstring p)
 		{
-			if (!isMpq)
-				return local + L".new";
-			size_t dot = local.find_last_of(L'.');
-			if (dot == std::wstring::npos)
-				return local + L".new.mpq";
-			return local.substr(0, dot) + L".new" + local.substr(dot);
+			for (wchar_t& c : p)
+			{
+				if (c == L'/')
+					c = L'\\';
+				else if (c >= L'A' && c <= L'Z')
+					c = (wchar_t)(c + 32);
+			}
+			return p;
 		}
+
+		bool PathEqual(const std::wstring& a, const std::wstring& b)
+		{
+			return a.size() == b.size() && LowerPath(a) == LowerPath(b);
+		}
+
+		std::wstring StagedPath(const std::wstring& local, const std::string& sha)
+		{
+			std::wstring tag = L".new-" + Widen(sha.substr(0, 8));
+			size_t dot = local.find_last_of(L'.');
+			size_t slash = local.find_last_of(L"/\\");
+			if (dot == std::wstring::npos || (slash != std::wstring::npos && dot < slash))
+				return local + tag;
+			return local.substr(0, dot) + tag + local.substr(dot);
+		}
+
+		bool StartsWithNoCase(const std::wstring& s, const std::wstring& pre)
+		{
+			return s.size() >= pre.size() && LowerPath(s.substr(0, pre.size())) == LowerPath(pre);
+		}
+
+		bool EndsWithNoCase(const std::wstring& s, const std::wstring& suf)
+		{
+			return s.size() >= suf.size() &&
+			    LowerPath(s.substr(s.size() - suf.size())) == LowerPath(suf);
+		}
+
 		std::wstring AppendQuery(const std::wstring& url, const std::wstring& key, const std::wstring& value)
 		{
 			wchar_t sep = (url.find(L'?') == std::wstring::npos) ? L'?' : L'&';
@@ -170,9 +222,132 @@ namespace Streaming
 			return ec ? -1 : (long long)s;
 		}
 
+		long long FileMtime(const std::wstring& p)
+		{
+			std::error_code ec;
+			auto t = fs::last_write_time(p, ec);
+			return ec ? -1 : (long long)t.time_since_epoch().count();
+		}
+
 		fs::path PendingFile()
 		{
 			return fs::path(g_installDir) / "Cache" / "hotstream-pending.txt";
+		}
+
+		fs::path HashCacheFile()
+		{
+			return fs::path(g_installDir) / "Cache" / "hotstream-local.txt";
+		}
+
+		struct HashEntry
+		{
+			long long size;
+			long long mtime;
+			std::string sha;
+		};
+
+		std::map<std::wstring, HashEntry> g_localHashes;
+		bool g_localHashesDirty = false;
+
+		void LoadLocalHashes()
+		{
+			g_localHashes.clear();
+			g_localHashesDirty = false;
+			std::ifstream in(HashCacheFile(), std::ios::binary);
+			std::string line;
+			while (in && std::getline(in, line))
+			{
+				if (!line.empty() && line.back() == '\r')
+					line.pop_back();
+				size_t a = line.find('|');
+				size_t b = (a == std::string::npos) ? a : line.find('|', a + 1);
+				size_t c = (b == std::string::npos) ? b : line.find('|', b + 1);
+				if (c == std::string::npos)
+					continue;
+				HashEntry e;
+				e.size = _atoi64(line.substr(0, a).c_str());
+				e.mtime = _atoi64(line.substr(a + 1, b - a - 1).c_str());
+				e.sha = line.substr(b + 1, c - b - 1);
+				std::string path = line.substr(c + 1);
+				if (!path.empty())
+					g_localHashes[LowerPath(WidenAcp(path))] = e;
+			}
+		}
+
+		void SaveLocalHashes()
+		{
+			if (!g_localHashesDirty)
+				return;
+			std::error_code ec;
+			fs::create_directories(HashCacheFile().parent_path(), ec);
+			std::ofstream f(HashCacheFile(), std::ios::trunc | std::ios::binary);
+			if (!f)
+				return;
+			for (const auto& kv : g_localHashes)
+				f << kv.second.size << "|" << kv.second.mtime << "|" << kv.second.sha << "|"
+				  << NarrowAcp(kv.first) << "\r\n";
+			g_localHashesDirty = false;
+		}
+
+		void RememberLocal(const std::wstring& path, const std::string& sha)
+		{
+			long long size = FileSize(path);
+			long long mtime = FileMtime(path);
+			if (size < 0 || mtime < 0)
+				return;
+			g_localHashes[LowerPath(path)] = HashEntry{ size, mtime, sha };
+			g_localHashesDirty = true;
+		}
+
+		bool LocalMatches(const std::wstring& path, const std::string& sha)
+		{
+			long long size = FileSize(path);
+			long long mtime = FileMtime(path);
+			if (size < 0 || mtime < 0)
+				return false;
+
+			auto it = g_localHashes.find(LowerPath(path));
+			if (it != g_localHashes.end() && it->second.size == size && it->second.mtime == mtime)
+				return _stricmp(it->second.sha.c_str(), sha.c_str()) == 0;
+
+			std::string got = Sha256File(path);
+			if (got.empty())
+				return false;
+			g_localHashes[LowerPath(path)] = HashEntry{ size, mtime, got };
+			g_localHashesDirty = true;
+			return _stricmp(got.c_str(), sha.c_str()) == 0;
+		}
+
+		std::wstring ToBackslashes(std::wstring p)
+		{
+			for (wchar_t& c : p)
+				if (c == L'/')
+					c = L'\\';
+			return p;
+		}
+
+		struct PendingMove
+		{
+			std::wstring src;
+			std::wstring dst;
+		};
+
+		std::mutex g_pendingMutex;
+		std::vector<PendingMove> g_pendingMoves;
+		std::vector<std::wstring> g_pendingDeletes;
+
+		void WritePendingLocked()
+		{
+			std::error_code ec;
+			fs::create_directories(PendingFile().parent_path(), ec);
+			std::ofstream f(PendingFile(), std::ios::trunc | std::ios::binary);
+			if (!f)
+				return;
+			for (const PendingMove& m : g_pendingMoves)
+				f << "M|" << NarrowAcp(ToBackslashes(m.src)) << "|" << NarrowAcp(ToBackslashes(m.dst))
+				  << "\r\n";
+			for (const std::wstring& d : g_pendingDeletes)
+				f << "D|" << NarrowAcp(ToBackslashes(d)) << "\r\n";
 		}
 
 		void SpawnCloseSwapHelper()
@@ -193,8 +368,10 @@ namespace Streaming
 				b << ":wait\r\n";
 				b << "tasklist /fi \"PID eq " << pid << "\" /nh 2>nul | find \"" << pid
 				  << "\" >nul && ( ping -n 2 127.0.0.1 >nul & goto wait )\r\n";
-				b << "for /f \"usebackq tokens=1,2 delims=|\" %%a in (\"" << pend
-				  << "\") do move /y \"%%a\" \"%%b\" >nul 2>&1\r\n";
+				b << "for /f \"usebackq tokens=1,2,3 delims=|\" %%a in (\"" << pend << "\") do (\r\n";
+				b << "  if \"%%a\"==\"M\" move /y \"%%b\" \"%%c\" >nul 2>&1\r\n";
+				b << "  if \"%%a\"==\"D\" del /q \"%%b\" >nul 2>&1\r\n";
+				b << ")\r\n";
 				b << "del /q \"" << pend << "\" >nul 2>&1\r\n";
 				b << "del /q \"%~f0\" >nul 2>&1\r\n";
 			}
@@ -220,76 +397,117 @@ namespace Streaming
 			}
 		}
 
-		std::wstring ToBackslashes(std::wstring p)
-		{
-			for (wchar_t& c : p)
-				if (c == L'/')
-					c = L'\\';
-			return p;
-		}
-
 		void RecordPending(const std::wstring& newPath, const std::wstring& target, bool needsRestart)
 		{
-			std::string entry = NarrowAcp(ToBackslashes(newPath)) + "|" + NarrowAcp(ToBackslashes(target));
-
-			std::ifstream in(PendingFile(), std::ios::binary);
-			std::string line;
-			while (in && std::getline(in, line))
 			{
-				if (!line.empty() && line.back() == '\r')
-					line.pop_back();
-				if (line == entry)
+				std::lock_guard<std::mutex> lock(g_pendingMutex);
+				for (auto it = g_pendingMoves.begin(); it != g_pendingMoves.end();)
 				{
-					if (needsRestart)
-						g_restartNeeded = true;
-					SpawnCloseSwapHelper();
-					return;
+					if (!PathEqual(it->dst, target))
+					{
+						++it;
+						continue;
+					}
+					if (!PathEqual(it->src, newPath))
+					{
+						StreamLog("stream: superseding staged %s", NarrowAcp(it->src).c_str());
+						g_pendingDeletes.push_back(it->src);
+					}
+					it = g_pendingMoves.erase(it);
 				}
+				g_pendingMoves.push_back(PendingMove{ newPath, target });
+				WritePendingLocked();
 			}
-			in.close();
-
-			std::error_code ec;
-			fs::create_directories(PendingFile().parent_path(), ec);
-			std::ofstream f(PendingFile(), std::ios::app | std::ios::binary);
-			if (f)
-				f << entry << "\r\n";
 			if (needsRestart)
 				g_restartNeeded = true;
 			SpawnCloseSwapHelper();
 		}
 
+		void DropStaged(const std::wstring& path)
+		{
+			std::error_code ec;
+			if (!fs::exists(path, ec))
+				return;
+
+			bool queued = false;
+			{
+				std::lock_guard<std::mutex> lock(g_pendingMutex);
+				for (auto it = g_pendingMoves.begin(); it != g_pendingMoves.end();)
+					it = PathEqual(it->src, path) ? g_pendingMoves.erase(it) : it + 1;
+
+				if (fs::remove(path, ec))
+				{
+					StreamLog("stream: removed stale staged %s", NarrowAcp(path).c_str());
+				}
+				else
+				{
+					bool known = false;
+					for (const std::wstring& d : g_pendingDeletes)
+						known = known || PathEqual(d, path);
+					if (!known)
+						g_pendingDeletes.push_back(path);
+					queued = true;
+				}
+				WritePendingLocked();
+			}
+			if (queued)
+			{
+				StreamLog("stream: stale staged %s in use, deleting on exit", NarrowAcp(path).c_str());
+				SpawnCloseSwapHelper();
+			}
+		}
+
+		void SweepStagedSiblings(const std::wstring& local, const std::wstring& keep)
+		{
+			fs::path lp(local);
+			std::wstring prefix = lp.stem().wstring() + L".new-";
+			std::wstring ext = lp.extension().wstring();
+
+			std::error_code ec;
+			std::vector<std::wstring> stale;
+			for (const fs::directory_entry& e : fs::directory_iterator(lp.parent_path(), ec))
+			{
+				if (!e.is_regular_file(ec))
+					continue;
+				std::wstring name = e.path().filename().wstring();
+				if (name.size() <= prefix.size() + ext.size())
+					continue;
+				if (!StartsWithNoCase(name, prefix) || !EndsWithNoCase(name, ext))
+					continue;
+				if (!PathEqual(e.path().wstring(), keep))
+					stale.push_back(e.path().wstring());
+			}
+			for (const std::wstring& s : stale)
+				DropStaged(s);
+		}
+
 		void ApplyPending()
 		{
-			std::ifstream in(PendingFile(), std::ios::binary);
-			if (!in)
-				return;
-			std::vector<std::string> keep;
-			std::string line;
-			while (std::getline(in, line))
+			std::lock_guard<std::mutex> lock(g_pendingMutex);
+			for (auto it = g_pendingMoves.begin(); it != g_pendingMoves.end();)
 			{
-				if (!line.empty() && line.back() == '\r')
-					line.pop_back();
-				size_t bar = line.find('|');
-				if (bar == std::string::npos)
-					continue;
-				std::string np = line.substr(0, bar), tg = line.substr(bar + 1);
-				if (np.empty() || tg.empty())
-					continue;
-				std::wstring wnp = WidenAcp(np), wtg = WidenAcp(tg);
 				std::error_code ec;
-				if (!fs::exists(wnp, ec))
-					continue;
-				if (!MoveFileExW(wnp.c_str(), wtg.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
-					keep.push_back(line);
+				if (!fs::exists(it->src, ec) ||
+				    MoveFileExW(it->src.c_str(), it->dst.c_str(),
+				        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+					it = g_pendingMoves.erase(it);
+				else
+					++it;
 			}
-			in.close();
-			std::ofstream out(PendingFile(), std::ios::trunc | std::ios::binary);
-			for (const std::string& l : keep)
-				out << l << "\r\n";
+			for (auto it = g_pendingDeletes.begin(); it != g_pendingDeletes.end();)
+			{
+				std::error_code ec;
+				if (!fs::exists(*it, ec) || fs::remove(*it, ec))
+					it = g_pendingDeletes.erase(it);
+				else
+					++it;
+			}
+			WritePendingLocked();
 		}
 
 		std::mutex g_mountMutex;
 		std::vector<std::string> g_mountQueue;
+		std::set<std::wstring> g_mounted; // path + hash, so a re-download of a path still remounts
 
 		std::mutex g_eventMutex;
 		std::deque<std::function<void()>> g_eventQueue;
@@ -300,9 +518,14 @@ namespace Streaming
 			g_eventQueue.push_back(std::move(fn));
 		}
 
-		void EnqueueMount(const std::wstring& path)
+		void EnqueueMount(const std::wstring& path, const std::string& sha)
 		{
 			std::string p = NarrowAcp(path);
+			if (!g_mounted.insert(LowerPath(path) + L"|" + Widen(sha)).second)
+			{
+				StreamLog("stream: already mounted %s", p.c_str());
+				return;
+			}
 			StreamLog("stream: queued mount %s", p.c_str());
 			std::lock_guard<std::mutex> lock(g_mountMutex);
 			g_mountQueue.push_back(std::move(p));
@@ -366,20 +589,23 @@ namespace Streaming
 					fs::copy_file(part, local, fs::copy_options::overwrite_existing, ec);
 					fs::remove(part, ec);
 				}
+				RememberLocal(local, mf.sha256);
 				if (isMpq)
-					EnqueueMount(local);
+					EnqueueMount(local, mf.sha256);
 				return;
 			}
 
-			// Exists: swap now if unlocked, else stage .new, mount it, and swap later.
+			// Exists: swap now if unlocked, else stage a hash-named copy, mount it, swap later.
 			if (MoveFileExW(part.c_str(), local.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
 			{
+				RememberLocal(local, mf.sha256);
 				if (isMpq)
-					EnqueueMount(local);
+					EnqueueMount(local, mf.sha256);
+				SweepStagedSiblings(local, L"");
 			}
 			else
 			{
-				std::wstring np = StagedPath(local, isMpq);
+				std::wstring np = StagedPath(local, mf.sha256);
 				if (!MoveFileExW(part.c_str(), np.c_str(), MOVEFILE_REPLACE_EXISTING))
 				{
 					fs::remove(part, ec);
@@ -387,24 +613,29 @@ namespace Streaming
 					return;
 				}
 				if (isMpq)
-					EnqueueMount(np);
+					EnqueueMount(np, mf.sha256);
 				RecordPending(np, local, !isMpq);
+				SweepStagedSiblings(local, np);
 				StreamLog("stream: staged %s (in use), will swap on next launch", mf.path.c_str());
 			}
 		}
 
-		void SwapOrStage(const std::wstring& np, const std::wstring& local, bool isMpq)
+		void SwapOrStage(const std::wstring& np, const std::wstring& local, bool isMpq,
+		    const std::string& sha)
 		{
 			if (MoveFileExW(np.c_str(), local.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
 			{
+				RememberLocal(local, sha);
 				if (isMpq)
-					EnqueueMount(local);
+					EnqueueMount(local, sha);
+				SweepStagedSiblings(local, L"");
 			}
 			else
 			{
 				if (isMpq)
-					EnqueueMount(np);
+					EnqueueMount(np, sha);
 				RecordPending(np, local, !isMpq);
+				SweepStagedSiblings(local, np);
 			}
 		}
 
@@ -461,7 +692,8 @@ namespace Streaming
 			std::wstring manifestUrl;
 			std::string baseUrl;
 			LoadLauncherUrls(g_installDir, manifestUrl, baseUrl);
-			LauncherSettings settings = LoadLauncherSettings(g_installDir);
+			const bool hdPatch = sLauncherSettings.HdPatch();
+			const long long maxBytesPerSecond = sLauncherSettings.MaxDownloadBytesPerSecond();
 
 			// Bust any Cloudflare cache so we always read the newest manifest, not a stale copy.
 			std::wstring manifestReq = AppendQuery(
@@ -482,18 +714,22 @@ namespace Streaming
 			if (!man.baseUrl.empty())
 				baseUrl = man.baseUrl;
 
+			static std::atomic<bool> s_pendingReset{ false };
+			if (!s_pendingReset.exchange(true))
 			{
 				std::error_code ec;
 				fs::create_directories(PendingFile().parent_path(), ec);
 				std::ofstream(PendingFile(), std::ios::trunc | std::ios::binary);
+				std::atexit(&ApplyPending); // swap staged files in at clean exit, once handles are freed
 			}
-			std::atexit(&ApplyPending); // swap staged files in at clean exit, once handles are freed
+
+			LoadLocalHashes();
 
 			std::vector<const ManifestFile*> plan;
 			long long total = 0;
 			for (const ManifestFile& mf : man.files)
 			{
-				if (mf.hd && !settings.hdPatch)
+				if (mf.hd && !hdPatch)
 					continue;
 #ifdef AUTO_UPDATER_IGNORES_DLL
 				if (IsExtensionDll(mf.path))
@@ -503,33 +739,38 @@ namespace Streaming
 				}
 #endif
 				std::wstring local = (fs::path(g_installDir) / fs::path(mf.path)).wstring();
-				std::wstring np = StagedPath(local, IsMpq(mf.path));
-				std::error_code ec;
-				if (FileSize(local) == mf.size)
+				std::wstring np = StagedPath(local, mf.sha256);
+
+				if (FileSize(local) == mf.size && LocalMatches(local, mf.sha256))
 				{
-					if (fs::exists(np, ec))
-						fs::remove(np, ec);
+					SweepStagedSiblings(local, L""); // nothing left to swap in
 					continue;
 				}
 				if (FileSize(np) == mf.size)
 				{
-					SwapOrStage(np, local, IsMpq(mf.path));
+					SwapOrStage(np, local, IsMpq(mf.path), mf.sha256);
 					continue;
 				}
 				plan.push_back(&mf);
 				total += mf.size;
 			}
+			SaveLocalHashes();
 
-			g_filesTotal = (int)plan.size();
-			g_totalBytes = total;
-			g_filesDone = 0;
-			g_baseBytes = 0;
-			g_doneBytes = 0;
 			if (plan.empty())
 			{
+				ResetProgress();
 				StreamLog("stream: nothing to download");
 				return;
 			}
+
+			unsigned long long nowMs = GetTickCount64();
+			unsigned long long lastMs = g_lastProgressMs.load();
+			if (lastMs == 0 || nowMs - lastMs > kProgressJoinMs)
+				ResetProgress();
+
+			g_filesTotal = g_filesTotal.load() + (int)plan.size();
+			g_totalBytes = g_totalBytes.load() + total;
+			g_baseBytes = g_doneBytes.load();
 
 			StreamLog("stream: downloading %d file(s)", (int)plan.size());
 			g_active = true;
@@ -540,13 +781,15 @@ namespace Streaming
 					std::lock_guard<std::mutex> lock(g_statusMutex);
 					g_currentFile = mf->path;
 				}
-				PlaceFile(baseUrl, *mf, settings.maxBytesPerSecond);
+				PlaceFile(baseUrl, *mf, maxBytesPerSecond);
 				g_baseBytes = g_baseBytes.load() + mf->size;
 				g_doneBytes = g_baseBytes.load();
 				g_filesDone = g_filesDone.load() + 1;
+				g_lastProgressMs = GetTickCount64();
 				StreamLog("stream: finished %d/%d %s", g_filesDone.load(), g_filesTotal.load(), mf->path.c_str());
 			}
 
+			SaveLocalHashes();
 			StreamLog("stream: background download pass complete");
 		}
 	}
@@ -567,6 +810,22 @@ namespace Streaming
 		sLua.RegisterFunction("IsStreamingUIRefreshPending", &BackgroundDownloader::Lua_UIRefreshPending, LuaFunctionState::ALL);
 		sLua.RegisterFunction("StreamingRefreshUI", &BackgroundDownloader::Lua_RefreshUI, LuaFunctionState::ALL);
 		Trigger();
+		StartPolling();
+	}
+
+	void BackgroundDownloader::StartPolling()
+	{
+		if (g_pollerStarted.exchange(true))
+			return;
+		std::thread([]
+		{
+			for (;;)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(kPollIntervalMs));
+				StreamLog("stream: periodic update check");
+				Instance().Trigger();
+			}
+		}).detach();
 	}
 
 	void BackgroundDownloader::Trigger()
@@ -654,19 +913,34 @@ namespace Streaming
 		}
 		for (const std::string& path : batch)
 		{
+			int priority = g_nextMountPriority.fetch_add(1);
 			void* hMpq = nullptr;
-			bool ok = ClientData::Streaming::MountArchive(path.c_str(), kMountPriority, &hMpq);
-			StreamLog("stream: mount %s -> %s", ok ? "OK" : "FAILED", path.c_str());
+			bool ok = ClientData::Streaming::MountArchive(path.c_str(), priority, &hMpq);
+			StreamLog("stream: mount %s (prio %d) -> %s", ok ? "OK" : "FAILED", priority, path.c_str());
 			if (ok && hMpq)
 			{
 				ClientData::Streaming::RebuildHash();
 				DbcFromMpq::RefreshResult r = DbcFromMpq::RefreshFromArchive(hMpq);
 
 				if (r.spellDataChanged && ClientData::ObjectManager::GetActivePlayerObject())
-					EnqueueEvent([] { ClientData::SpellBook::Refresh(); });
+					EnqueueEvent([]
+					{
+						ClientData::SpellBook::Refresh();
+					});
+				// Streamed achievement rows land in the DBCs but not in CGAchievementInfo's index.
+				if (r.achievementDataChanged)
+					ClientData::Achievements::RequestRebuild();
 				if (r.interfaceFiles)
 					g_uiRefreshNeeded = true;
 			}
+		}
+
+		if (ClientData::Achievements::ConsumeRebuildRequest() &&
+		    ClientData::ObjectManager::GetActivePlayerObject())
+		{
+			ClientData::Achievements::RebuildIndex();
+			Packet(CMSG_ACHIEVEMENT_DATA_REQUEST).Send();
+			StreamLog("stream: rebuilt achievement index, requested achievement data");
 		}
 
 		// Fire exactly one queued event per update.

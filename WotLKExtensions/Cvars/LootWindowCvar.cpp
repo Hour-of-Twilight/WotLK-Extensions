@@ -29,6 +29,9 @@ namespace LootWindowCvar
 	void Apply()
 	{
 		sCvars.Register("lootStayOpenWhileMoving", "Keep the loot window open while moving.", true,
-			[](Cvar& c) { SetStaysOpenWhileMoving(c.AsBool()); });
+		    [](Cvar& c)
+		{
+			SetStaysOpenWhileMoving(c.AsBool());
+		});
 	}
 }

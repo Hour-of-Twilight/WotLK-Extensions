@@ -32,7 +32,10 @@ namespace DiscordCvar
 	{
 #ifdef ENABLE_DISCORD
 		sCvars.Register("enableDiscord", "Enable Discord Rich Presence.", true,
-			[](Cvar& c) { Sync(c.AsBool()); });
+		    [](Cvar& c)
+		{
+			Sync(c.AsBool());
+		});
 #endif
 	}
 

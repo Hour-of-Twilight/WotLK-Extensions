@@ -196,37 +196,4 @@ namespace Streaming
 		if (FindString(json, "patchBaseUrl", b) && !b.empty())
 			patchBaseUrl = b;
 	}
-
-	LauncherSettings LoadLauncherSettings(const std::wstring& installDir)
-	{
-		LauncherSettings s;
-		std::string json = ReadFile(fs::path(installDir) / ".hotlauncher" / "settings.json");
-		if (json.empty())
-			return s;
-
-		size_t k = json.find("\"hdPatch\"");
-		if (k != std::string::npos)
-		{
-			size_t c = json.find(':', k);
-			if (c != std::string::npos)
-			{
-				size_t v = c + 1;
-				SkipWs(json, v);
-				s.hdPatch = (json.compare(v, 4, "true") == 0);
-			}
-		}
-
-		k = json.find("\"maxDownloadMBps\"");
-		if (k != std::string::npos)
-		{
-			size_t c = json.find(':', k);
-			if (c != std::string::npos)
-			{
-				double mbps = std::strtod(json.c_str() + c + 1, nullptr);
-				if (mbps > 0)
-					s.maxBytesPerSecond = static_cast<long long>(mbps * 1024 * 1024);
-			}
-		}
-		return s;
-	}
 }

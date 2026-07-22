@@ -44,7 +44,6 @@ public:
 	static std::vector<const char*> s_customEvents;
 };
 
-
 namespace GlueXML
 {
 	void RegisterFunctions();

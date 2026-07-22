@@ -6,7 +6,6 @@
 #include "MultiCastBarDetours.h"
 #include "Streaming/BackgroundDownloader.h"
 
-
 CLIENT_DETOUR(CGlueMgr__Idle, 0x004DAB40, __cdecl, int, (void))
 {
 	int r = CGlueMgr__Idle();
@@ -113,7 +112,6 @@ void __cdecl CGSpellBook__AddKnownSpell_PutActionInSlotHook(int slot)
 		CGGameUI::ClearCursor(1, 1);
 		return;
 	}
-
 
 	if (MultiCastBar_IsTotemSpell(spellId))
 	{

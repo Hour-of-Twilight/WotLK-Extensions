@@ -5,6 +5,7 @@ namespace DbcFromMpq
 	struct RefreshResult
 	{
 		bool spellDataChanged = false;
+		bool achievementDataChanged = false;
 		bool interfaceFiles = false;
 	};
 
