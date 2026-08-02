@@ -45,7 +45,8 @@ void FrameXMLExtensions::LoadNewEvents()
 		"HOT_ITEM_LEVEL_UPDATE",
 		"HOT_FEATURE_UPDATE",
 		"HOT_STREAMING_STARTED",
-		"HOT_STREAMING_STOPPED"
+		"HOT_STREAMING_STOPPED",
+		"HOT_STAT_GROUPS"
 	};
 	for (const char* eventName : customFrameEvents)
 	{

@@ -26,7 +26,6 @@ CLIENT_ADDRESS(void*, dword_AF5254, 0x00AF5254)
 CLIENT_ADDRESS(void*, spellCast, 0x00D3F4E4)
 CLIENT_ADDRESS(WowClientDB_ItemRec, g_itemDB, 0x00AD3D4C)
 CLIENT_ADDRESS(void*, WDB_CACHE_ITEM, 0x00C5D828)
-CLIENT_ADDRESS(uint64_t, g_comboPointTarget, 0x00BD08A8)
 CLIENT_ADDRESS(uint8_t, g_comboPointCount, 0x00BD084D)
 CLIENT_ADDRESS(uint64_t, CGGameUI__m_lockedTarget, 0x00BD07B0)
 CLIENT_ADDRESS(uint32_t, g_whoDisplayCount, 0xC7BFE0)
@@ -56,6 +55,9 @@ CLIENT_ADDRESS(uint32_t, g_socketInfoGuidLow, 0x00C20FE0)
 CLIENT_ADDRESS(uint32_t, g_socketInfoGuidHigh, 0x00C20FE4)
 CLIENT_ADDRESS(uint32_t, g_socketInfoPtr, 0x00C20FE8)
 CLIENT_ADDRESS(void*, dword_B6B1A0, 0x00B6B1A0)
+CLIENT_ADDRESS(uint8_t, unk_C5D388, 0x00C5D388) // CGItemStatsSummary compare cache, 2 slots stride 0x14C
+CLIENT_ADDRESS(int, dword_AD2EBC, 0x00AD2EBC)   // index of the compare cache slot written last
+CLIENT_ADDRESS(float, flt_9EA624, 0x009EA624)   // epsilon the item delta code compares dps against
 
 inline uint8_t* GetFriendListBase()
 {

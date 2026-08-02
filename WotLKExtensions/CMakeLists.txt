@@ -1,5 +1,3 @@
-# Collect source and header files separately
-
 FetchContent_Declare(
   detours
   GIT_REPOSITORY https://github.com/microsoft/Detours.git
@@ -18,13 +16,11 @@ add_library(detours STATIC ${detours_sources})
 target_compile_options(detours PRIVATE /W4 /WX /Zi /MT /Gy /Gm- /Zl /Od)
 target_include_directories(detours PUBLIC ${detours_SOURCE_DIR})
 
-file(GLOB_RECURSE WOTLK_EXTENSIONS_SOURCES CONFIGURE_DEPENDS "*.cpp")
-file(GLOB_RECURSE WOTLK_EXTENSIONS_HEADERS CONFIGURE_DEPENDS "*.h")
+file(GLOB_RECURSE WOTLK_EXTENSIONS_FILES CONFIGURE_DEPENDS "*.cpp" "*.h")
 
 option(ENABLE_DISCORD "Build Discord Rich Presence integration" ON)
 if(NOT ENABLE_DISCORD)
-    list(FILTER WOTLK_EXTENSIONS_SOURCES EXCLUDE REGEX "/(discord/|Impl/DiscordRPC\\.)")
-    list(FILTER WOTLK_EXTENSIONS_HEADERS EXCLUDE REGEX "/(discord/|Impl/DiscordRPC\\.)")
+    list(FILTER WOTLK_EXTENSIONS_FILES EXCLUDE REGEX "/(discord/|Impl/DiscordRPC\\.)")
 endif()
 
 set(MSDF_LIBS_DIR "${CMAKE_SOURCE_DIR}/libs")
@@ -60,14 +56,13 @@ if(NOT TARGET ankerl::unordered_dense)
     add_library(ankerl::unordered_dense ALIAS ankerl_unordered_dense)
 endif()
 
-add_library(WotLKExtensions SHARED ${WOTLK_EXTENSIONS_SOURCES} ${WOTLK_EXTENSIONS_HEADERS})
+add_library(WotLKExtensions SHARED ${WOTLK_EXTENSIONS_FILES})
 set_property(TARGET WotLKExtensions PROPERTY CXX_STANDARD 20)
 set_property(TARGET WotLKExtensions PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
 set_property(TARGET WotLKExtensions PROPERTY USE_FOLDERS true)
 
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Source Files" FILES ${WOTLK_EXTENSIONS_SOURCES})
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Header Files" FILES ${WOTLK_EXTENSIONS_HEADERS})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${WOTLK_EXTENSIONS_FILES})
 
 target_link_libraries(WotLKExtensions PRIVATE
 	detours

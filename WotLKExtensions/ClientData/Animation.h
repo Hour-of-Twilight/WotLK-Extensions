@@ -4,7 +4,7 @@
 
 namespace ClientData
 {
-	constexpr uintptr_t ANIMATION_DATA_DB = 0x00AD30C8;
+	constexpr uintptr_t ANIMATION_DATA_DB = 0x00AD30C8 + 0x18;
 
 	struct AnimationDataRow
 	{
@@ -31,6 +31,7 @@ namespace ClientData
 		ANIMATION_ATTACK_2H = 18,
 		ANIMATION_ATTACK_2H_LOOSE = 19,
 
+		// Looping "weapon drawn" ready/combat-idle stances.
 		ANIMATION_READY_UNARMED = 25,
 		ANIMATION_READY_1H = 26,
 		ANIMATION_READY_2H = 27,
@@ -60,8 +61,8 @@ namespace ClientData
 
 		ANIMATION_SPRINT = 143,
 
-		ANIMATION_MONK_ATTACK_MAINHAND = 672,
-		ANIMATION_MONK_ATTACK_OFFHAND = 674,
-		ANIMATION_MONK_READY = 678,
+		ANIMATION_MONK_ATTACK_MAINHAND = 672, // main-hand unarmed swing
+		ANIMATION_MONK_ATTACK_OFFHAND = 674,  // off-hand unarmed swing
+		ANIMATION_MONK_READY = 678,           // attack idle / combat-ready stance
 	};
 }

@@ -5,12 +5,14 @@
 #include "TestFramePackets.h"
 #include "UnitLevelCache.h"
 #include "GemSocketPackets.h"
+#include "ItemGenPackets.h"
 #include "ItemLevelPackets.h"
 #include "ItemDbCachePackets.h"
 #include "FeaturePackets.h"
 #include "DBCRecordPackets.h"
 #include "StreamingPackets.h"
 #include "LootWindowPackets.h"
+#include <Character/MovementForce.h>
 #include "Streaming/BackgroundDownloader.h"
 #include "SystemPackets.h"
 #include "XMLExtensions.h"
@@ -50,12 +52,14 @@ void CustomPacket::Apply()
 	sTalentFramePackets.Apply();
 	sFeaturePackets.Apply();
 	sGemSocketPackets.Apply();
+	sItemGenPackets.Apply();
 	sItemLevelPackets.Apply();
 	sTestFramePackets.Apply();
 	sUnitLevelCache.Apply();
 	DBCRecordPackets::Apply();
 	StreamingPackets::Apply();
 	sLootWindowPackets.Apply();
+	sMovementForce.Apply();
 	ItemDbCachePackets::RegisterHandlers();
 
 	// Realm handlers: queued now, applied against the realm connection in SetCustomRealmHandlers.
@@ -185,7 +189,7 @@ void CustomPacket::Packet_SMSG_CUSTOM_STAT_TRACK(void* handlerParam, uint32_t op
 {
 
 	Packet r(a3);
-	uint32 magicFind = r.GetUInt32();
+	int32 magicFind = r.GetInt32();
 	float healthLeech = r.GetFloat();
 	float manaLeech = r.GetFloat();
 	float critDamageMod = r.GetFloat();
@@ -195,7 +199,7 @@ void CustomPacket::Packet_SMSG_CUSTOM_STAT_TRACK(void* handlerParam, uint32_t op
 	sPlayer.SetManaLeech(manaLeech);
 	sPlayer.SetCritDamageMod(critDamageMod);
 	sPlayer.SetCritHealingMod(critHealingMod);
-	Util::DebugOutput("%u %f %f %f %f", sPlayer.GetMagicFind(), sPlayer.GetHealthLeech(), sPlayer.GetManaLeech(), sPlayer.GetCritDamageMod(), sPlayer.GetCritHealingMod());
+	Util::DebugOutput("%d %f %f %f %f", sPlayer.GetMagicFind(), sPlayer.GetHealthLeech(), sPlayer.GetManaLeech(), sPlayer.GetCritDamageMod(), sPlayer.GetCritHealingMod());
 	for (uint8 i = 0; i < MAX_SPELL_SCHOOL; ++i)
 		sPlayer.SetCustomSpellPen(i, r.GetInt32());
 	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_STAT_UPDATE"), "");

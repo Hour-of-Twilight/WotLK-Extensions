@@ -16,6 +16,8 @@ public:
 
 	void Apply();
 
+	void Clear();
+
 private:
 	ItemLevelPackets() = default;
 

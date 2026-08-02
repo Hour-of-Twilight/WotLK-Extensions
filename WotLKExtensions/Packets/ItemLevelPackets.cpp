@@ -73,6 +73,13 @@ int ItemLevelPackets::GetItemLevelBreakdownSlot(lua_State* L)
 	return 1;
 }
 
+void ItemLevelPackets::Clear()
+{
+	m_slotLevels.clear();
+	m_subClass = 0;
+	m_hasData = false;
+}
+
 void ItemLevelPackets::Apply()
 {
 	sCustomPacket.RegisterHandler(SMSG_ITEM_LEVEL_BREAKDOWN, &Handler_SMSG_ITEM_LEVEL_BREAKDOWN);

@@ -17,4 +17,6 @@ public:
 
 private:
 	static void PatchItemDBC();
+	static void PatchHeroicQualityTooltipLabel();
+	static void PatchTooltipLabelPush(uint32_t pushSite, void* stub);
 };

@@ -90,8 +90,9 @@ private:
 	static int UnlockBagItem(lua_State* L);
 	static int GetUnitItemLevel(lua_State* L);
 	static int GetUnitDungeonLevel(lua_State* L);
+	static int GetUnitSubclass(lua_State* L);
 	static int GetItemLevel(lua_State* L);
-	;
+
 	friend class Main;
 };
 

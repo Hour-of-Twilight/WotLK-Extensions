@@ -1,11 +1,81 @@
 #include "Item.h"
 #include <Util.h>
 #include <ClientDetours.h>
+#include <cstring>
 #include "Logger.h"
+
+static const char* GetHeroicQualityLabelKey(const ItemCache* item, const char* defaultKey)
+{
+	if (!item)
+		return defaultKey;
+
+	const uint32 flags2 = static_cast<uint32>(item->FlagsAndFaction[1]); // +0x1C
+
+	if (flags2 & 0x80000000)
+		return "ITEM_CORRUPTED";
+
+	return defaultKey;
+}
+
+static const char* __cdecl GetHeroicEpicLabelKey(const ItemCache* item)
+{
+	return GetHeroicQualityLabelKey(item, "ITEM_HEROIC_EPIC");
+}
+
+static const char* __cdecl GetHeroicLabelKey(const ItemCache* item)
+{
+	return GetHeroicQualityLabelKey(item, "ITEM_HEROIC");
+}
+
+__declspec(naked) static void CGTooltip__SetItem_HeroicEpicLabel()
+{
+	__asm {
+        push eax
+        call GetHeroicEpicLabelKey
+        add  esp, 4
+        push eax
+        push 0x00627B4A
+        ret
+	}
+}
+
+__declspec(naked) static void CGTooltip__SetItem_HeroicLabel()
+{
+	__asm {
+        push ecx
+        call GetHeroicLabelKey
+        add  esp, 4
+        push eax
+        push 0x00627BB1
+        ret
+	}
+}
 
 void Item::Apply()
 {
 	PatchItemDBC();
+	PatchHeroicQualityTooltipLabel();
+}
+
+void Item::PatchHeroicQualityTooltipLabel()
+{
+	PatchTooltipLabelPush(0x00627B45, &CGTooltip__SetItem_HeroicEpicLabel);
+	PatchTooltipLabelPush(0x00627BAC, &CGTooltip__SetItem_HeroicLabel);
+}
+
+void Item::PatchTooltipLabelPush(uint32_t pushSite, void* stub)
+{
+	if (*reinterpret_cast<uint8_t*>(pushSite) != 0x68) // push imm32
+	{
+		LOG_DEBUG << "Unexpected bytes at tooltip label site " << pushSite << ", skipping patch.";
+		return;
+	}
+
+	uint8_t patch[5];
+	int32_t rel = static_cast<int32_t>(reinterpret_cast<uintptr_t>(stub) - (pushSite + 5));
+	patch[0] = 0xE9; // jmp rel32
+	std::memcpy(&patch[1], &rel, sizeof(rel));
+	Util::OverwriteBytesAtAddress(pushSite, patch, sizeof(patch));
 }
 
 void Item::PatchItemDBC()

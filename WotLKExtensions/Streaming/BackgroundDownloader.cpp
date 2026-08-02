@@ -172,7 +172,7 @@ namespace Streaming
 		bool EndsWithNoCase(const std::wstring& s, const std::wstring& suf)
 		{
 			return s.size() >= suf.size() &&
-			    LowerPath(s.substr(s.size() - suf.size())) == LowerPath(suf);
+			       LowerPath(s.substr(s.size() - suf.size())) == LowerPath(suf);
 		}
 
 		std::wstring AppendQuery(const std::wstring& url, const std::wstring& key, const std::wstring& value)

@@ -57,7 +57,7 @@ public:
 	{
 		return m_securityLevel;
 	}
-	uint32 GetMagicFind() const
+	int32 GetMagicFind() const
 	{
 		return m_magicFind;
 	}
@@ -94,7 +94,7 @@ public:
 	{
 		m_securityLevel = level;
 	}
-	void SetMagicFind(uint32 val)
+	void SetMagicFind(int32 val)
 	{
 		m_magicFind = val;
 	}
@@ -145,7 +145,7 @@ private:
 
 	int8 m_securityLevel = 0;
 	uint32 m_customSpellPen[MAX_SPELL_SCHOOL] = { 0 };
-	uint32 m_magicFind = 0;
+	int32 m_magicFind = 0;
 	float m_healthLeech = 0.0f;
 	float m_manaLeech = 0.0f;
 	float m_critDamageMod = 0.0f;

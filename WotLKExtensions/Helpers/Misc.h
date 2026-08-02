@@ -1,3 +1,5 @@
+#pragma once
+
 #include "SharedDefines.h"
 static constexpr uint32 ADDITIONAL_STATS = 24;
 static constexpr uint32 DEFAULT_MOD_COUNT = 49;

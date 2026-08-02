@@ -138,7 +138,7 @@ void UnitLevelCache::Handler_SMSG_UNIT_LEVEL_CACHE_RESPONSE(void*, uint32_t, uin
 	Packet r(pkt);
 	uint64_t guid = r.GetUInt64();
 	uint32_t value = r.GetUInt32();
-	if (value == 0) // not a scaled unit
+	if (guid == 0 || value == 0) // not a scaled unit
 		return;
 
 	if (IsPlayerGuid(guid))

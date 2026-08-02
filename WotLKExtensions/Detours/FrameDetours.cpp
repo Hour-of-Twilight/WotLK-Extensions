@@ -154,6 +154,5 @@ void __cdecl CGSpellBook__AddKnownSpell_PutActionInSlotHook(int slot)
 
 	if (!found)
 		FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_PLACE_ACTION"), "%u%u", spellId, (uint32_t)slot);
-	else
-		CGGameUI::ClearCursor(1, 1);
+	CGGameUI::ClearCursor(1, 1);
 }

@@ -12,7 +12,7 @@ namespace ClientData::UnitCombat
 		uint32_t padding0x00[4];
 		uint32_t hitInfo;
 		uint32_t padding0x14[16];
-		int32_t playSwingFx;  // non-zero -> run the swing FX vfunc
+		int32_t playSwingFx; // non-zero -> run the swing FX vfunc
 		uint32_t padding0x58;
 		int32_t suppressAnim; // non-zero -> skip (re)playing the swing anim
 	};

@@ -13,6 +13,7 @@
 #include <Editor/QuatFunctions.h>
 #include <Input/ActionRepeat.h>
 
+#include <Character/MovementForce.h>
 #include <SharedDefines.h>
 #include <cstdint>
 #include <cstdio>
@@ -323,6 +324,7 @@ namespace
 		EditorRuntime::OnWorldRender(worldFrame);
 		// Piggyback
 		sActionRepeat.OnUpdate();
+		sMovementForce.Tick();
 		return result;
 	}
 

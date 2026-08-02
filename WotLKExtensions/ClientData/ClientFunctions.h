@@ -48,6 +48,13 @@ namespace CGTooltip
 	CLIENT_FUNCTION(SetSpell, 0x006238A0, __thiscall, int, (void* _this, uint32 spellId, int rank, int castTimeIdx, int isPetSpell, int nextRank1, int nextRank2, int talentRank1, int talentRank2, int unk1, int unk2, int unk3, int unk4, int showFlag, int cooldown, int owner))
 	CLIENT_FUNCTION(AddLine, 0x0061FEC0, __thiscall, void, (void* _this, char* left, char* right, void* leftColor, void* rightColor, int wrap))
 	CLIENT_FUNCTION(CalculateSize, 0x0061CAF0, __thiscall, void, (void* _this))
+	CLIENT_FUNCTION(AddColoredItemStat, 0x00623810, __thiscall, void, (void* _this, int value, const char* text, int* headerFlag))
+}
+
+namespace CGItemStatsSummary
+{
+	CLIENT_FUNCTION(AddItemStats, 0x0061B990, __thiscall, void, (void* _this, const ItemCache* item))
+	CLIENT_FUNCTION(PushStatSummary, 0x006085D0, __cdecl, void, ())
 }
 
 namespace CDataStore_C
@@ -202,6 +209,7 @@ namespace FrameScript
 	CLIENT_FUNCTION(RawGet, 0x0084E600, __cdecl, void, (lua_State * L, int idx))
 	CLIENT_FUNCTION(RawGetI, 0x0084E670, __cdecl, void, (lua_State * L, int idx, int n))
 	CLIENT_FUNCTION(CreateTable, 0x0084E6E0, __cdecl, void, (lua_State * L, int narr, int nrec))
+	CLIENT_FUNCTION(SetTable, 0x0084E8D0, __cdecl, void, (lua_State * L, int idx))
 	CLIENT_FUNCTION(SetField, 0x0084E900, __cdecl, void, (lua_State * L, int idx, const char* k))
 	CLIENT_FUNCTION(RawSet, 0x0084E970, __cdecl, void, (lua_State * L, int idx))
 	CLIENT_FUNCTION(RawSetI, 0x0084EA00, __cdecl, void, (lua_State * L, int idx, int n))

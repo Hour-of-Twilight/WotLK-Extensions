@@ -6,12 +6,15 @@
 #include <Logger.h>
 #include <Misc.h>
 #include <UnitLevelCache.h>
+#include <ItemLevelPackets.h>
 
 CLIENT_DETOUR(CGlueMgr__EnterWorld, 0x4D9BD0, __cdecl, void, ())
 {
 	CGlueMgr__EnterWorld();
 	sPlayer.SetInWorld(true);
 	sPlayer.ResetVariables();
+	sUnitLevelCache.ClearAll();
+	sItemLevelPackets.Clear();
 	sCustomPacket.SendSanityCheck(true);
 }
 

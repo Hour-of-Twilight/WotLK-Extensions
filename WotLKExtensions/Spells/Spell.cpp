@@ -36,7 +36,7 @@ __declspec(naked) void CGUnit_C__MovementGate()
 void Spells::Apply()
 {
 
-    const uintptr_t gateEntry = 0x0073A042;
+	const uintptr_t gateEntry = 0x0073A042;
 	uint8_t patch[9];
 	int32_t rel = static_cast<int32_t>(reinterpret_cast<uintptr_t>(&CGUnit_C__MovementGate) - (gateEntry + 5));
 	patch[0] = 0xE9; // jmp rel32

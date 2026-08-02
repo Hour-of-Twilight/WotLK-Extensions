@@ -57,11 +57,17 @@ uint32 Player::SpellModKey(uint8 family, uint8 op, uint8 bit)
 
 void Player::SetSpellMod(uint8 family, SpellModOp op, uint8 bit, bool isPct, int32 value)
 {
-	SpellModEntry& e = m_spellMods[SpellModKey(family, op, bit)];
+	uint32 key = SpellModKey(family, op, bit);
+	SpellModEntry& e = m_spellMods[key];
 	if (isPct)
 		e.pct = value;
 	else
 		e.flat = value;
+
+	// the server sends the summed value, so zero means nothing is modifying this bit any more.
+	// flag style ops (cast while moving) only test for the key existing, so it has to go
+	if (!e.flat && !e.pct)
+		m_spellMods.erase(key);
 }
 
 void Player::ClearSpellMods()

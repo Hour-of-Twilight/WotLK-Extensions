@@ -125,13 +125,13 @@ void Misc::ApplyPatches()
 		Util::OverwriteBytesAtAddress(0x6E8018, patch3, sizeof(patch3));
 	}
 	// Disable Item Comparsion tooltips.
-	{
-		uint8_t patch[5] = { 0x31, 0xC0, 0x90, 0x90, 0x90 };
+	/*{
+	    uint8_t patch[5] = { 0x31, 0xC0, 0x90, 0x90, 0x90 };
 
-		Util::OverwriteBytesAtAddress(0x00631CB3, patch, 5);
+	    Util::OverwriteBytesAtAddress(0x00631CB3, patch, 5);
 
-		Util::OverwriteBytesAtAddress(0x00631CED, patch, 5);
-	}
+	    Util::OverwriteBytesAtAddress(0x00631CED, patch, 5);
+	}*/
 	// Allow all spells to be added to the hotbar.
 	Util::OverwriteBytesAtAddress((void*)0x542D61, 0x90, 6);
 	Util::OverwriteBytesAtAddress((void*)0x542D79, 0x90, 2);

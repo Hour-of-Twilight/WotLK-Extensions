@@ -1034,17 +1034,44 @@ int CustomLua::GetUnitDungeonLevel(lua_State* L)
 	return 1;
 }
 
+int CustomLua::GetUnitSubclass(lua_State* L)
+{
+	const char* token = FrameScript::ToLString(L, 1, false);
+	if (!token)
+		token = "player";
+	uint64_t guid = 0;
+	Script_GetGUIDFromToken(token, &guid, 0);
+	if (!guid)
+	{
+		FrameScript::PushNil(L);
+		return 1;
+	}
+	if (!sUnitLevelCache.HasPlayerItemLevel(guid))
+	{
+		UnitLevelCache::SendRequest(guid);
+		FrameScript::PushNil(L);
+		return 1;
+	}
+	FrameScript::PushNumber(L, sUnitLevelCache.GetPlayerSubClass(guid));
+	return 1;
+}
+
 int CustomLua::GetItemLevel(lua_State* L)
 {
 	uint64 ourGuid = ClntObjMgr::GetActivePlayer();
-	if (!sUnitLevelCache.HasUnitItemLevelOrDungeonLevel(ourGuid))
+	if (!ourGuid)
+	{
+		FrameScript::PushNil(L);
+		return 1;
+	}
+
+	if (!sUnitLevelCache.HasPlayerItemLevel(ourGuid))
 	{
 		UnitLevelCache::SendRequest(ourGuid);
 		FrameScript::PushNil(L);
 		return 1;
 	}
-	uint32 itemLevel = sUnitLevelCache.GetPlayerItemLevel(ourGuid);
-	FrameScript::PushNumber(L, itemLevel);
+	FrameScript::PushNumber(L, sUnitLevelCache.GetPlayerItemLevel(ourGuid));
 	return 1;
 }
 
@@ -1123,6 +1150,7 @@ void CustomLua::RegisterBuiltinFunctions()
 	RegisterFunction("UnlockBagItem", &UnlockBagItem, LuaFunctionState::FRAME);
 	RegisterFunction("GetUnitItemLevel", &GetUnitItemLevel, LuaFunctionState::FRAME);
 	RegisterFunction("GetUnitDungeonLevel", &GetUnitDungeonLevel, LuaFunctionState::FRAME);
+	RegisterFunction("GetUnitSubclass", &GetUnitSubclass, LuaFunctionState::FRAME);
 	RegisterFunction("GetOurItemLevel", &GetItemLevel, LuaFunctionState::FRAME);
 	RegisterFunction("TrueLevel", &Script_TrueLevel, LuaFunctionState::FRAME);
 }

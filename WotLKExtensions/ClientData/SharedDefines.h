@@ -52,6 +52,8 @@ namespace CGUnit_C
 	CLIENT_FUNCTION(HasAuraMatchingSpellClass, 0x7283A0, __thiscall, bool, (CGUnit*, uint32_t, SpellRow*))
 	CLIENT_FUNCTION(ShouldFadeIn, 0x716650, __thiscall, bool, (CGUnit*))
 	CLIENT_FUNCTION(GetDistanceToPos, 0x004F61D0, __thiscall, float, (CGUnit*, C3Vector*))
+	CLIENT_FUNCTION(GetPosition, 0x6E6F10, __thiscall, C3Vector*, (CGUnit*, C3Vector*))
+	CLIENT_FUNCTION(GetWorldPosition, 0x6E6EF0, __thiscall, C3Vector*, (CGUnit*, C3Vector*))
 }
 
 namespace CGWorldFrame_C
