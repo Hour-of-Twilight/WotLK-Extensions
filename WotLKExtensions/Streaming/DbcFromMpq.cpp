@@ -36,6 +36,8 @@ namespace DbcFromMpq
 			uint8_t copyCount;
 			const DbcStr* strings;
 			uint8_t strCount;
+			uint16_t idOff;     // struct offset the client keys m_recordsById off
+			uint8_t idGenerated; // 1: no ID column, the key is the 0-based row index
 		};
 
 #include "DbcTransforms.inc"
@@ -74,24 +76,6 @@ namespace DbcFromMpq
 			return false;
 		}
 
-		bool IsSkippedDbc(const char* stem, size_t len)
-		{
-			if (len >= 2 && iequal_n(stem, "gt", 2))
-				return true;
-			static const char* const kSkip[] = {
-				"charBaseInfo",
-				"characterFacialHairStyles",
-				"gameTables",
-				"itemSubClass",
-				"itemSubClassMask",
-				"paperDollItemFrame",
-			};
-			for (const char* s : kSkip)
-				if (std::strlen(s) == len && iequal_n(s, stem, len))
-					return true;
-			return false;
-		}
-
 #pragma pack(push, 1)
 		struct WdbcHeader
 		{
@@ -124,57 +108,46 @@ namespace DbcFromMpq
 			std::string name(stem, stemLen);
 
 			const DbcTransform* t = FindTransform(stem, stemLen);
-			if (t)
+			if (!t)
 			{
-				if (h.recordSize != t->fileRecordSize)
-				{
-					Util::DebugOutput("dbc: %s file record %u != expected %u, skipped",
-					    name.c_str(), h.recordSize, t->fileRecordSize);
-					return;
-				}
-				// Collapse each file record to the in-memory struct layout.
-				std::vector<uint8_t> images(static_cast<size_t>(h.recordCount) * t->structSize, 0);
-				std::vector<uint32_t> ids(h.recordCount);
-				for (uint32_t i = 0; i < h.recordCount; ++i)
-				{
-					const uint8_t* fileRec = records + static_cast<size_t>(i) * h.recordSize;
-					uint8_t* dst = images.data() + static_cast<size_t>(i) * t->structSize;
-					for (uint8_t c = 0; c < t->copyCount; ++c)
-						std::memcpy(dst + t->copies[c].structOff, fileRec + t->copies[c].fileOff,
-						    t->copies[c].bytes);
-					for (uint8_t s = 0; s < t->strCount; ++s)
-						std::memcpy(dst + t->strings[s].structOff, fileRec + t->strings[s].fileOff,
-						    sizeof(uint32_t));                   // enUS offset into strBlock
-					std::memcpy(&ids[i], dst, sizeof(uint32_t)); // id is field 0
-				}
-				std::vector<uint16_t> strOffsets(t->strCount);
-				for (uint8_t s = 0; s < t->strCount; ++s)
-					strOffsets[s] = t->strings[s].structOff;
-
-				if (DBCPatch::ApplyRecords(name.c_str(), t->structSize, strOffsets, ids,
-				        images.data(), strBlock, h.stringSize))
-					Util::DebugOutput("dbc: refreshed %s (%u records) from streamed mpq",
-					    name.c_str(), h.recordCount);
+				// No in-memory layout, so the raw file record would corrupt the storage.
+				Util::DebugOutput("dbc: %s has no transform, skipped", name.c_str());
+				LOG_DEBUG << "DBC skip '" << name.c_str() << "' no transform; " << h.recordCount
+				          << " records not applied";
+				return;
+			}
+			if (h.recordSize != t->fileRecordSize)
+			{
+				Util::DebugOutput("dbc: %s file record %u != expected %u, skipped",
+				    name.c_str(), h.recordSize, t->fileRecordSize);
 				return;
 			}
 
-			if (h.stringSize > 1)
-			{
-				Util::DebugOutput("dbc: %s has strings but no transform, skipped", name.c_str());
-				LOG_DEBUG << "DBC skip '" << name.c_str() << "' has strings (" << h.stringSize
-				          << "B) but no transform; " << h.recordCount << " records not applied";
-				return;
-			}
-
-			if (h.recordSize < sizeof(uint32_t))
-				return; // can't even hold an ID, skip
-
-			// No string block: file layout == in-memory struct, apply directly with no fixup.
-			std::vector<uint16_t> noStr;
+			// Collapse each file record to the in-memory struct layout.
+			std::vector<uint8_t> images(static_cast<size_t>(h.recordCount) * t->structSize, 0);
 			std::vector<uint32_t> ids(h.recordCount);
 			for (uint32_t i = 0; i < h.recordCount; ++i)
-				std::memcpy(&ids[i], records + static_cast<size_t>(i) * h.recordSize, sizeof(uint32_t));
-			if (DBCPatch::ApplyRecords(name.c_str(), h.recordSize, noStr, ids, records, nullptr, 0))
+			{
+				const uint8_t* fileRec = records + static_cast<size_t>(i) * h.recordSize;
+				uint8_t* dst = images.data() + static_cast<size_t>(i) * t->structSize;
+				for (uint8_t c = 0; c < t->copyCount; ++c)
+					std::memcpy(dst + t->copies[c].structOff, fileRec + t->copies[c].fileOff,
+					    t->copies[c].bytes);
+				for (uint8_t s = 0; s < t->strCount; ++s)
+					std::memcpy(dst + t->strings[s].structOff, fileRec + t->strings[s].fileOff,
+					    sizeof(uint32_t)); // enUS offset into strBlock
+				// No ID column: the client stamps the row index and keys off that.
+				if (t->idGenerated)
+					std::memcpy(dst + t->idOff, &i, sizeof(uint32_t));
+				std::memcpy(&ids[i], dst + t->idOff, sizeof(uint32_t));
+			}
+			std::vector<uint16_t> strOffsets(t->strCount);
+			for (uint8_t s = 0; s < t->strCount; ++s)
+				strOffsets[s] = t->strings[s].structOff;
+
+			// Row index keys are positional, so the streamed file has to be the whole table.
+			if (DBCPatch::ApplyRecords(name.c_str(), t->structSize, strOffsets, ids,
+			        images.data(), strBlock, h.stringSize, t->idGenerated != 0))
 				Util::DebugOutput("dbc: refreshed %s (%u records) from streamed mpq",
 				    name.c_str(), h.recordCount);
 		}
@@ -229,7 +202,7 @@ namespace DbcFromMpq
 						else
 							customSeen = true;
 					}
-					else if (!IsSkippedDbc(stem, stemLen))
+					else
 					{
 						std::string path(p, len);
 						ApplyDbc(hMpq, path.c_str(), stem, stemLen);

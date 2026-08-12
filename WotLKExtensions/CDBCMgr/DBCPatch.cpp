@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 using ClientData::WoWClientDB;
@@ -334,6 +335,106 @@ WoWClientDB* DBCPatch::FindStorage(const char* name)
 	return nullptr;
 }
 
+// GetWMOAreaRec (0x00990560) bsearches the dense array, so it has to stay in PtFuncCompare order
+// rather than id order. Only bsearch over a DBC in the client.
+struct DenseSortKey
+{
+	const char* name;
+	uint16_t fields[4]; // struct offsets, 0xFFFF terminates
+};
+
+constexpr DenseSortKey kDenseSortKeys[] = {
+	{ "wMOAreaTable", { 4, 8, 12, 0xFFFFu } },
+};
+
+static const uint16_t* FindDenseSortKey(const char* name)
+{
+	for (const DenseSortKey& k : kDenseSortKeys)
+		if (iequals(k.name, name))
+			return k.fields;
+	return nullptr;
+}
+
+// ClientDBInitialize scales and swizzles every Light row into world space, in place and exactly
+// once, so the sweep can't be re-run - rows we add later need it applied individually.
+namespace DBCLight
+{
+	CLIENT_FUNCTION(ToWorldSpace, 0x007EAF60, __cdecl, void, (void* rec, int convert))
+	CLIENT_ADDRESS(int32_t, sMapIsDungeon, 0x00CF08F4)
+}
+
+void DBCPatch::FixupRowForClient(const char* dbcName, void* record)
+{
+	if (!iequals(dbcName, "light"))
+		return;
+	// The sweep ran before any map loaded, so take the same branch it did.
+	int32_t saved = *DBCLight::sMapIsDungeon;
+	*DBCLight::sMapIsDungeon = 0;
+	DBCLight::ToWorldSpace(record, 1);
+	*DBCLight::sMapIsDungeon = saved;
+}
+
+// CDetailDoodad::Initialize (0x007B2760, from CMap::Initialize) caches a GroundEffectDoodadRec*
+// per id, so patching the storage leaves those pointers stale until the next map load.
+namespace DBCDetailDoodad
+{
+	CLIENT_ADDRESS(uint32_t, sCapacity, 0x00D1C4F4)
+	CLIENT_ADDRESS(uint32_t, sCount, 0x00D1C4F8)
+	CLIENT_ADDRESS(void**, sList, 0x00D1C4FC)
+	CLIENT_FUNCTION(Reserve, 0x007B0DF0, __thiscall, void, (void* self, uint32_t capacity))
+}
+
+void DBCPatch::RefreshDerivedState(const char* dbcName, WoWClientDB* db)
+{
+	if (!iequals(dbcName, "groundEffectDoodad"))
+		return;
+	if (!*DBCDetailDoodad::sList)
+		return; // no map loaded yet, Initialize will build the list from the new rows
+
+	// Indexed by absolute id and sized maxID+1.
+	uint32_t want = db->maxIndex >= 0 ? static_cast<uint32_t>(db->maxIndex) + 1 : 0;
+	if (want > *DBCDetailDoodad::sCount)
+	{
+		if (want > *DBCDetailDoodad::sCapacity)
+			DBCDetailDoodad::Reserve(DBCDetailDoodad::sCapacity, want);
+		if (!*DBCDetailDoodad::sList)
+			return;
+		for (uint32_t i = *DBCDetailDoodad::sCount; i < want; ++i)
+			(*DBCDetailDoodad::sList)[i] = nullptr;
+		*DBCDetailDoodad::sCount = want;
+	}
+
+	void** list = *DBCDetailDoodad::sList;
+	void** byId = reinterpret_cast<void**>(db->Rows);
+	int refreshed = 0, added = 0;
+	for (uint32_t i = 0; i < *DBCDetailDoodad::sCount; ++i)
+	{
+		int id = static_cast<int>(i);
+		void* rec = (byId && id >= db->minIndex && id <= db->maxIndex)
+		    ? byId[id - db->minIndex]
+		    : nullptr;
+		if (!rec)
+			continue;
+		if (list[i])
+		{
+			*reinterpret_cast<void**>(list[i]) = rec;
+			++refreshed;
+		}
+		else
+		{
+			void* node = SMem::Alloc(12, "DBCDetailDoodad", __LINE__, 0); // { rec, model, insts }
+			if (!node)
+				continue;
+			std::memset(node, 0, 12);
+			*reinterpret_cast<void**>(node) = rec;
+			list[i] = node;
+			++added;
+		}
+	}
+	LOG_DEBUG << "DBC detail doodad list refreshed=" << refreshed << " added=" << added
+	          << " size=" << (int)*DBCDetailDoodad::sCount;
+}
+
 bool DBCPatch::EnsureCapacity(WoWClientDB* db, int wantMin, int wantMax)
 {
 	int newMin = db->Rows ? (wantMin < db->minIndex ? wantMin : db->minIndex) : wantMin;
@@ -388,64 +489,111 @@ static bool RowsAreInlineStorage(void** byId, int idCount, const void* denseBase
 	return false;
 }
 
-void DBCPatch::RebuildInlineDense(WoWClientDB* db, void** byId, int idCount, size_t count,
+std::vector<int> DBCPatch::SnapshotDenseOrder(WoWClientDB* db, uint32_t recordSize,
+    bool inlineStorage)
+{
+	std::vector<int> order;
+	if (!db->Rows || !db->FirstRow || db->numRows <= 0 || db->maxIndex < db->minIndex)
+		return order;
+
+	void** byId = reinterpret_cast<void**>(db->Rows);
+	int idCount = db->maxIndex - db->minIndex + 1;
+	std::unordered_map<const void*, int> idOfRow;
+	idOfRow.reserve(static_cast<size_t>(idCount));
+	for (int i = 0; i < idCount; ++i)
+		if (byId[i])
+			idOfRow.emplace(byId[i], db->minIndex + i);
+
+	order.reserve(static_cast<size_t>(db->numRows));
+	for (int k = 0; k < db->numRows; ++k)
+	{
+		const void* row = inlineStorage
+		    ? static_cast<const void*>(reinterpret_cast<const uint8_t*>(db->FirstRow) + static_cast<size_t>(k) * recordSize)
+		    : reinterpret_cast<void**>(db->FirstRow)[k];
+		auto it = idOfRow.find(row);
+		if (it != idOfRow.end())
+			order.push_back(it->second);
+	}
+	return order;
+}
+
+// PtFuncCompare (0x00990530).
+static int CompareDenseKey(const void* a, const void* b, const uint16_t* key)
+{
+	for (int i = 0; key[i] != 0xFFFFu; ++i)
+	{
+		int32_t va, vb;
+		std::memcpy(&va, static_cast<const uint8_t*>(a) + key[i], sizeof(va));
+		std::memcpy(&vb, static_cast<const uint8_t*>(b) + key[i], sizeof(vb));
+		if (va != vb)
+			return va < vb ? -1 : 1;
+	}
+	return 0;
+}
+
+void DBCPatch::RebuildInlineDense(WoWClientDB* db, void** byId, const std::vector<int>& order,
     uint32_t recordSize)
 {
+	size_t count = order.size();
 	uint8_t* dense = static_cast<uint8_t*>(
 	    SMem::Alloc(count * recordSize, "DBCDenseInline", __LINE__, 0));
 	if (!dense)
 		return;
 	AddPatchedRange(dense, dense + count * recordSize);
 
-	size_t w = 0;
-	for (int i = 0; i < idCount; ++i)
+	for (size_t w = 0; w < count; ++w)
 	{
-		if (!byId[i])
-			continue;
+		void** slot = &byId[order[w] - db->minIndex];
 		uint8_t* dst = dense + w * recordSize;
-		std::memcpy(dst, byId[i], recordSize);
-		byId[i] = dst;
-		++w;
+		std::memcpy(dst, *slot, recordSize);
+		*slot = dst;
 	}
 	db->FirstRow = reinterpret_cast<int32_t*>(dense);
 	db->numRows = static_cast<int>(count);
 	LOG_DEBUG << "DBC dense rebuild (inline) rows=" << (int)count << " recSize=" << recordSize;
 }
 
-void DBCPatch::RebuildPointerDense(WoWClientDB* db, void** byId, int idCount, size_t count)
+void DBCPatch::RebuildPointerDense(WoWClientDB* db, void** byId, const std::vector<int>& order)
 {
+	size_t count = order.size();
 	void** dense = static_cast<void**>(
 	    SMem::Alloc(count * sizeof(void*), "DBCDensePtrs", __LINE__, 0));
 	if (!dense)
 		return;
 
-	size_t w = 0;
-	for (int i = 0; i < idCount; ++i)
-		if (byId[i])
-			dense[w++] = byId[i];
+	for (size_t w = 0; w < count; ++w)
+		dense[w] = byId[order[w] - db->minIndex];
 	db->FirstRow = reinterpret_cast<int32_t*>(dense);
 	db->numRows = static_cast<int>(count);
 	LOG_DEBUG << "DBC dense rebuild (pointer) rows=" << (int)count;
 }
 
-void DBCPatch::RebuildDenseArray(WoWClientDB* db, uint32_t recordSize, bool inlineStorage)
+void DBCPatch::RebuildDenseArray(WoWClientDB* db, uint32_t recordSize, bool inlineStorage,
+    const std::vector<int>& order, const uint16_t* sortKey)
 {
-	if (!db->Rows || db->maxIndex < db->minIndex || recordSize == 0)
+	if (!db->Rows || db->maxIndex < db->minIndex || recordSize == 0 || order.empty())
 		return;
 
 	void** byId = reinterpret_cast<void**>(db->Rows);
-	int idCount = db->maxIndex - db->minIndex + 1;
-	size_t count = 0;
-	for (int i = 0; i < idCount; ++i)
-		if (byId[i])
-			++count;
-	if (count == 0)
+	if (sortKey)
+	{
+		// Beats preserving file order, and survives rows arriving one at a time over the wire.
+		std::vector<int> sorted = order;
+		std::stable_sort(sorted.begin(), sorted.end(), [&](int a, int b)
+		{
+			return CompareDenseKey(byId[a - db->minIndex], byId[b - db->minIndex], sortKey) < 0;
+		});
+		if (inlineStorage)
+			RebuildInlineDense(db, byId, sorted, recordSize);
+		else
+			RebuildPointerDense(db, byId, sorted);
 		return;
+	}
 
 	if (inlineStorage)
-		RebuildInlineDense(db, byId, idCount, count, recordSize);
+		RebuildInlineDense(db, byId, order, recordSize);
 	else
-		RebuildPointerDense(db, byId, idCount, count);
+		RebuildPointerDense(db, byId, order);
 }
 
 void DBCPatch::FixupStrings(void* record, const std::vector<uint16_t>& strOffsets,
@@ -477,7 +625,7 @@ void DBCPatch::WriteRecord(void* dst, const uint8_t* image, uint32_t recordSize,
 bool DBCPatch::ApplyRecords(const char* dbcName, uint32_t recordSize,
     const std::vector<uint16_t>& strOffsets,
     const std::vector<uint32_t>& ids, const uint8_t* images,
-    const char* strBlock, uint32_t strBlockSize)
+    const char* strBlock, uint32_t strBlockSize, bool idsAreComplete)
 {
 	WoWClientDB* db = FindStorage(dbcName);
 	if (!db || !db->isLoaded || recordSize == 0)
@@ -506,6 +654,9 @@ bool DBCPatch::ApplyRecords(const char* dbcName, uint32_t recordSize,
 	int idSpan = db->maxIndex - db->minIndex + 1;
 	bool inlineStorage = RowsAreInlineStorage(
 	    reinterpret_cast<void**>(db->Rows), idSpan, db->FirstRow, db->numRows, recordSize);
+
+	// Take this before EnsureCapacity or any slot gets repointed.
+	std::vector<int> priorOrder = SnapshotDenseOrder(db, recordSize, inlineStorage);
 
 	char* blob = nullptr;
 	if (strBlockSize && strBlock)
@@ -542,6 +693,10 @@ bool DBCPatch::ApplyRecords(const char* dbcName, uint32_t recordSize,
 	          << " ids=[" << batchMin << ".." << batchMax << "] block=" << (int)(n * recordSize)
 	          << "B strBlob=" << (int)strBlockSize << "B";
 
+	std::vector<bool> written;
+	if (idsAreComplete)
+		written.assign(static_cast<size_t>(db->maxIndex - db->minIndex + 1), false);
+
 	for (size_t i = 0; i < n; ++i)
 	{
 		void** slot = SlotFor(db, ids[i]);
@@ -549,9 +704,54 @@ bool DBCPatch::ApplyRecords(const char* dbcName, uint32_t recordSize,
 			continue;
 		uint8_t* rec = block + i * recordSize;
 		WriteRecord(rec, images + i * recordSize, recordSize, strOffsets, blob, strBlockSize);
+		FixupRowForClient(dbcName, rec);
 		*slot = rec;
+		if (idsAreComplete)
+			written[static_cast<size_t>(static_cast<int>(ids[i]) - db->minIndex)] = true;
 	}
 
-	RebuildDenseArray(db, recordSize, inlineStorage);
+	if (idsAreComplete)
+	{
+		void** byId = reinterpret_cast<void**>(db->Rows);
+		int dropped = 0;
+		for (size_t i = 0; i < written.size(); ++i)
+			if (!written[i] && byId[i])
+			{
+				byId[i] = nullptr;
+				++dropped;
+			}
+		if (dropped)
+			LOG_DEBUG << "DBC apply '" << dbcName << "' dropped " << dropped
+			          << " rows not present in the replacement table";
+	}
+
+	// Lay the dense array back out in load order: ~a third of the DBCs ship in something other
+	// than id order and are read through FirstRow (TaxiPathNode, Transport*, WMOAreaTable).
+	void** byId = reinterpret_cast<void**>(db->Rows);
+	int span = db->maxIndex - db->minIndex + 1;
+	std::vector<bool> placed(static_cast<size_t>(span), false);
+	std::vector<int> order;
+	order.reserve(static_cast<size_t>(span));
+
+	auto take = [&](int id)
+	{
+		size_t k = static_cast<size_t>(id - db->minIndex);
+		if (id < db->minIndex || id > db->maxIndex || placed[k] || !byId[k])
+			return;
+		placed[k] = true;
+		order.push_back(id);
+	};
+
+	// A complete replacement carries its own file order, so it wins outright.
+	if (!idsAreComplete)
+		for (int id : priorOrder)
+			take(id);
+	for (size_t i = 0; i < n; ++i)
+		take(static_cast<int>(ids[i]));
+	for (int i = 0; i < span; ++i)
+		take(db->minIndex + i);
+
+	RebuildDenseArray(db, recordSize, inlineStorage, order, FindDenseSortKey(dbcName));
+	RefreshDerivedState(dbcName, db);
 	return true;
 }

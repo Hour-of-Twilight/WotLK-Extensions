@@ -30,6 +30,61 @@ CLIENT_DETOUR(Spell_C_GetSpellModifiers, 0x007FD970, __cdecl, bool,
 	return true;
 }
 
+// nearly everything that wants a spell row takes its own copy through here first - the tooltip,
+// Script_GetSpellInfo, Spell_C_CastSpell, the action bar usability pass - so overriding the power
+// type on the way out lands on all of them at once
+CLIENT_DETOUR_THISCALL(ClientDb__GetLocalizedSpellRow, 0x004CFD20, int, (uint32_t spellId, SpellRow* out))
+{
+	int result = ClientDb__GetLocalizedSpellRow(self, spellId, out);
+	if (result && self == (void*)g_SpellDB)
+		Spells::ApplyPowerTypeMod(out);
+	return result;
+}
+
+// safety net for the callers that hand these a row they did not copy through GetLocalizedRow. the
+// lookup only touches the class mask, the row is copied when there is a change to make
+CLIENT_DETOUR(Spell_C_GetPowerCost, 0x008012F0, __cdecl, uint32_t, (SpellRow * pSpellRec, CGUnit * caster))
+{
+	int32_t powerType = 0;
+	if (pSpellRec && sPlayer.GetSpellPowerType(pSpellRec, powerType) && (uint32_t)powerType != pSpellRec->m_powerType)
+	{
+		SpellRow patched = *pSpellRec;
+		patched.m_powerType = (uint32_t)powerType;
+		return Spell_C_GetPowerCost(&patched, caster);
+	}
+
+	return Spell_C_GetPowerCost(pSpellRec, caster);
+}
+
+// decides whether the caster can pay for the spell, so it picks both the cost and the bar it is
+// compared against. this is what greys the action button out and what fails the cast locally
+CLIENT_DETOUR(Spell_C_HaveSpellPower, 0x008017E0, __cdecl, bool, (CGUnit * caster, SpellRow * pSpellRec))
+{
+	int32_t powerType = 0;
+	if (pSpellRec && sPlayer.GetSpellPowerType(pSpellRec, powerType) && (uint32_t)powerType != pSpellRec->m_powerType)
+	{
+		SpellRow patched = *pSpellRec;
+		patched.m_powerType = (uint32_t)powerType;
+		return Spell_C_HaveSpellPower(caster, &patched);
+	}
+
+	return Spell_C_HaveSpellPower(caster, pSpellRec);
+}
+
+// hand the original a relaxed copy so it never sees the requirements the caster can ignore
+CLIENT_DETOUR(Spell_C_HaveEquippedSpellItems, 0x008093D0, __cdecl, bool,
+    (CGUnit * unit, SpellRow * pSpellRec, int32_t checkInventory, int32_t reportError, void* spellCast))
+{
+	if (pSpellRec)
+	{
+		SpellRow patched = *pSpellRec;
+		if (Spells::RelaxEquippedItemRequirements(&patched))
+			return Spell_C_HaveEquippedSpellItems(unit, &patched, checkInventory, reportError, spellCast);
+	}
+
+	return Spell_C_HaveEquippedSpellItems(unit, pSpellRec, checkInventory, reportError, spellCast);
+}
+
 CLIENT_DETOUR(CastSpell, 0x00540310, __cdecl, int, (lua_State * L))
 {
 	if (!SStrCmpI(FrameScript::ToLString(L, 2, 0), "cursor", 6))

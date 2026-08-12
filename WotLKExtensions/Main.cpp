@@ -6,6 +6,7 @@
 #include "Rendering/MSDF/MSDFBootstrap.h"
 #include <Editor/EditorRuntime.h>
 #include <Character/AnimationFixes.h>
+#include <Spells/AutoRepeatDeadzone.h>
 #include <Config/LauncherSettings.h>
 #include <FeatureCvars.h>
 #include <Logger.h>
@@ -25,6 +26,7 @@ void Main::OnAttach()
 	ClientDetours::Apply();
 	FrameXMLExtensions::Apply();
 	Spells::Apply();
+	AutoRepeatDeadzone::Apply();
 	Item::Apply();
 	CDBCMgr::Load();
 

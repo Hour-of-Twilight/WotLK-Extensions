@@ -5,6 +5,7 @@
 #include "StartupDownloaderCvar.h"
 #include "DebugOutputCvar.h"
 #include "ActionRepeatCvar.h"
+#include "MeleeDeadzoneCvar.h"
 
 namespace FeatureCvars
 {
@@ -15,5 +16,6 @@ namespace FeatureCvars
 		StartupDownloaderCvar::Apply();
 		DebugOutputCvar::Apply();
 		ActionRepeatCvar::Apply();
+		MeleeDeadzoneCvar::Apply();
 	}
 }

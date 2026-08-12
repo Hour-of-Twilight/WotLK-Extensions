@@ -44,9 +44,14 @@ enum SpellModOp : uint8
 
 	SPELLMOD_CAST_WHILE_MOVING = MAX_SPELLMOD,
 	SPELLMOD_POWER_TYPE,
+	SPELLMOD_IGNORE_ITEM_SUBCLASS,
+	SPELLMOD_IGNORE_ITEM_INV_TYPE,
+	SPELLMOD_IGNORE_ITEM_CLASS,
 
 	MAX_CUSTOM_SPELLMOD
 };
+
+constexpr int32 SPELLMOD_POWER_TYPE_BIAS = 1;
 
 class Player
 {
@@ -133,7 +138,15 @@ public:
 	void SetSpellMod(uint8 family, SpellModOp op, uint8 bit, bool isPct, int32 value);
 	void ClearSpellMods();
 	void GetSpellModifiers(SpellRow* spell, SpellModOp op, int32& outFlat, int32& outPct) const;
+	uint32 GetSpellModMask(SpellRow* spell, SpellModOp op) const;
 	bool CanCastWhileMoving(SpellRow* spell) const;
+	// cheap enough to sit in front of the per row lookups on the hot paths
+	bool HasSpellModOp(SpellModOp op) const
+	{
+		return op < MAX_CUSTOM_SPELLMOD && m_spellModOpCount[op] != 0;
+	}
+	// power type the spell should cost, false when nothing overrides the row
+	bool GetSpellPowerType(const SpellRow* spell, int32& outPowerType) const;
 
 	void RegisterCustomLuaFunctions();
 	static int GetSecurityLevelFunction(lua_State* L);
@@ -160,8 +173,11 @@ private:
 	};
 	static uint32 SpellModKey(uint8 family, uint8 op, uint8 bit);
 	void AccumulateBlock(uint8 family, const uint32* classMask, SpellModOp op, int32& flat, int32& pct) const;
+	void OrBlockMask(uint8 family, const uint32* classMask, SpellModOp op, uint32& mask) const;
 	bool BlockHasMod(uint8 family, const uint32* classMask, SpellModOp op) const;
+	bool FindBlockValue(uint8 family, const uint32* classMask, SpellModOp op, int32& value) const;
 	std::unordered_map<uint32, SpellModEntry> m_spellMods;
+	uint32 m_spellModOpCount[MAX_CUSTOM_SPELLMOD] = { 0 };
 
 	static inline uint32 memoryTable[64] = { 0 };
 	static inline uint32 raceNameTable[32] = { 0 };

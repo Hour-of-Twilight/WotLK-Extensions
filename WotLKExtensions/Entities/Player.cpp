@@ -58,6 +58,7 @@ uint32 Player::SpellModKey(uint8 family, uint8 op, uint8 bit)
 void Player::SetSpellMod(uint8 family, SpellModOp op, uint8 bit, bool isPct, int32 value)
 {
 	uint32 key = SpellModKey(family, op, bit);
+	bool known = m_spellMods.count(key) != 0;
 	SpellModEntry& e = m_spellMods[key];
 	if (isPct)
 		e.pct = value;
@@ -67,12 +68,20 @@ void Player::SetSpellMod(uint8 family, SpellModOp op, uint8 bit, bool isPct, int
 	// the server sends the summed value, so zero means nothing is modifying this bit any more.
 	// flag style ops (cast while moving) only test for the key existing, so it has to go
 	if (!e.flat && !e.pct)
+	{
 		m_spellMods.erase(key);
+		if (known && op < MAX_CUSTOM_SPELLMOD)
+			--m_spellModOpCount[op];
+	}
+	else if (!known && op < MAX_CUSTOM_SPELLMOD)
+		++m_spellModOpCount[op];
 }
 
 void Player::ClearSpellMods()
 {
 	m_spellMods.clear();
+	for (uint32 i = 0; i < MAX_CUSTOM_SPELLMOD; ++i)
+		m_spellModOpCount[i] = 0;
 }
 
 void Player::AccumulateBlock(uint8 family, const uint32* classMask, SpellModOp op, int32& flat, int32& pct) const
@@ -98,6 +107,26 @@ void Player::AccumulateBlock(uint8 family, const uint32* classMask, SpellModOp o
 	}
 }
 
+void Player::OrBlockMask(uint8 family, const uint32* classMask, SpellModOp op, uint32& mask) const
+{
+	if (family == 0 || family >= C_MAX_SPELL_MOD_FAMILY || op >= MAX_CUSTOM_SPELLMOD)
+		return;
+	for (uint32 dword = 0; dword < 3; ++dword)
+	{
+		uint32 word = classMask[dword];
+		while (word)
+		{
+			uint32 bit = 0;
+			for (uint32 w = word; !(w & 1u); w >>= 1)
+				++bit;
+			word &= word - 1;
+			auto it = m_spellMods.find(SpellModKey(family, op, (uint8)(dword * 32 + bit)));
+			if (it != m_spellMods.end())
+				mask |= (uint32)it->second.flat;
+		}
+	}
+}
+
 bool Player::BlockHasMod(uint8 family, const uint32* classMask, SpellModOp op) const
 {
 	if (family == 0 || family >= C_MAX_SPELL_MOD_FAMILY || op >= MAX_CUSTOM_SPELLMOD)
@@ -118,6 +147,31 @@ bool Player::BlockHasMod(uint8 family, const uint32* classMask, SpellModOp op) c
 	return false;
 }
 
+// replace style ops carry one value rather than something to add up, so the first hit wins
+bool Player::FindBlockValue(uint8 family, const uint32* classMask, SpellModOp op, int32& value) const
+{
+	if (family == 0 || family >= C_MAX_SPELL_MOD_FAMILY || op >= MAX_CUSTOM_SPELLMOD)
+		return false;
+	for (uint32 dword = 0; dword < 3; ++dword)
+	{
+		uint32 word = classMask[dword];
+		while (word)
+		{
+			uint32 bit = 0;
+			for (uint32 w = word; !(w & 1u); w >>= 1)
+				++bit;
+			word &= word - 1;
+			auto it = m_spellMods.find(SpellModKey(family, op, (uint8)(dword * 32 + bit)));
+			if (it != m_spellMods.end() && it->second.flat)
+			{
+				value = it->second.flat;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void Player::GetSpellModifiers(SpellRow* spell, SpellModOp op, int32& outFlat, int32& outPct) const
 {
 	outFlat = 0;
@@ -128,6 +182,49 @@ void Player::GetSpellModifiers(SpellRow* spell, SpellModOp op, int32& outFlat, i
 	if (ext)
 		for (uint32 i = 0; i < 3; ++i)
 			AccumulateBlock((uint8)ext->entries[i].spellClassSet, ext->entries[i].spellClassMask, op, outFlat, outPct);
+}
+
+// mask style ops store a bitmask in the flat value, so they have to be OR'd rather than summed
+uint32 Player::GetSpellModMask(SpellRow* spell, SpellModOp op) const
+{
+	uint32 mask = 0;
+	OrBlockMask((uint8)spell->m_spellClassSet, spell->m_spellClassMask, op, mask);
+
+	auto* ext = GlobalCDBCMap.getRow<SpellClassMaskExtensionRow>("SpellClassMaskExtension", spell->m_ID);
+	if (ext)
+		for (uint32 i = 0; i < 3; ++i)
+			OrBlockMask((uint8)ext->entries[i].spellClassSet, ext->entries[i].spellClassMask, op, mask);
+
+	return mask;
+}
+
+bool Player::GetSpellPowerType(const SpellRow* spell, int32& outPowerType) const
+{
+	if (!spell || !HasSpellModOp(SPELLMOD_POWER_TYPE))
+		return false;
+
+	int32 value = 0;
+	bool found = FindBlockValue((uint8)spell->m_spellClassSet, spell->m_spellClassMask, SPELLMOD_POWER_TYPE, value);
+
+	if (!found)
+	{
+		auto* ext = GlobalCDBCMap.getRow<SpellClassMaskExtensionRow>("SpellClassMaskExtension", spell->m_ID);
+		if (ext)
+			for (uint32 i = 0; i < 3 && !found; ++i)
+				found = FindBlockValue((uint8)ext->entries[i].spellClassSet, ext->entries[i].spellClassMask, SPELLMOD_POWER_TYPE, value);
+	}
+
+	if (!found)
+		return false;
+
+	int32 powerType = value - SPELLMOD_POWER_TYPE_BIAS;
+	// the client's cost token and error tables run mana (0) through runic power (6), and -2 for
+	// health. anything else would index off the end of them
+	if (powerType != -2 && (powerType < 0 || powerType > 6))
+		return false;
+
+	outPowerType = powerType;
+	return true;
 }
 
 bool Player::CanCastWhileMoving(SpellRow* spell) const
