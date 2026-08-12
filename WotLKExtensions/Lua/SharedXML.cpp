@@ -1,6 +1,7 @@
 #include <ClientDetours.h>
 #include <SharedDefines.h>
 #include <ClientData/ClientFunctions.h>
+#include <Streaming/PatchStatusUI.h>
 #include <Logger.h>
 #include <cstdio>
 #include <string.h>
@@ -28,6 +29,9 @@ CLIENT_DETOUR(FrameXML_CreateFrames, 0x00814340, __cdecl, int, (const char* tocP
 		char throwawayMd5[128] = {};
 		FrameXML_CreateFrames(kSharedToc, flags, throwawayMd5, statusObj);
 	}
+
+	if (state)
+		::Streaming::PatchStatusUI::Load(state);
 
 	return result;
 }

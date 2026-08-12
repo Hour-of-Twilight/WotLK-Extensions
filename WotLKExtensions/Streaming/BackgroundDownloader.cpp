@@ -56,6 +56,7 @@ namespace Streaming
 
 		constexpr unsigned kPollIntervalMs = 5 * 60 * 1000;
 
+		std::atomic<bool> g_firstPassDone{ false };
 		std::atomic<bool> g_active{ false };
 		std::atomic<long long> g_baseBytes{ 0 };
 		std::atomic<long long> g_doneBytes{ 0 };
@@ -679,8 +680,17 @@ namespace Streaming
 			return true;
 		}
 
+		struct FirstPassScope
+		{
+			~FirstPassScope()
+			{
+				g_firstPassDone = true;
+			}
+		};
+
 		void Run()
 		{
+			FirstPassScope firstPassScope; // login stays gated until we know what needs patching
 			g_installDir = Util::GetExeDir().wstring();
 			if (!AcquirePatchLock())
 			{
@@ -805,6 +815,7 @@ namespace Streaming
 		if (g_started.exchange(true))
 			return;
 		sLua.RegisterFunction("IsStreaming", &BackgroundDownloader::Lua_IsStreaming, LuaFunctionState::ALL);
+		sLua.RegisterFunction("IsStreamingBusy", &BackgroundDownloader::Lua_IsBusy, LuaFunctionState::ALL);
 		sLua.RegisterFunction("GetStreamingProgress", &BackgroundDownloader::Lua_GetProgress, LuaFunctionState::ALL);
 		sLua.RegisterFunction("IsStreamingRestartPending", &BackgroundDownloader::Lua_RestartPending, LuaFunctionState::ALL);
 		sLua.RegisterFunction("IsStreamingUIRefreshPending", &BackgroundDownloader::Lua_UIRefreshPending, LuaFunctionState::ALL);
@@ -845,9 +856,22 @@ namespace Streaming
 		return g_active.load();
 	}
 
+	bool BackgroundDownloader::IsBusy()
+	{
+		if (g_active.load())
+			return true;
+		return g_started.load() && !g_firstPassDone.load();
+	}
+
 	int BackgroundDownloader::Lua_IsStreaming(lua_State* L)
 	{
 		FrameScript::PushBoolean(L, g_active.load());
+		return 1;
+	}
+
+	int BackgroundDownloader::Lua_IsBusy(lua_State* L)
+	{
+		FrameScript::PushBoolean(L, Instance().IsBusy());
 		return 1;
 	}
 

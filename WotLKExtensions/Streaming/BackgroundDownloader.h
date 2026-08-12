@@ -22,7 +22,11 @@ namespace Streaming
 
 		bool IsActive();
 
+		// Active download, or the first update check has not finished yet.
+		bool IsBusy();
+
 		static int Lua_IsStreaming(lua_State* L);
+		static int Lua_IsBusy(lua_State* L);
 		static int Lua_GetProgress(lua_State* L);
 		static int Lua_RestartPending(lua_State* L);
 		static int Lua_UIRefreshPending(lua_State* L);
