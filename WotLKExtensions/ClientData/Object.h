@@ -36,7 +36,7 @@ namespace ClientData
 		virtual void HandleOutOfRange();
 		virtual void UpdateWorldObject(uint32_t x);
 		virtual void ShouldFadeout();
-		virtual void UpdateDisplayInfo();
+		virtual void UpdateDisplayInfo(int force);
 		virtual void GetNamePosition();
 		virtual void GetBag();
 		virtual void GetBag2();

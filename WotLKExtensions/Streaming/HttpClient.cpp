@@ -136,6 +136,7 @@ namespace Streaming
 		long long written = resuming ? opt.resumeFrom : 0;
 		auto start = std::chrono::steady_clock::now();
 		long long throttled = 0;
+		long long limit = 0;
 		std::vector<char> buf(1 << 20);
 
 		for (;;)
@@ -160,10 +161,19 @@ namespace Streaming
 			if (opt.onBytes)
 				opt.onBytes(written);
 
-			if (opt.bytesPerSecond > 0)
+			long long cap = opt.bytesPerSecond ? opt.bytesPerSecond() : 0;
+			if (cap != limit)
+			{
+				// Re-base, or bytes spent under the old cap get billed at the new rate.
+				limit = cap;
+				throttled = 0;
+				start = std::chrono::steady_clock::now();
+			}
+
+			if (limit > 0)
 			{
 				throttled += read;
-				double aheadSec = (double)throttled / opt.bytesPerSecond - std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+				double aheadSec = (double)throttled / limit - std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
 				if (aheadSec > 0.005)
 				{
 					double s = aheadSec < 0.5 ? aheadSec : 0.5;

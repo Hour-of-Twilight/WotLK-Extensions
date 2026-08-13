@@ -161,6 +161,7 @@ namespace DbcFromMpq
 			static const char kPrefix[] = "dbfilesclient\\"; // matched case-insensitively
 			static const char kExt[] = ".dbc";
 			static const char kInterface[] = "interface";
+			static const char* const kArtExts[] = { ".m2", ".mdx", ".skin", ".blp", ".anim" };
 			const size_t prefLen = sizeof(kPrefix) - 1;
 			const size_t extLen = sizeof(kExt) - 1;
 			const size_t ifaceLen = sizeof(kInterface) - 1;
@@ -176,6 +177,18 @@ namespace DbcFromMpq
 
 				if (!result.interfaceFiles && icontains(p, len, kInterface, ifaceLen))
 					result.interfaceFiles = true;
+
+				// UI art rides on the reload prompt, so only world art counts here.
+				if (!result.artFiles && !(len >= ifaceLen && iequal_n(p, kInterface, ifaceLen)))
+					for (const char* ext : kArtExts)
+					{
+						size_t el = std::strlen(ext);
+						if (len > el && iequal_n(p + len - el, ext, el))
+						{
+							result.artFiles = true;
+							break;
+						}
+					}
 
 				if (len > prefLen + extLen &&
 				    iequal_n(p, kPrefix, prefLen) &&
@@ -226,7 +239,8 @@ namespace DbcFromMpq
 			CDBCMgr::Load();
 		LOG_DEBUG << "DbcFromMpq: refresh pass done (customSeen=" << (int)customSeen
 		          << " spell=" << (int)result.spellDataChanged
-		          << " interface=" << (int)result.interfaceFiles << ")";
+		          << " interface=" << (int)result.interfaceFiles
+		          << " art=" << (int)result.artFiles << ")";
 		return result;
 	}
 }

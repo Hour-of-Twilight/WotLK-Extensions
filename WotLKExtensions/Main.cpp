@@ -8,6 +8,7 @@
 #include <Character/AnimationFixes.h>
 #include <Spells/AutoRepeatDeadzone.h>
 #include <Config/LauncherSettings.h>
+#include <Config/LauncherSettingsLua.h>
 #include <FeatureCvars.h>
 #include <Logger.h>
 void Main::OnAttach()
@@ -30,6 +31,7 @@ void Main::OnAttach()
 	Item::Apply();
 	CDBCMgr::Load();
 
+	LauncherSettingsLua::Apply();
 	FeatureCvars::Apply();
 }
 

@@ -11,7 +11,7 @@ namespace Streaming
 	struct DownloadOptions
 	{
 		long long resumeFrom = 0;
-		long long bytesPerSecond = 0;
+		std::function<long long()> bytesPerSecond; // re-read every chunk, 0 or unset = unlimited
 		std::function<void(long long)> onBytes;
 		std::function<bool()> cancel;
 	};

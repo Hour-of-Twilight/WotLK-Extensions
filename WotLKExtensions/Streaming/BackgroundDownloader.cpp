@@ -11,6 +11,7 @@
 #include <ClientData/Spell.h>
 #include <ClientData/Achievements.h>
 #include <ClientData/ObjectManager.h>
+#include <ClientData/ModelCache.h>
 #include <Packets/Packet.h>
 #include <ClientDetours.h>
 #include <ClientData/ClientFunctions.h>
@@ -424,6 +425,25 @@ namespace Streaming
 			SpawnCloseSwapHelper();
 		}
 
+		bool HasPendingMove(const std::wstring& src, const std::wstring& dst)
+		{
+			std::lock_guard<std::mutex> lock(g_pendingMutex);
+			for (const PendingMove& m : g_pendingMoves)
+				if (PathEqual(m.src, src) && PathEqual(m.dst, dst))
+					return true;
+			return false;
+		}
+
+		void CancelPendingMove(const std::wstring& src, const std::wstring& dst)
+		{
+			std::lock_guard<std::mutex> lock(g_pendingMutex);
+			size_t before = g_pendingMoves.size();
+			for (auto it = g_pendingMoves.begin(); it != g_pendingMoves.end();)
+				it = (PathEqual(it->src, src) && PathEqual(it->dst, dst)) ? g_pendingMoves.erase(it) : it + 1;
+			if (g_pendingMoves.size() != before)
+				WritePendingLocked();
+		}
+
 		void DropStaged(const std::wstring& path)
 		{
 			std::error_code ec;
@@ -506,8 +526,13 @@ namespace Streaming
 			WritePendingLocked();
 		}
 
+		struct MountRequest
+		{
+			std::string path;
+		};
+
 		std::mutex g_mountMutex;
-		std::vector<std::string> g_mountQueue;
+		std::vector<MountRequest> g_mountQueue;
 		std::set<std::wstring> g_mounted; // path + hash, so a re-download of a path still remounts
 
 		std::mutex g_eventMutex;
@@ -529,10 +554,32 @@ namespace Streaming
 			}
 			StreamLog("stream: queued mount %s", p.c_str());
 			std::lock_guard<std::mutex> lock(g_mountMutex);
-			g_mountQueue.push_back(std::move(p));
+			g_mountQueue.push_back(MountRequest{ std::move(p) });
 		}
 
-		void PlaceFile(const std::string& baseUrl, const ManifestFile& mf, long long bps)
+		int __cdecl RefreshUnitModelCb(uint32_t guidLow, uint32_t guidHigh, void*)
+		{
+			uint64_t guid = ((uint64_t)guidHigh << 32) | guidLow;
+			ClientData::CGObject_C* unit = ClientData::ObjectManager::GetObject(guid,
+			    (ClientData::ObjectTypeMask)(ClientData::TYPEMASK_UNIT | ClientData::TYPEMASK_PLAYER));
+			if (unit)
+				unit->UpdateDisplayInfo(1);
+			return 1;
+		}
+
+		// A mounted archive only changes what gets parsed from here on, so drop the cached copies
+		// and make everything already in the world rebuild against the new files.
+		void RefreshLoadedModels()
+		{
+			ClientData::ModelCache::Invalidate();
+			ClientData::ModelCache::Purge();
+			if (!ClientData::ObjectManager::GetActivePlayerObject())
+				return;
+			ClntObjMgr::EnumVisibleObjects(RefreshUnitModelCb, nullptr);
+			StreamLog("stream: rebuilt world models after art mount");
+		}
+
+		void PlaceFile(const std::string& baseUrl, const ManifestFile& mf)
 		{
 			std::wstring local = (fs::path(g_installDir) / fs::path(mf.path)).wstring();
 			std::error_code ec;
@@ -558,7 +605,10 @@ namespace Streaming
 
 			DownloadOptions opt;
 			opt.resumeFrom = resume;
-			opt.bytesPerSecond = bps;
+			opt.bytesPerSecond = []
+			{
+				return sLauncherSettings.MaxDownloadBytesPerSecond();
+			};
 			opt.onBytes = [](long long written)
 			{
 				g_doneBytes = g_baseBytes.load() + written;
@@ -640,6 +690,38 @@ namespace Streaming
 			}
 		}
 
+		// HD off parks the file as <name>.disabled like the launcher does, so turning it back on
+		// is a rename plus a hash check. False means skip the file this pass.
+		bool ReconcileHdFile(const std::wstring& local, bool hdPatch, bool& restored)
+		{
+			const std::wstring disabled = local + L".disabled";
+			std::error_code ec;
+
+			if (!hdPatch)
+			{
+				if (!fs::exists(local, ec))
+					return false;
+				if (MoveFileExW(local.c_str(), disabled.c_str(),
+				        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+					StreamLog("stream: hd off, disabled %s", NarrowAcp(local).c_str());
+				else if (!HasPendingMove(local, disabled))
+					RecordPending(local, disabled, true); // loaded by the client, park it on exit
+				return false;
+			}
+
+			// Turned back on before the queued rename ran, so keep what is already on disk.
+			CancelPendingMove(local, disabled);
+
+			if (fs::exists(local, ec) || !fs::exists(disabled, ec))
+				return true;
+			if (!MoveFileExW(disabled.c_str(), local.c_str(),
+			        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+				return true; // could not bring it back, fall through and re-download it
+			StreamLog("stream: hd on, restored %s", NarrowAcp(local).c_str());
+			restored = true;
+			return true;
+		}
+
 		struct ActiveScope
 		{
 			~ActiveScope()
@@ -703,7 +785,6 @@ namespace Streaming
 			std::string baseUrl;
 			LoadLauncherUrls(g_installDir, manifestUrl, baseUrl);
 			const bool hdPatch = sLauncherSettings.HdPatch();
-			const long long maxBytesPerSecond = sLauncherSettings.MaxDownloadBytesPerSecond();
 
 			// Bust any Cloudflare cache so we always read the newest manifest, not a stale copy.
 			std::wstring manifestReq = AppendQuery(
@@ -739,8 +820,6 @@ namespace Streaming
 			long long total = 0;
 			for (const ManifestFile& mf : man.files)
 			{
-				if (mf.hd && !hdPatch)
-					continue;
 #ifdef AUTO_UPDATER_IGNORES_DLL
 				if (IsExtensionDll(mf.path))
 				{
@@ -749,10 +828,18 @@ namespace Streaming
 				}
 #endif
 				std::wstring local = (fs::path(g_installDir) / fs::path(mf.path)).wstring();
+
+				bool restored = false;
+				if (mf.hd && !ReconcileHdFile(local, hdPatch, restored))
+					continue;
+
 				std::wstring np = StagedPath(local, mf.sha256);
 
 				if (FileSize(local) == mf.size && LocalMatches(local, mf.sha256))
 				{
+					// Restored from .disabled, so the client never loaded it at startup.
+					if (restored && IsMpq(mf.path))
+						EnqueueMount(local, mf.sha256);
 					SweepStagedSiblings(local, L""); // nothing left to swap in
 					continue;
 				}
@@ -791,7 +878,7 @@ namespace Streaming
 					std::lock_guard<std::mutex> lock(g_statusMutex);
 					g_currentFile = mf->path;
 				}
-				PlaceFile(baseUrl, *mf, maxBytesPerSecond);
+				PlaceFile(baseUrl, *mf);
 				g_baseBytes = g_baseBytes.load() + mf->size;
 				g_doneBytes = g_baseBytes.load();
 				g_filesDone = g_filesDone.load() + 1;
@@ -841,6 +928,9 @@ namespace Streaming
 
 	void BackgroundDownloader::Trigger()
 	{
+		if (!g_started.load()) // downloader turned off, nothing to check against
+			return;
+
 		bool expected = false;
 		if (!g_running.compare_exchange_strong(expected, true))
 			return;
@@ -930,17 +1020,19 @@ namespace Streaming
 		}
 
 		// Do the main-thread mount work, queuing any resulting Lua events rather than firing them.
-		std::vector<std::string> batch;
+		std::vector<MountRequest> batch;
 		{
 			std::lock_guard<std::mutex> lock(g_mountMutex);
 			batch.swap(g_mountQueue);
 		}
-		for (const std::string& path : batch)
+		bool artMounted = false;
+		for (const MountRequest& req : batch)
 		{
+			const char* path = req.path.c_str();
 			int priority = g_nextMountPriority.fetch_add(1);
 			void* hMpq = nullptr;
-			bool ok = ClientData::Streaming::MountArchive(path.c_str(), priority, &hMpq);
-			StreamLog("stream: mount %s (prio %d) -> %s", ok ? "OK" : "FAILED", priority, path.c_str());
+			bool ok = ClientData::Streaming::MountArchive(path, priority, &hMpq);
+			StreamLog("stream: mount %s (prio %d) -> %s", ok ? "OK" : "FAILED", priority, path);
 			if (ok && hMpq)
 			{
 				ClientData::Streaming::RebuildHash();
@@ -956,8 +1048,13 @@ namespace Streaming
 					ClientData::Achievements::RequestRebuild();
 				if (r.interfaceFiles)
 					g_uiRefreshNeeded = true;
+				if (r.artFiles)
+					artMounted = true;
 			}
 		}
+
+		if (artMounted)
+			RefreshLoadedModels();
 
 		if (ClientData::Achievements::ConsumeRebuildRequest() &&
 		    ClientData::ObjectManager::GetActivePlayerObject())

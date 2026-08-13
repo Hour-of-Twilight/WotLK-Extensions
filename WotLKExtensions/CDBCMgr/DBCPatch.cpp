@@ -335,16 +335,18 @@ WoWClientDB* DBCPatch::FindStorage(const char* name)
 	return nullptr;
 }
 
-// GetWMOAreaRec (0x00990560) bsearches the dense array, so it has to stay in PtFuncCompare order
-// rather than id order. Only bsearch over a DBC in the client.
+// Dense arrays the client reads in a way that depends on their sort, so id order won't do:
+// GetWMOAreaRec (0x00990560) bsearches with PtFuncCompare (0x00990530), and BuildComponentArray
+// (0x004F3DD0) run-length groups CharSections, so a group split across two runs loses rows.
 struct DenseSortKey
 {
 	const char* name;
-	uint16_t fields[4]; // struct offsets, 0xFFFF terminates
+	uint16_t fields[6]; // struct offsets, 0xFFFF terminates
 };
 
 constexpr DenseSortKey kDenseSortKeys[] = {
 	{ "wMOAreaTable", { 4, 8, 12, 0xFFFFu } },
+	{ "charSections", { 4, 8, 12, 0x20, 0x24, 0xFFFFu } },
 };
 
 static const uint16_t* FindDenseSortKey(const char* name)
@@ -384,8 +386,61 @@ namespace DBCDetailDoodad
 	CLIENT_FUNCTION(Reserve, 0x007B0DF0, __thiscall, void, (void* self, uint32_t capacity))
 }
 
+// CCharacterComponent::Initialize (0x004F1A20) builds two lookups once at startup and never again:
+// s_chrVarArray, a [race*2+sex][baseSection][variation][color] index over CharSections, and
+// s_characterFacialHairStylesList, a per-(race,sex) count. Both are sized from ChrRaces maxID and
+// ComponentGetSectionsRecord doesn't range check race, so a new race id would read past the end.
+namespace DBCCharComponent
+{
+	CLIENT_FUNCTION(BuildComponentArray, 0x004F3DD0, __cdecl, char, (int length, void** out))
+	CLIENT_FUNCTION(CountFacialFeatures, 0x004F41B0, __cdecl, char, (int length, void** out))
+	CLIENT_ADDRESS(void*, sChrVarArray, 0x00B6B864)
+	CLIENT_ADDRESS(uint32_t, sChrVarArrayLength, 0x00B6B874)
+	CLIENT_ADDRESS(void*, sFacialHairStylesList, 0x00B6B860)
+	CLIENT_ADDRESS(ClientData::WoWClientDB, sChrRacesDB, 0x00AD3428)
+}
+
+static void RefreshCharacterComponent()
+{
+	// Null until Initialize runs, and that will read the patched rows itself.
+	if (!*DBCCharComponent::sChrVarArray && !*DBCCharComponent::sFacialHairStylesList)
+		return;
+
+	if (DBCCharComponent::sChrRacesDB->maxIndex < 0)
+		return;
+	int length = DBCCharComponent::sChrRacesDB->maxIndex * 2 + 2;
+
+	// The component worker thread reads these without a lock, so build the replacement first and
+	// swap it in. Freeing the old one would be a use-after-free, and a refresh is rare enough
+	// that leaking it is the cheaper trade.
+	void* chrVar = nullptr;
+	void* facial = nullptr;
+	if (*DBCCharComponent::sChrVarArray)
+		DBCCharComponent::BuildComponentArray(length, &chrVar);
+	if (*DBCCharComponent::sFacialHairStylesList)
+		DBCCharComponent::CountFacialFeatures(length, &facial);
+
+	if (chrVar)
+	{
+		*DBCCharComponent::sChrVarArray = chrVar;
+		*DBCCharComponent::sChrVarArrayLength = static_cast<uint32_t>(length);
+	}
+	if (facial)
+		*DBCCharComponent::sFacialHairStylesList = facial;
+
+	LOG_DEBUG << "DBC character component rebuilt length=" << length
+	          << " chrVar=" << (chrVar ? 1 : 0) << " facial=" << (facial ? 1 : 0);
+}
+
 void DBCPatch::RefreshDerivedState(const char* dbcName, WoWClientDB* db)
 {
+	if (iequals(dbcName, "charSections") || iequals(dbcName, "characterFacialHairStyles") ||
+	    iequals(dbcName, "chrRaces"))
+	{
+		RefreshCharacterComponent();
+		return;
+	}
+
 	if (!iequals(dbcName, "groundEffectDoodad"))
 		return;
 	if (!*DBCDetailDoodad::sList)
