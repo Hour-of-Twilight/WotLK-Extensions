@@ -12,11 +12,11 @@ constexpr const int HOT_CHAR_SELECT_UPDATE = 726;
 constexpr const int HOT_GOB_SELECTED = 727;
 
 CLIENT_ADDRESS(WoWClientDB, g_SpellDB, 0x00AD49D0)
-CLIENT_ADDRESS(WoWClientDB, g_SpellCategoryDB, 0x00AD477C)
-CLIENT_ADDRESS(WoWClientDB, g_CreatureFamilyDB, 0x00AD34EC)
-CLIENT_ADDRESS(WoWClientDB, g_ItemPetFoodDB, 0x00AD3E74)
-CLIENT_ADDRESS(WoWClientDB, g_SkillLineAbilityDB, 0x00AD45A0)
-CLIENT_ADDRESS(WoWClientDB, g_SpellRuneCostDB, 0x00AD49C4)
+CLIENT_ADDRESS(WoWClientDB, g_SpellCategoryDB, 0x00AD476C)
+CLIENT_ADDRESS(WoWClientDB, g_CreatureFamilyDB, 0x00AD34DC)
+CLIENT_ADDRESS(WoWClientDB, g_ItemPetFoodDB, 0x00AD3E6C)
+CLIENT_ADDRESS(WoWClientDB, g_SkillLineAbilityDB, 0x00AD4598)
+CLIENT_ADDRESS(WoWClientDB, g_SpellRuneCostDB, 0x00AD49AC)
 
 CLIENT_ADDRESS(WowClientDB_ItemDisplayInfoRec, g_itemDisplayInfoDB, 0x00AD3DDC)
 

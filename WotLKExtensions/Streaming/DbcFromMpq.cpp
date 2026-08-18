@@ -68,12 +68,13 @@ namespace DbcFromMpq
 			return nullptr;
 		}
 
-		bool IsCustomDbc(const char* stem, size_t len)
+		// Returns the key the CDBC registered under, since the CDBCMgr lookups are case-sensitive.
+		const std::string* FindCustomDbc(const char* stem, size_t len)
 		{
 			for (const auto& kv : GlobalCDBCMap.allCDBCs)
 				if (kv.first.size() == len && iequal_n(kv.first.c_str(), stem, len))
-					return true;
-			return false;
+					return &kv.first;
+			return nullptr;
 		}
 
 #pragma pack(push, 1)
@@ -87,7 +88,9 @@ namespace DbcFromMpq
 		};
 #pragma pack(pop)
 
-		void ApplyDbc(void* hMpq, const char* mpqPath, const char* stem, size_t stemLen)
+		// customName: set for a CDBC, and is the key it registered itself under.
+		void ApplyDbc(void* hMpq, const char* mpqPath, const char* stem, size_t stemLen,
+		    const std::string* customName = nullptr)
 		{
 			std::vector<uint8_t> data;
 			if (!ClientData::Streaming::ReadWholeFile(hMpq, mpqPath, data))
@@ -105,11 +108,27 @@ namespace DbcFromMpq
 
 			const uint8_t* records = data.data() + sizeof(WdbcHeader);
 			const char* strBlock = reinterpret_cast<const char*>(records + recBytes);
-			std::string name(stem, stemLen);
+			std::string name = customName ? *customName : std::string(stem, stemLen);
 
 			const DbcTransform* t = FindTransform(stem, stemLen);
 			if (!t)
 			{
+				// A CDBC stores the file record verbatim and keys off column 0 like CDBC::LoadDB,
+				// so it needs no transform - ApplyRecords hands these to its row writer.
+				if (GlobalCDBCMap.hasRowWriter(name))
+				{
+					std::vector<uint32_t> ids(h.recordCount);
+					for (uint32_t i = 0; i < h.recordCount; ++i)
+						std::memcpy(&ids[i], records + static_cast<size_t>(i) * h.recordSize,
+						    sizeof(uint32_t));
+					if (DBCPatch::ApplyRecords(name.c_str(), h.recordSize, {}, ids, records, nullptr, 0))
+						Util::DebugOutput("dbc: refreshed custom %s (%u records) from streamed mpq",
+						    name.c_str(), h.recordCount);
+					else
+						LOG_DEBUG << "DBC custom '" << name.c_str() << "' applied nothing; "
+						          << h.recordCount << " records of " << h.recordSize << "B";
+					return;
+				}
 				// No in-memory layout, so the raw file record would corrupt the storage.
 				Util::DebugOutput("dbc: %s has no transform, skipped", name.c_str());
 				LOG_DEBUG << "DBC skip '" << name.c_str() << "' no transform; " << h.recordCount
@@ -205,20 +224,13 @@ namespace DbcFromMpq
 					// achievement, achievement_Category and achievement_Criteria all feed the index.
 					if (stemLen >= 11 && iequal_n(stem, "achievement", 11))
 						result.achievementDataChanged = true;
-					if (IsCustomDbc(stem, stemLen))
-					{
-						if (GlobalCDBCMap.hasRowWriter(std::string(stem, stemLen)))
-						{
-							std::string path(p, len);
-							ApplyDbc(hMpq, path.c_str(), stem, stemLen);
-						}
-						else
-							customSeen = true;
-					}
+					const std::string* customName = FindCustomDbc(stem, stemLen);
+					if (customName && !GlobalCDBCMap.hasRowWriter(*customName))
+						customSeen = true; // no row writer, so a full CDBCMgr::Load re-reads it
 					else
 					{
 						std::string path(p, len);
-						ApplyDbc(hMpq, path.c_str(), stem, stemLen);
+						ApplyDbc(hMpq, path.c_str(), stem, stemLen, customName);
 					}
 				}
 

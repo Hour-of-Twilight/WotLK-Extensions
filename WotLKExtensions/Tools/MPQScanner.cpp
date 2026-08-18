@@ -1,10 +1,12 @@
 #include "MPQScanner.h"
 #include "CustomLua.h"
 
+#include "Streaming/BackgroundDownloader.h"
+#include "Streaming/Sha256.h"
+
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
-#include <fstream>
 #include <windows.h>
 namespace fs = std::filesystem;
 
@@ -14,7 +16,8 @@ int MpqScanner::GetMpqList(lua_State* L)
 	char buffer[512];
 	for (const auto& mpq : mpqs)
 	{
-		SStr::Printf(buffer, sizeof(buffer), "%s %u", mpq.filename_lower.c_str(), mpq.hash);
+		SStr::Printf(buffer, sizeof(buffer), "%s %s", mpq.filename_lower.c_str(),
+		    mpq.updating ? "(updating)" : mpq.digest.c_str());
 		CGChat::AddChatMessage(buffer, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	}
 	return 0;
@@ -32,62 +35,72 @@ namespace
 		return out;
 	}
 
-	uint32_t HashMpq(const fs::path& file)
-	{
-		std::ifstream in(file, std::ios::binary | std::ios::ate);
-		if (!in)
-			return 0;
-
-		const uint64_t size = static_cast<uint64_t>(in.tellg());
-
-		constexpr std::streamsize SAMPLE = 64;
-		char head[SAMPLE] = {};
-		char tail[SAMPLE] = {};
-
-		in.seekg(0);
-		in.read(head, SAMPLE);
-
-		if (size > static_cast<uint64_t>(SAMPLE))
-		{
-			in.seekg(-SAMPLE, std::ios::end);
-			in.read(tail, SAMPLE);
-		}
-
-		constexpr uint64_t FNV_PRIME = 0x00000100000001B3ULL;
-		constexpr uint64_t FNV_OFFSET = 0xcbf29ce484222325ULL;
-
-		uint64_t h = FNV_OFFSET;
-		for (int i = 0; i < 8; ++i)
-			h = (h ^ static_cast<uint8_t>(size >> (i * 8))) * FNV_PRIME;
-		for (std::streamsize i = 0; i < SAMPLE; ++i)
-			h = (h ^ static_cast<uint8_t>(head[i])) * FNV_PRIME;
-		for (std::streamsize i = 0; i < SAMPLE; ++i)
-			h = (h ^ static_cast<uint8_t>(tail[i])) * FNV_PRIME;
-
-		return static_cast<uint32_t>(h ^ (h >> 32));
-	}
-
 	fs::path GetDataFolder()
 	{
 		char buffer[MAX_PATH];
 		GetModuleFileNameA(nullptr, buffer, MAX_PATH);
 		return fs::path(buffer).parent_path() / "Data";
 	}
+
+	std::wstring LowerPath(std::wstring p)
+	{
+		for (wchar_t& c : p)
+		{
+			if (c == L'/')
+				c = L'\\';
+			else if (c >= L'A' && c <= L'Z')
+				c = (wchar_t)(c + 32);
+		}
+		return p;
+	}
+}
+
+std::string MpqScanner::DigestOf(const std::wstring& path)
+{
+	std::error_code ec;
+	const long long size = (long long)fs::file_size(path, ec);
+	if (ec)
+		return "";
+	const long long mtime = (long long)fs::last_write_time(path, ec).time_since_epoch().count();
+	if (ec)
+		return "";
+
+	const std::wstring key = LowerPath(path);
+	auto it = digests.find(key);
+	if (it != digests.end() && it->second.size == size && it->second.mtime == mtime)
+		return it->second.digest;
+
+	std::string digest = Streaming::QuickDigestFile(path);
+	if (!digest.empty())
+		digests[key] = CachedDigest{ size, mtime, digest };
+	return digest;
 }
 
 void MpqScanner::Start()
 {
-	if (done)
-		return;
-
 	sLua.RegisterFunction("GetMpqList", &GetMpqList, LuaFunctionState::FRAME);
+}
+
+std::vector<MpqInfo> MpqScanner::GetResults()
+{
+	std::lock_guard<std::mutex> lock(mutex);
+	const unsigned generation = Streaming::UpdateGeneration();
+	if (!done.load() || generation != scannedGeneration)
+	{
+		Rescan();
+		scannedGeneration = generation;
+		done = true;
+	}
+	return results;
+}
+
+void MpqScanner::Rescan()
+{
+	results.clear();
 
 	fs::path dataFolder = GetDataFolder();
 	if (!fs::exists(dataFolder))
-	{
-		done = true;
 		return;
-	}
 
 	auto scanFolder = [&](const fs::path& folder)
 	{
@@ -103,9 +116,18 @@ void MpqScanner::Start()
 			if (ext != ".mpq")
 				continue;
 
+			// A download parked next to the real file waiting for the swap. It isn't installed
+			// yet and has no row in client_mpqs, so reporting it would only draw a warning.
+			if (Streaming::IsStagedName(entry.path().filename().wstring()))
+				continue;
+
 			MpqInfo info;
 			info.filename_lower = ToLower(entry.path().filename().string());
-			info.hash = HashMpq(entry.path());
+			// Still reported so it counts as present, but skip the read: the copy on disk is the
+			// old one and we already know it, so hashing it would only cost I/O.
+			info.updating = Streaming::IsUpdatePending(entry.path().wstring());
+			if (!info.updating)
+				info.digest = DigestOf(entry.path().wstring());
 			results.push_back(info);
 		}
 	};
@@ -113,6 +135,4 @@ void MpqScanner::Start()
 	scanFolder(dataFolder);
 	scanFolder(dataFolder / "enUS");
 	scanFolder(dataFolder / "enGB");
-
-	done = true;
 }

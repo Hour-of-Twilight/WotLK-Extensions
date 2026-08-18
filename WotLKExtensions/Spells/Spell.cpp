@@ -27,20 +27,28 @@ bool Spells::RelaxEquippedItemRequirements(SpellRow* spell)
 	if (!hasRequirement && !attr0Slot && !attr3Slot)
 		return false;
 
-	uint32_t classMod = sPlayer.GetSpellModMask(spell, SPELLMOD_IGNORE_ITEM_CLASS);
-	if (!(classMod & (1u << ITEM_CLASS_WEAPON)))
+	uint32_t weaponClassMod = sPlayer.GetSpellModMask(spell, SPELLMOD_IGNORE_WEAPON_ITEM_CLASS);
+	if (!(weaponClassMod & (1u << ITEM_CLASS_WEAPON)))
 	{
 		attr0Slot = 0;
 		attr3Slot = 0;
 	}
 
-	uint32_t ignoreClass = 0;
+	bool ignoreClass = false;
 	uint32_t ignoreSubclass = 0;
 	uint32_t ignoreInvType = 0;
 	if (hasRequirement)
 	{
-		ignoreClass = classMod & (1u << itemClass);
-		ignoreSubclass = sPlayer.GetSpellModMask(spell, SPELLMOD_IGNORE_ITEM_SUBCLASS) & spell->m_equippedItemSubclass;
+		if (itemClass == ITEM_CLASS_WEAPON)
+		{
+			ignoreClass = (weaponClassMod & (1u << ITEM_CLASS_WEAPON)) != 0;
+			ignoreSubclass = sPlayer.GetSpellModMask(spell, SPELLMOD_IGNORE_ITEM_SUBCLASS) & spell->m_equippedItemSubclass;
+		}
+		else if (itemClass == ITEM_CLASS_ARMOR)
+		{
+			ignoreSubclass = sPlayer.GetSpellModMask(spell, SPELLMOD_IGNORE_ARMOR_SUBCLASS) & spell->m_equippedItemSubclass;
+			ignoreClass = ignoreSubclass != 0 && (spell->m_equippedItemSubclass & ~ignoreSubclass) == 0;
+		}
 		ignoreInvType = sPlayer.GetSpellModMask(spell, SPELLMOD_IGNORE_ITEM_INV_TYPE) & spell->m_equippedItemInvTypes;
 	}
 

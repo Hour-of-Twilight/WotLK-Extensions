@@ -2,6 +2,7 @@
 
 #include "LauncherManifest.h"
 #include "HttpClient.h"
+#include "ManifestSignature.h"
 #include "Sha256.h"
 
 #include <ClientData/Streaming.h>
@@ -37,6 +38,7 @@
 #include <filesystem>
 #include <fstream>
 #include <cctype>
+#include <cwctype>
 #include <cstring>
 #include <cstdarg>
 #include <cstdio>
@@ -166,6 +168,20 @@ namespace Streaming
 			return local.substr(0, dot) + tag + local.substr(dot);
 		}
 
+		// The other half of StagedPath: does this name end in the .new-<8 hex> tag it appends.
+		bool HasStagedTag(const std::wstring& name)
+		{
+			const std::wstring marker = L".new-";
+			if (name.size() < marker.size() + 8)
+				return false;
+			if (name.compare(name.size() - 8 - marker.size(), marker.size(), marker) != 0)
+				return false;
+			for (size_t i = name.size() - 8; i < name.size(); ++i)
+				if (!iswxdigit(name[i]))
+					return false;
+			return true;
+		}
+
 		bool StartsWithNoCase(const std::wstring& s, const std::wstring& pre)
 		{
 			return s.size() >= pre.size() && LowerPath(s.substr(0, pre.size())) == LowerPath(pre);
@@ -291,33 +307,43 @@ namespace Streaming
 			g_localHashesDirty = false;
 		}
 
-		void RememberLocal(const std::wstring& path, const std::string& sha)
+		// What we check an already-present file against. MPQs carry a sampled digest so verifying
+		// them doesn't mean reading gigabytes off disk. Everything else stays on full SHA-256.
+		const std::string& ExpectedDigest(const ManifestFile& mf)
+		{
+			return mf.quick.empty() ? mf.sha256 : mf.quick;
+		}
+
+		void RememberLocal(const std::wstring& path, const std::string& digest)
 		{
 			long long size = FileSize(path);
 			long long mtime = FileMtime(path);
 			if (size < 0 || mtime < 0)
 				return;
-			g_localHashes[LowerPath(path)] = HashEntry{ size, mtime, sha };
+			g_localHashes[LowerPath(path)] = HashEntry{ size, mtime, digest };
 			g_localHashesDirty = true;
 		}
 
-		bool LocalMatches(const std::wstring& path, const std::string& sha)
+		bool LocalMatches(const std::wstring& path, const std::string& expected)
 		{
 			long long size = FileSize(path);
 			long long mtime = FileMtime(path);
 			if (size < 0 || mtime < 0)
 				return false;
 
+			// A cached digest of the wrong kind can't answer the question, so fall through and
+			// recompute rather than reporting a mismatch and re-downloading the whole file.
 			auto it = g_localHashes.find(LowerPath(path));
-			if (it != g_localHashes.end() && it->second.size == size && it->second.mtime == mtime)
-				return _stricmp(it->second.sha.c_str(), sha.c_str()) == 0;
+			if (it != g_localHashes.end() && it->second.size == size && it->second.mtime == mtime
+			    && IsQuickDigest(it->second.sha) == IsQuickDigest(expected))
+				return _stricmp(it->second.sha.c_str(), expected.c_str()) == 0;
 
-			std::string got = Sha256File(path);
+			std::string got = IsQuickDigest(expected) ? QuickDigestFile(path) : Sha256File(path);
 			if (got.empty())
 				return false;
 			g_localHashes[LowerPath(path)] = HashEntry{ size, mtime, got };
 			g_localHashesDirty = true;
-			return _stricmp(got.c_str(), sha.c_str()) == 0;
+			return _stricmp(got.c_str(), expected.c_str()) == 0;
 		}
 
 		std::wstring ToBackslashes(std::wstring p)
@@ -337,6 +363,15 @@ namespace Streaming
 		std::mutex g_pendingMutex;
 		std::vector<PendingMove> g_pendingMoves;
 		std::vector<std::wstring> g_pendingDeletes;
+
+		std::mutex g_plannedMutex;
+		std::set<std::wstring> g_plannedUpdates; // lowered absolute paths this pass will replace
+		std::atomic<unsigned> g_updateGeneration{ 0 };
+
+		std::wstring LocalPath(const std::string& relPath)
+		{
+			return (fs::path(g_installDir) / fs::path(relPath)).wstring();
+		}
 
 		void WritePendingLocked()
 		{
@@ -581,7 +616,7 @@ namespace Streaming
 
 		void PlaceFile(const std::string& baseUrl, const ManifestFile& mf)
 		{
-			std::wstring local = (fs::path(g_installDir) / fs::path(mf.path)).wstring();
+			std::wstring local = LocalPath(mf.path);
 			std::error_code ec;
 			fs::create_directories(fs::path(local).parent_path(), ec);
 			std::wstring part = local + L".part";
@@ -640,7 +675,9 @@ namespace Streaming
 					fs::copy_file(part, local, fs::copy_options::overwrite_existing, ec);
 					fs::remove(part, ec);
 				}
-				RememberLocal(local, mf.sha256);
+				// SHA-256 already matched above, so the file is the manifest's file and we can
+				// record its expected digest without reading it back.
+				RememberLocal(local, ExpectedDigest(mf));
 				if (isMpq)
 					EnqueueMount(local, mf.sha256);
 				return;
@@ -649,7 +686,7 @@ namespace Streaming
 			// Exists: swap now if unlocked, else stage a hash-named copy, mount it, swap later.
 			if (MoveFileExW(part.c_str(), local.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
 			{
-				RememberLocal(local, mf.sha256);
+				RememberLocal(local, ExpectedDigest(mf));
 				if (isMpq)
 					EnqueueMount(local, mf.sha256);
 				SweepStagedSiblings(local, L"");
@@ -672,11 +709,11 @@ namespace Streaming
 		}
 
 		void SwapOrStage(const std::wstring& np, const std::wstring& local, bool isMpq,
-		    const std::string& sha)
+		    const std::string& sha, const std::string& expected)
 		{
 			if (MoveFileExW(np.c_str(), local.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
 			{
-				RememberLocal(local, sha);
+				RememberLocal(local, expected);
 				if (isMpq)
 					EnqueueMount(local, sha);
 				SweepStagedSiblings(local, L"");
@@ -787,8 +824,9 @@ namespace Streaming
 			const bool hdPatch = sLauncherSettings.HdPatch();
 
 			// Bust any Cloudflare cache so we always read the newest manifest, not a stale copy.
-			std::wstring manifestReq = AppendQuery(
-			    manifestUrl, L"t", std::to_wstring((long long)std::time(nullptr)));
+			// The signature covers the body rather than the URL, so this doesn't affect it.
+			std::wstring stamp = std::to_wstring((long long)std::time(nullptr));
+			std::wstring manifestReq = AppendQuery(manifestUrl, L"t", stamp);
 
 			std::string json;
 			if (!HttpGetString(manifestReq, json))
@@ -796,6 +834,25 @@ namespace Streaming
 				StreamLog("stream: manifest fetch failed");
 				return;
 			}
+
+			// Checked before parsing, so nothing in the manifest is acted on until the bytes are
+			// known to be ours. A deploy landing between the two fetches pairs a fresh manifest
+			// with a stale signature, which fails closed here and works on the next pass.
+			std::wstring sigReq = AppendQuery(
+			    manifestUrl + Widen(kSignatureSuffix), L"t", stamp);
+
+			std::string signature;
+			if (!HttpGetString(sigReq, signature))
+			{
+				StreamLog("stream: manifest signature fetch failed");
+				return;
+			}
+			if (!VerifyManifestSignature(json, signature))
+			{
+				StreamLog("stream: manifest signature REJECTED, ignoring this manifest");
+				return;
+			}
+
 			Manifest man;
 			if (!ParseManifest(json, man))
 			{
@@ -827,7 +884,7 @@ namespace Streaming
 					continue;
 				}
 #endif
-				std::wstring local = (fs::path(g_installDir) / fs::path(mf.path)).wstring();
+				std::wstring local = LocalPath(mf.path);
 
 				bool restored = false;
 				if (mf.hd && !ReconcileHdFile(local, hdPatch, restored))
@@ -835,7 +892,7 @@ namespace Streaming
 
 				std::wstring np = StagedPath(local, mf.sha256);
 
-				if (FileSize(local) == mf.size && LocalMatches(local, mf.sha256))
+				if (FileSize(local) == mf.size && LocalMatches(local, ExpectedDigest(mf)))
 				{
 					// Restored from .disabled, so the client never loaded it at startup.
 					if (restored && IsMpq(mf.path))
@@ -845,13 +902,28 @@ namespace Streaming
 				}
 				if (FileSize(np) == mf.size)
 				{
-					SwapOrStage(np, local, IsMpq(mf.path), mf.sha256);
+					SwapOrStage(np, local, IsMpq(mf.path), mf.sha256, ExpectedDigest(mf));
 					continue;
 				}
 				plan.push_back(&mf);
 				total += mf.size;
 			}
 			SaveLocalHashes();
+
+			// Publish what this pass is going to replace, so the sanity check can leave those files
+			// alone instead of reporting a stale copy we already know about.
+			{
+				std::set<std::wstring> planned;
+				for (const ManifestFile* mf : plan)
+					planned.insert(LowerPath(LocalPath(mf->path)));
+
+				std::lock_guard<std::mutex> lock(g_plannedMutex);
+				if (planned != g_plannedUpdates)
+				{
+					g_plannedUpdates.swap(planned);
+					++g_updateGeneration;
+				}
+			}
 
 			if (plan.empty())
 			{
@@ -879,6 +951,13 @@ namespace Streaming
 					g_currentFile = mf->path;
 				}
 				PlaceFile(baseUrl, *mf);
+				{
+					// Placed, so it is either current on disk or staged, and staged files are
+					// already covered by the pending-move list.
+					std::lock_guard<std::mutex> lock(g_plannedMutex);
+					g_plannedUpdates.erase(LowerPath(LocalPath(mf->path)));
+				}
+				++g_updateGeneration;
 				g_baseBytes = g_baseBytes.load() + mf->size;
 				g_doneBytes = g_baseBytes.load();
 				g_filesDone = g_filesDone.load() + 1;
@@ -889,6 +968,33 @@ namespace Streaming
 			SaveLocalHashes();
 			StreamLog("stream: background download pass complete");
 		}
+	}
+
+	bool IsUpdatePending(const std::wstring& absPath)
+	{
+		const std::wstring key = LowerPath(absPath);
+		{
+			std::lock_guard<std::mutex> lock(g_plannedMutex);
+			if (g_plannedUpdates.find(key) != g_plannedUpdates.end())
+				return true;
+		}
+		std::lock_guard<std::mutex> lock(g_pendingMutex);
+		for (const PendingMove& m : g_pendingMoves)
+			if (LowerPath(m.dst) == key)
+				return true;
+		return false;
+	}
+
+	unsigned UpdateGeneration()
+	{
+		return g_updateGeneration.load();
+	}
+
+	bool IsStagedName(const std::wstring& fileName)
+	{
+		// StagedPath puts the tag before the last extension, or at the end when there isn't one.
+		const std::wstring stem = fs::path(fileName).stem().wstring();
+		return HasStagedTag(stem) || HasStagedTag(fileName);
 	}
 
 	BackgroundDownloader& BackgroundDownloader::Instance()

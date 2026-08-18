@@ -10,6 +10,7 @@ namespace Streaming
 		std::string path; // forward-slash, client-relative (e.g. "Data/patch-4.MPQ")
 		long long size = 0;
 		std::string sha256; // lowercase hex
+		std::string quick;  // "q1:<hex>" sampled digest, MPQs only, empty means check sha256
 		bool hd = false;
 	};
 

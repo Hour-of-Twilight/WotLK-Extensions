@@ -227,7 +227,8 @@ void CustomPacket::SendSanityCheck(bool sendMpqs)
 		for (const auto& mpq : mpqs)
 		{
 			pkt.PutString(mpq.filename_lower.c_str());
-			pkt.PutUInt32(mpq.hash);
+			pkt.PutUInt8(mpq.updating ? 1 : 0);
+			pkt.PutString(mpq.digest.c_str());
 		}
 	}
 	else

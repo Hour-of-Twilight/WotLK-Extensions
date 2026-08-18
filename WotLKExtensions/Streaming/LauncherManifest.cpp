@@ -154,6 +154,11 @@ namespace Streaming
 							ParseStr(json, v, mf.sha256);
 							i = v - 1;
 						}
+						else if (key == "quick")
+						{
+							ParseStr(json, v, mf.quick);
+							i = v - 1;
+						}
 						else if (key == "size")
 						{
 							mf.size = std::strtoll(json.c_str() + v, nullptr, 10);

@@ -7,11 +7,13 @@
 #include <CDBCMgr.h>
 #include <Logger.h>
 
+#include <cctype>
 #include <cstring>
 #include <cstdint>
 #include <algorithm>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 using ClientData::WoWClientDB;
@@ -490,6 +492,75 @@ void DBCPatch::RefreshDerivedState(const char* dbcName, WoWClientDB* db)
 	          << " size=" << (int)*DBCDetailDoodad::sCount;
 }
 
+// Wow.exe reads these only through FirstRow - no m_recordsById reference anywhere in the binary -
+// so the by-id array is ours alone and its rows can be renumbered into consecutive slots.
+static bool IsDenseOnlyStorage(const char* name)
+{
+	return iequals(name, "skillLineAbility");
+}
+
+// Real id -> slot, kept across passes so a row kept its slot from the previous one.
+static std::unordered_map<uint32_t, int>& CompactSlots(const char* dbcName)
+{
+	static std::unordered_map<std::string, std::unordered_map<uint32_t, int>> byDbc;
+	std::string key(dbcName);
+	for (char& c : key)
+		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+	return byDbc[key];
+}
+
+// Renumbers ids to slots and rebuilds Rows to match, so it costs one slot per row instead of one
+// per id. SkillLineAbility spans 45M ids for 11k rows, which is 180MB of nulls in a 2GB space.
+static bool CompactRowIds(WoWClientDB* db, const char* dbcName, std::vector<int>& priorOrder,
+    const std::vector<uint32_t>& ids, std::vector<uint32_t>& outIds)
+{
+	auto& slots = CompactSlots(dbcName);
+	if (slots.empty())
+	{
+		// First pass, so priorOrder still holds real ids: move those rows into slot order.
+		void** old = reinterpret_cast<void**>(db->Rows);
+		std::vector<void*> rows;
+		std::vector<int> reordered;
+		rows.reserve(priorOrder.size() + ids.size());
+		reordered.reserve(priorOrder.size());
+		for (int id : priorOrder)
+		{
+			auto ins = slots.emplace(static_cast<uint32_t>(id), static_cast<int>(rows.size()));
+			if (ins.second)
+				rows.push_back(old ? old[id - db->minIndex] : nullptr);
+			reordered.push_back(ins.first->second);
+		}
+		for (uint32_t id : ids)
+			if (slots.emplace(id, static_cast<int>(rows.size())).second)
+				rows.push_back(nullptr);
+
+		void** fresh = reinterpret_cast<void**>(
+		    SMem::Alloc(rows.size() * sizeof(void*), "DBCCompactRows", __LINE__, 0));
+		if (!fresh)
+		{
+			slots.clear(); // nothing committed yet, so the caller keeps the real ids
+			return false;
+		}
+		std::memcpy(fresh, rows.data(), rows.size() * sizeof(void*));
+		priorOrder.swap(reordered);
+		db->Rows = reinterpret_cast<int32_t*>(fresh);
+		db->minIndex = 0;
+		db->maxIndex = static_cast<int>(rows.size()) - 1;
+		LOG_DEBUG << "DBC compact '" << dbcName << "' " << (int)rows.size() << " slots";
+	}
+	else
+	{
+		// priorOrder is already in slot space by now, so only unseen ids need a slot.
+		for (uint32_t id : ids)
+			slots.emplace(id, static_cast<int>(slots.size()));
+	}
+
+	outIds.resize(ids.size());
+	for (size_t i = 0; i < ids.size(); ++i)
+		outIds[i] = static_cast<uint32_t>(slots[ids[i]]);
+	return true;
+}
+
 bool DBCPatch::EnsureCapacity(WoWClientDB* db, int wantMin, int wantMax)
 {
 	int newMin = db->Rows ? (wantMin < db->minIndex ? wantMin : db->minIndex) : wantMin;
@@ -528,20 +599,38 @@ void** DBCPatch::SlotFor(WoWClientDB* db, uint32_t id)
 	return nullptr;
 }
 
+// FirstRow is either rows laid out back to back or an array of row pointers, per DBC. Read it both
+// ways and count which lands on rows the by-id array points at: the right reading matches every row,
+// the wrong one essentially none. A range-and-alignment test instead of a count is not enough - it
+// called Spell inline and the client then dereferenced record bytes as pointers.
 static bool RowsAreInlineStorage(void** byId, int idCount, const void* denseBase,
     int denseCount, uint32_t recordSize)
 {
-	if (!byId || !denseBase || idCount <= 0 || denseCount <= 0 || recordSize == 0)
-		return false;
-	uintptr_t lo = reinterpret_cast<uintptr_t>(denseBase);
-	uintptr_t hi = lo + static_cast<size_t>(denseCount) * recordSize;
+	if (!byId || !denseBase || idCount <= 0 || denseCount <= 0 || recordSize < sizeof(void*))
+		return true;
+
+	std::unordered_set<const void*> rows;
+	rows.reserve(static_cast<size_t>(idCount));
 	for (int i = 0; i < idCount; ++i)
+		if (byId[i])
+			rows.insert(byId[i]);
+	if (rows.empty())
+		return true;
+
+	// recordSize >= sizeof(void*) keeps the pointer read inside the block either way.
+	const uint8_t* inlineBase = static_cast<const uint8_t*>(denseBase);
+	void* const* asPointers = static_cast<void* const*>(denseBase);
+	int inlineHits = 0, pointerHits = 0;
+	for (int k = 0; k < denseCount; ++k)
 	{
-		uintptr_t p = reinterpret_cast<uintptr_t>(byId[i]);
-		if (p >= lo && p < hi && (p - lo) % recordSize == 0)
-			return true;
+		if (rows.count(inlineBase + static_cast<size_t>(k) * recordSize))
+			++inlineHits;
+		if (rows.count(asPointers[k]))
+			++pointerHits;
 	}
-	return false;
+	LOG_DEBUG << "DBC dense probe rows=" << denseCount << " recSize=" << recordSize
+	          << " inlineHits=" << inlineHits << " pointerHits=" << pointerHits;
+	return inlineHits >= pointerHits;
 }
 
 std::vector<int> DBCPatch::SnapshotDenseOrder(WoWClientDB* db, uint32_t recordSize,
@@ -727,10 +816,15 @@ bool DBCPatch::ApplyRecords(const char* dbcName, uint32_t recordSize,
 	if (n == 0)
 		return true;
 
-	int batchMin = static_cast<int>(ids[0]), batchMax = batchMin;
+	std::vector<uint32_t> compact;
+	const std::vector<uint32_t>* keys = &ids;
+	if (IsDenseOnlyStorage(dbcName) && CompactRowIds(db, dbcName, priorOrder, ids, compact))
+		keys = &compact;
+
+	int batchMin = static_cast<int>((*keys)[0]), batchMax = batchMin;
 	for (size_t i = 1; i < n; ++i)
 	{
-		int v = static_cast<int>(ids[i]);
+		int v = static_cast<int>((*keys)[i]);
 		if (v < batchMin)
 			batchMin = v;
 		if (v > batchMax)
@@ -754,7 +848,7 @@ bool DBCPatch::ApplyRecords(const char* dbcName, uint32_t recordSize,
 
 	for (size_t i = 0; i < n; ++i)
 	{
-		void** slot = SlotFor(db, ids[i]);
+		void** slot = SlotFor(db, (*keys)[i]);
 		if (!slot)
 			continue;
 		uint8_t* rec = block + i * recordSize;
@@ -762,7 +856,7 @@ bool DBCPatch::ApplyRecords(const char* dbcName, uint32_t recordSize,
 		FixupRowForClient(dbcName, rec);
 		*slot = rec;
 		if (idsAreComplete)
-			written[static_cast<size_t>(static_cast<int>(ids[i]) - db->minIndex)] = true;
+			written[static_cast<size_t>(static_cast<int>((*keys)[i]) - db->minIndex)] = true;
 	}
 
 	if (idsAreComplete)
@@ -802,7 +896,7 @@ bool DBCPatch::ApplyRecords(const char* dbcName, uint32_t recordSize,
 		for (int id : priorOrder)
 			take(id);
 	for (size_t i = 0; i < n; ++i)
-		take(static_cast<int>(ids[i]));
+		take(static_cast<int>((*keys)[i]));
 	for (int i = 0; i < span; ++i)
 		take(db->minIndex + i);
 

@@ -141,9 +141,6 @@ namespace
 
 	bool ShouldPreventMeleeUnsheath(CGUnit* unit)
 	{
-		if (!sLauncherSettings.HdPatch())
-			return false;
-
 		return UnitIsMonk(unit) || UnitHasAuraType(unit, SPELL_AURA_MONK_UNARMED) || UnitKnowsAuraTypeSpell(unit, SPELL_AURA_MONK_UNARMED);
 	}
 
