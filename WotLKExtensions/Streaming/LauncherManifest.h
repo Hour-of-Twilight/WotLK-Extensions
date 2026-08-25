@@ -20,8 +20,15 @@ namespace Streaming
 		std::vector<ManifestFile> files;
 	};
 
-	// <installDir>/launcher.json -> manifest URL + patch base URL (defaults if missing).
-	void LoadLauncherUrls(const std::wstring& installDir, std::wstring& manifestUrl, std::string& patchBaseUrl);
+	struct LauncherConfig
+	{
+		std::wstring manifestUrl;
+		std::string patchBaseUrl;
+		std::string launcherExe;
+	};
+
+	// <installDir>/launcher.json, or baked-in defaults if it is missing.
+	void LoadLauncherConfig(const std::wstring& installDir, LauncherConfig& out);
 
 	bool ParseManifest(const std::string& json, Manifest& out);
 }

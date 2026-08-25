@@ -92,4 +92,8 @@ namespace ClientData
 
 	CLIENT_FUNCTION(EventRegisterEx, 0x47D3C0, __cdecl, void, (EventId, EventHandlerFunc, void*, float))
 	CLIENT_FUNCTION(EventUnregister, 0x47D790, __cdecl, void, (EventId, EventHandlerFunc))
+
+	// Current cursor position already converted to device coords, which is what
+	// CGWorldFrame::GetLineSegment wants. Same value EventDataMouse carries, but pollable.
+	CLIENT_FUNCTION(EventInputGetMousePosition, 0x47D700, __cdecl, void, (float* ddcX, float* ddcY))
 }

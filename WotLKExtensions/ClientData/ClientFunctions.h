@@ -63,6 +63,7 @@ namespace CDataStore_C
 	CLIENT_FUNCTION(GetInt8, 0x47B340, __thiscall, void, (CDataStore*, int8_t*))
 	CLIENT_FUNCTION(PutInt8, 0x47AFE0, __thiscall, void, (CDataStore*, int8_t))
 	CLIENT_FUNCTION(GetInt16, 0x47B380, __thiscall, void, (CDataStore*, int16_t*))
+	CLIENT_FUNCTION(PutInt16, 0x47B040, __thiscall, void, (CDataStore*, int16_t))
 	CLIENT_FUNCTION(GetInt32, 0x47B3C0, __thiscall, void, (CDataStore*, int32_t*))
 	CLIENT_FUNCTION(GetUInt32, 0x47B3C0, __thiscall, void, (CDataStore*, uint32_t*))
 	CLIENT_FUNCTION(PutInt32, 0x47B0A0, __thiscall, void, (CDataStore*, int32_t))

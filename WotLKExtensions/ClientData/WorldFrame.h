@@ -36,6 +36,23 @@ namespace ClientData
 		WorldHitTest m_actionHitTest;
 	};
 
+	// The circle the client projects onto the terrain under a targeting cursor. sub_4F8A40 reads
+	// all three of these, builds a CAaBox of (pos +/- radius) on x and y by (pos +/- 2.0) on z and
+	// hands it to CGxDevice::ProjectTex2D.
+	namespace TerrainDecal
+	{
+		// Mode doubles as the index into the two textures CGWorldFrame loads at startup,
+		// Spell-Shadow-Acceptable.blp and Spell-Shadow-Unacceptable.blp. Both draw calls are
+		// guarded by `cmp mode, 2 / jge skip`, so anything >= 2 is hidden.
+		CLIENT_ADDRESS(int32_t, sMode, 0x00AC79A4)
+		CLIENT_ADDRESS(float, sRadius, 0x00B74370)
+		CLIENT_ADDRESS(C3Vector, sPosition, 0x00B74380)
+
+		constexpr int32_t kModeAcceptable = 0;
+		constexpr int32_t kModeUnacceptable = 1;
+		constexpr int32_t kModeHidden = 3;
+	}
+
 	class CGWorldFrameFull;
 	CLIENT_FUNCTION(CGWorldFrame_GetLineSegment, 0x4F6450, __thiscall, bool,
 	    (CGWorldFrameFull * frame, float mouseX, float mouseY, C3Vector* start, C3Vector* end))

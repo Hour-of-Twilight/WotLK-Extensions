@@ -1,6 +1,6 @@
 #include "CDBC.h"
 
-CDBC* CDBC::LoadDB(const char* name)
+CDBC* CDBC::LoadDB(const char* name, bool optional)
 {
 	uint32_t Buffer = 0;
 	void* FileBlock = 0;
@@ -15,7 +15,12 @@ CDBC* CDBC::LoadDB(const char* name)
 		return this;
 
 	if (!SFile::OpenFileEx(0, filePath, 0x20000, &FileBlock))
+	{
+		if (optional)
+			return this;
+
 		SErr::PrepareAppFatal(0x85100079, "Unable to open %s", filePath);
+	}
 
 	if (!SFile::ReadFile(FileBlock, &Buffer, 4, 0, 0, 0))
 		SErr::PrepareAppFatal(0x85100079, "Unable to read signature from %s", filePath);

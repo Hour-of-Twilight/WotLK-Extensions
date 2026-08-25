@@ -186,19 +186,22 @@ namespace Streaming
 		return true;
 	}
 
-	void LoadLauncherUrls(const std::wstring& installDir, std::wstring& manifestUrl, std::string& patchBaseUrl)
+	void LoadLauncherConfig(const std::wstring& installDir, LauncherConfig& out)
 	{
-		manifestUrl = L"https://download.houroftwilight.net/patch/manifest.json";
-		patchBaseUrl = "https://download.houroftwilight.net/patch";
+		out.manifestUrl = L"https://download.houroftwilight.net/patch/manifest.json";
+		out.patchBaseUrl = "https://download.houroftwilight.net/patch";
+		out.launcherExe = "HoTLauncher.exe";
 
 		std::string json = ReadFile(fs::path(installDir) / "launcher.json");
 		if (json.empty())
 			return;
 
-		std::string m, b;
-		if (FindString(json, "manifestUrl", m) && !m.empty())
-			manifestUrl.assign(m.begin(), m.end());
-		if (FindString(json, "patchBaseUrl", b) && !b.empty())
-			patchBaseUrl = b;
+		std::string v;
+		if (FindString(json, "manifestUrl", v) && !v.empty())
+			out.manifestUrl.assign(v.begin(), v.end());
+		if (FindString(json, "patchBaseUrl", v) && !v.empty())
+			out.patchBaseUrl = v;
+		if (FindString(json, "launcherExe", v) && !v.empty())
+			out.launcherExe = v;
 	}
 }

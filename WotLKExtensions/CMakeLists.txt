@@ -23,6 +23,11 @@ if(NOT ENABLE_DISCORD)
     list(FILTER WOTLK_EXTENSIONS_FILES EXCLUDE REGEX "/(discord/|Impl/DiscordRPC\\.)")
 endif()
 
+option(ENABLE_MAP_EDITOR "Build the in-client map editor" ON)
+if(NOT ENABLE_MAP_EDITOR)
+    list(FILTER WOTLK_EXTENSIONS_FILES EXCLUDE REGEX "/Editor/Map/")
+endif()
+
 set(MSDF_LIBS_DIR "${CMAKE_SOURCE_DIR}/libs")
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -95,6 +100,10 @@ target_include_directories(WotLKExtensions PUBLIC
 if(ENABLE_DISCORD)
     target_include_directories(WotLKExtensions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/discord)
     target_compile_definitions(WotLKExtensions PRIVATE ENABLE_DISCORD)
+endif()
+
+if(ENABLE_MAP_EDITOR)
+    target_compile_definitions(WotLKExtensions PRIVATE ENABLE_MAP_EDITOR)
 endif()
 
 option(AUTO_UPDATER_IGNORES_DLL "Background downloader ignores WotLKExtensions.dll in the manifest" OFF)

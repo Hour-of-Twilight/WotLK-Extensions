@@ -4,6 +4,33 @@
 #include <cstring>
 #include "Logger.h"
 
+// Server side names
+enum ItemFlags2 : uint32
+{
+	ITEM_FLAG2_PARADOXICAL = 0x10000000,
+	ITEM_FLAG2_HEIRLOOM    = 0x20000000,
+	ITEM_FLAG2_LEGENDARY   = 0x40000000,
+	ITEM_FLAG2_CORRUPTED   = 0x80000000,
+};
+
+// Most specific combination first, so an item flagged corrupted and legendary reads as
+// Time-Warped Legendary instead of picking whichever single bit came first.
+static const struct
+{
+	uint32 mask;
+	const char* key;
+} sTooltipLabels[] = {
+	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_CORRUPTED | ITEM_FLAG2_LEGENDARY, "ITEM_PARADOXICAL_TIME_WARPED_LEGENDARY" },
+	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_CORRUPTED,                        "ITEM_PARADOXICAL_CORRUPTED" },
+	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_LEGENDARY,                        "ITEM_PARADOXICAL_LEGENDARY" },
+	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_HEIRLOOM,                         "ITEM_PARADOXICAL_HEIRLOOM" },
+	{ ITEM_FLAG2_CORRUPTED | ITEM_FLAG2_LEGENDARY,                          "ITEM_TIME_WARPED_LEGENDARY" },
+	{ ITEM_FLAG2_CORRUPTED,                                                 "ITEM_CORRUPTED" },
+	{ ITEM_FLAG2_PARADOXICAL,                                               "ITEM_PARADOXICAL" },
+	{ ITEM_FLAG2_LEGENDARY,                                                 "ITEM_LEGENDARY" },
+	{ ITEM_FLAG2_HEIRLOOM,                                                  "ITEM_HEIRLOOM" },
+};
+
 static const char* GetHeroicQualityLabelKey(const ItemCache* item, const char* defaultKey)
 {
 	if (!item)
@@ -11,8 +38,9 @@ static const char* GetHeroicQualityLabelKey(const ItemCache* item, const char* d
 
 	const uint32 flags2 = static_cast<uint32>(item->FlagsAndFaction[1]); // +0x1C
 
-	if (flags2 & 0x80000000)
-		return "ITEM_CORRUPTED";
+	for (const auto& label : sTooltipLabels)
+		if ((flags2 & label.mask) == label.mask)
+			return label.key;
 
 	return defaultKey;
 }

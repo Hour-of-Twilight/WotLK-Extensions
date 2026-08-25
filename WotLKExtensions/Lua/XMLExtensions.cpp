@@ -1,5 +1,6 @@
 #include "XMLExtensions.h"
 #include "SharedDefines.h"
+#include "GroupFinderPackets.h"
 #include "Macros.h"
 #include "Player.h"
 #include <cstring>
@@ -46,7 +47,15 @@ void FrameXMLExtensions::LoadNewEvents()
 		"HOT_FEATURE_UPDATE",
 		"HOT_STREAMING_STARTED",
 		"HOT_STREAMING_STOPPED",
-		"HOT_STAT_GROUPS"
+		"HOT_STAT_GROUPS",
+		"HOT_LFG_LIST_ACTIVITIES_UPDATE",
+		"HOT_LFG_LIST_ACTIVE_ENTRY_UPDATE",
+		"HOT_LFG_LIST_ENTRY_RESULT",
+		"HOT_LFG_LIST_SEARCH_RESULTS_RECEIVED",
+		"HOT_LFG_LIST_SEARCH_RESULT_UPDATED",
+		"HOT_LFG_LIST_APPLICATION_STATUS_UPDATED",
+		"HOT_LFG_LIST_APPLICANT_LIST_UPDATED",
+		"HOT_LFG_LIST_APPLICANT_UPDATED"
 	};
 	for (const char* eventName : customFrameEvents)
 	{
@@ -130,6 +139,9 @@ static int GlueXML::OverrideSlotDisplay(lua_State* L)
 void GlueXML::AddGlueLuaFunctions()
 {
 	CustomLua::LoadGlueLuaFunctions();
+
+	// Back at character select, so anything cached for the world session is stale now.
+	sGroupFinderPackets.Reset();
 }
 
 int __cdecl RegisterGlueScriptMethodsEx()

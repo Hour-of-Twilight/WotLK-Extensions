@@ -42,6 +42,14 @@ public:
 		return m_installDir;
 	}
 
+	// Full path of the launcher exe as the player last ran it, which may be a renamed copy.
+	std::string LauncherPath()
+	{
+		Load();
+		std::lock_guard<std::mutex> lock(m_mutex);
+		return m_launcherPath;
+	}
+
 	// Written back into the launcher's settings.json.
 	void SetHdPatch(bool enabled);
 	void SetMaxDownloadMBps(double mbps);
@@ -61,6 +69,7 @@ private:
 	std::atomic<double> m_maxDownloadMBps{ 0.0 };
 	std::atomic<int> m_selectedRealmId{ 2 };
 	std::string m_installDir;
+	std::string m_launcherPath;
 };
 
 #define sLauncherSettings LauncherSettings::Instance()

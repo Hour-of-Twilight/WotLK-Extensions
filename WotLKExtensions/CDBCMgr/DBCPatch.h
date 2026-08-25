@@ -10,8 +10,8 @@ namespace ClientData
 }
 
 // In-memory native client DBC patching: adds/replaces records in a WowClientDB storage without a
-// reload, and hands our own rows back uncompressed via the DecompressRow hook. See the
-// SMSG_DBC_RECORD_UPDATE handler in Packets/DBCRecordPackets.cpp and Streaming/DbcFromMpq.cpp.
+// reload, and hands our own rows back uncompressed via the DecompressRow hook. Fed by
+// Streaming/DbcFromMpq.cpp when the background downloader mounts a patched MPQ.
 class DBCPatch
 {
 public:

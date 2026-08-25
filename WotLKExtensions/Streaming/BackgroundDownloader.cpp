@@ -373,6 +373,42 @@ namespace Streaming
 			return (fs::path(g_installDir) / fs::path(relPath)).wstring();
 		}
 
+		std::string g_launcherExe = "HoTLauncher.exe";
+
+		bool IsLauncherExe(const std::string& path)
+		{
+			size_t slash = path.find_last_of("/\\");
+			std::string name = (slash == std::string::npos) ? path : path.substr(slash + 1);
+			return _stricmp(name.c_str(), g_launcherExe.c_str()) == 0;
+		}
+
+		std::wstring WidenUtf8(const std::string& s)
+		{
+			if (s.empty())
+				return L"";
+			int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), nullptr, 0);
+			std::wstring out(n, L'\0');
+			MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), out.data(), n);
+			return out;
+		}
+
+		// The launcher's manifest entry follows the exe the player actually runs, which they may
+		// have renamed, so an in-game update lands on their copy instead of dropping a second one
+		// at the manifest's name. The launcher records its path in settings.json; with no record
+		// (they have never run it) the manifest path is still right.
+		std::wstring TargetPath(const ManifestFile& mf)
+		{
+			if (!IsLauncherExe(mf.path))
+				return LocalPath(mf.path);
+
+			std::wstring recorded = WidenUtf8(sLauncherSettings.LauncherPath());
+			if (recorded.empty())
+				return LocalPath(mf.path);
+
+			std::error_code ec;
+			return fs::exists(recorded, ec) ? recorded : LocalPath(mf.path);
+		}
+
 		void WritePendingLocked()
 		{
 			std::error_code ec;
@@ -616,7 +652,7 @@ namespace Streaming
 
 		void PlaceFile(const std::string& baseUrl, const ManifestFile& mf)
 		{
-			std::wstring local = LocalPath(mf.path);
+			std::wstring local = TargetPath(mf);
 			std::error_code ec;
 			fs::create_directories(fs::path(local).parent_path(), ec);
 			std::wstring part = local + L".part";
@@ -818,9 +854,11 @@ namespace Streaming
 			}
 			StreamLog("stream: pass start");
 
-			std::wstring manifestUrl;
-			std::string baseUrl;
-			LoadLauncherUrls(g_installDir, manifestUrl, baseUrl);
+			LauncherConfig cfg;
+			LoadLauncherConfig(g_installDir, cfg);
+			std::wstring manifestUrl = cfg.manifestUrl;
+			std::string baseUrl = cfg.patchBaseUrl;
+			g_launcherExe = cfg.launcherExe;
 			const bool hdPatch = sLauncherSettings.HdPatch();
 
 			// Bust any Cloudflare cache so we always read the newest manifest, not a stale copy.
@@ -884,7 +922,7 @@ namespace Streaming
 					continue;
 				}
 #endif
-				std::wstring local = LocalPath(mf.path);
+				std::wstring local = TargetPath(mf);
 
 				bool restored = false;
 				if (mf.hd && !ReconcileHdFile(local, hdPatch, restored))
@@ -915,7 +953,7 @@ namespace Streaming
 			{
 				std::set<std::wstring> planned;
 				for (const ManifestFile* mf : plan)
-					planned.insert(LowerPath(LocalPath(mf->path)));
+					planned.insert(LowerPath(TargetPath(*mf)));
 
 				std::lock_guard<std::mutex> lock(g_plannedMutex);
 				if (planned != g_plannedUpdates)
@@ -955,7 +993,7 @@ namespace Streaming
 					// Placed, so it is either current on disk or staged, and staged files are
 					// already covered by the pending-move list.
 					std::lock_guard<std::mutex> lock(g_plannedMutex);
-					g_plannedUpdates.erase(LowerPath(LocalPath(mf->path)));
+					g_plannedUpdates.erase(LowerPath(TargetPath(*mf)));
 				}
 				++g_updateGeneration;
 				g_baseBytes = g_baseBytes.load() + mf->size;

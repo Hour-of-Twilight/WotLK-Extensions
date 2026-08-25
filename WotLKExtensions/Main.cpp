@@ -5,6 +5,10 @@
 #include "Lua/XMLExtensions.h"
 #include "Rendering/MSDF/MSDFBootstrap.h"
 #include <Editor/EditorRuntime.h>
+#include <Editor/FreeCam.h>
+#ifdef ENABLE_MAP_EDITOR
+#include <Editor/Map/MapEditorRuntime.h>
+#endif
 #include <Character/AnimationFixes.h>
 #include <Spells/AutoRepeatDeadzone.h>
 #include <Config/LauncherSettings.h>
@@ -23,6 +27,10 @@ void Main::OnAttach()
 	Misc::ApplyPatches();
 	sPlayer.ApplyPatches();
 	EditorRuntime::Apply();
+#ifdef ENABLE_MAP_EDITOR
+	MapEditor::Runtime::Apply();
+#endif
+	FreeCam::Apply();
 	AnimationFixes::Apply();
 	ClientDetours::Apply();
 	FrameXMLExtensions::Apply();

@@ -1,4 +1,5 @@
 #include "CustomLua.h"
+#include "Atlas.h"
 #include "Player.h"
 #include <string>
 #include <string.h>
@@ -31,6 +32,8 @@ void CustomLua::LoadForState(LuaFunctionState currentState)
 		if (entry.state == LuaFunctionState::ALL || entry.state == currentState)
 			FrameScript::RegisterFunction(entry.name, entry.ptr);
 	}
+
+	LuaAtlas::Install(FrameScript::GetContext());
 }
 
 void CustomLua::Apply()

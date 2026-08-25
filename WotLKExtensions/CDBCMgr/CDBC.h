@@ -21,7 +21,7 @@ public:
 	uint32_t minIndex;
 	uint32_t maxIndex;
 
-	CDBC* LoadDB(const char* name);
+	CDBC* LoadDB(const char* name, bool optional = false);
 	void UnloadDB();
 	void GetMinMaxIndices();
 	virtual ~CDBC() = default;

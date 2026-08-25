@@ -22,10 +22,9 @@ namespace ClientData::ModelCache
 	constexpr uint32_t kSharedPrevSlot = 0x144;
 	constexpr uint32_t kSharedNext = 0x148;
 
-	// Unlink every parsed model from the name hash. Live models keep working off their own
-	// pointer, but nothing can look them up again, so the next load re-reads the file. A shared
-	// with no hash link is deleted outright by CM2Shared::Release instead of going on the idle
-	// list, so this does not leak. Call after mounting an archive that replaces art.
+	// Unlink every parsed model from the name hash, so live models keep working off their own
+	// pointer but the next load re-reads the file. Nothing leaks, a shared with no hash link is
+	// deleted outright by CM2Shared::Release rather than going on the idle list.
 	inline void Invalidate()
 	{
 		uint8_t** buckets = reinterpret_cast<uint8_t**>(s_m2Cache + kBucketsOffset);

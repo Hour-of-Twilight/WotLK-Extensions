@@ -35,6 +35,18 @@ Packet& Packet::PutUInt8(uint8_t v)
 	return *this;
 }
 
+Packet& Packet::PutInt16(int16_t v)
+{
+	CDataStore_C::PutInt16(m_ds, v);
+	return *this;
+}
+
+Packet& Packet::PutUInt16(uint16_t v)
+{
+	CDataStore_C::PutInt16(m_ds, static_cast<int16_t>(v));
+	return *this;
+}
+
 Packet& Packet::PutInt32(int32_t v)
 {
 	CDataStore_C::PutInt32(m_ds, v);

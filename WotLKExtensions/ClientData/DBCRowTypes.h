@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace ClientData
@@ -169,4 +170,27 @@ namespace ClientData
 		int32_t m_frost;
 		int32_t m_runicPower;
 	};
+
+	// LiquidType.dbc. materialId is the anchor: CMapChunk::CreateLiquids reads it at [eax+38h]
+	// before handing it to the LiquidMaterial lookup, which pins the layout either side of it.
+	struct LiquidTypeRow
+	{
+		uint32_t id;
+		char const* name;
+		uint32_t flags;
+		uint32_t soundBank;
+		uint32_t soundId;
+		uint32_t spellId;
+		float maxDarkenDepth;
+		float fogDarkenIntensity;
+		float ambDarkenIntensity;
+		float dirDarkenIntensity;
+		uint32_t lightId;
+		float particleScale;
+		uint32_t particleMovement;
+		uint32_t particleTexSlots;
+		uint32_t materialId;
+	};
+
+	static_assert(offsetof(LiquidTypeRow, materialId) == 0x38, "LiquidType MaterialID must sit at 0x38");
 }

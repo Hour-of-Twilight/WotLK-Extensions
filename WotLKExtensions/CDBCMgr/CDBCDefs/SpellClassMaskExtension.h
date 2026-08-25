@@ -29,7 +29,7 @@ public:
 	{
 		GlobalCDBCMap.addCDBC(this->fileName);
 		GlobalCDBCMap.registerRowType<SpellClassMaskExtensionRow>(this->fileName);
-		CDBC::LoadDB(this->fileName);
+		CDBC::LoadDB(this->fileName, true);
 		SpellClassMaskExtension::setupTable();
 		GlobalCDBCMap.setIndexRange(this->fileName, this->minIndex, this->maxIndex);
 		return this;
@@ -38,6 +38,9 @@ public:
 	void setupTable()
 	{
 		SpellClassMaskExtensionRow* row = static_cast<SpellClassMaskExtensionRow*>(this->rows);
+		if (!row)
+			return;
+
 		for (uint32_t i = 0; i < this->numRows; i++)
 		{
 			GlobalCDBCMap.addRow(this->fileName, row->spellID, *row);

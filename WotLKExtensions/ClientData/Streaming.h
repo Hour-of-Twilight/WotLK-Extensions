@@ -7,10 +7,6 @@
 
 namespace ClientData::Streaming
 {
-	CLIENT_FUNCTION(InitializeStreaming, 0x00422100, __cdecl, uint32_t, (const char* lpszUrl))
-
-	CLIENT_FUNCTION(IsStreamingMode, 0x00422130, __cdecl, uint32_t, ())
-
 	CLIENT_FUNCTION(OpenArchive, 0x00421950, __stdcall, int, (const char* filename, int priority, int flags, void** outHandle))
 	CLIENT_FUNCTION(RebuildHash, 0x00423D70, __cdecl, void, ())
 
@@ -45,22 +41,5 @@ namespace ClientData::Streaming
 		}
 		CloseFile(fh);
 		return ok;
-	}
-
-	inline bool IsReady()
-	{
-		return *reinterpret_cast<uint8_t*>(0x00B38180) != 0;
-	}
-
-	inline bool IsTrial()
-	{
-		return *reinterpret_cast<uint8_t*>(0x00B38181) != 0;
-	}
-
-	inline bool Start(const char* manifestUrlOrPath)
-	{
-		if (IsReady())
-			return true;
-		return InitializeStreaming(manifestUrlOrPath) != 0;
 	}
 }

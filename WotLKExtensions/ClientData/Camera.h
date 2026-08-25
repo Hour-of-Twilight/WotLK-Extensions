@@ -1,10 +1,17 @@
 #pragma once
 
+#include <Macros.h>
 #include <ClientData/MathTypes.h>
 #include <ClientData/SharedDefines.h>
 
 namespace ClientData
 {
+	class CGCamera;
+
+	// Runs once per frame per camera and is where the client writes m_position and m_facing back,
+	// so a hook here is the last word on where the camera ends up.
+	CLIENT_FUNCTION(CGCamera_UpdateCallback, 0x00607B00, __cdecl, int, (void* param, CGCamera* camera))
+
 	class CGCamera
 	{
 	public:

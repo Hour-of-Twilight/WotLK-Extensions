@@ -68,7 +68,34 @@ namespace
 		return true;
 	}
 
-	// Only handles the escapes the launcher can actually emit in a path.
+	void AppendUtf8(std::string& out, unsigned cp)
+	{
+		if (cp < 0x80)
+		{
+			out += static_cast<char>(cp);
+		}
+		else if (cp < 0x800)
+		{
+			out += static_cast<char>(0xC0 | (cp >> 6));
+			out += static_cast<char>(0x80 | (cp & 0x3F));
+		}
+		else if (cp < 0x10000)
+		{
+			out += static_cast<char>(0xE0 | (cp >> 12));
+			out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+			out += static_cast<char>(0x80 | (cp & 0x3F));
+		}
+		else
+		{
+			out += static_cast<char>(0xF0 | (cp >> 18));
+			out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+			out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+			out += static_cast<char>(0x80 | (cp & 0x3F));
+		}
+	}
+
+	// Yields UTF-8. System.Text.Json escapes every non-ASCII character as \uXXXX, so a path with
+	// one in it arrives here escaped even though the file itself is UTF-8.
 	bool ReadString(const std::string& json, const char* key, std::string& out)
 	{
 		size_t v = ValuePos(json, key);
@@ -82,7 +109,27 @@ namespace
 			if (c == '"')
 				return true;
 			if (c == '\\' && i + 1 < json.size())
-				c = json[++i];
+			{
+				char e = json[++i];
+				if (e == 'u' && i + 4 < json.size())
+				{
+					unsigned cp = std::strtoul(json.substr(i + 1, 4).c_str(), nullptr, 16);
+					i += 4;
+					if (cp >= 0xD800 && cp <= 0xDBFF && i + 6 < json.size() &&
+					    json[i + 1] == '\\' && json[i + 2] == 'u')
+					{
+						unsigned lo = std::strtoul(json.substr(i + 3, 4).c_str(), nullptr, 16);
+						if (lo >= 0xDC00 && lo <= 0xDFFF)
+						{
+							cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00);
+							i += 6;
+						}
+					}
+					AppendUtf8(out, cp);
+					continue;
+				}
+				c = e;
+			}
 			out += c;
 		}
 		return false;
@@ -170,10 +217,12 @@ void LauncherSettings::LoadFromDisk()
 		m_selectedRealmId = static_cast<int>(realmId);
 
 	ReadString(json, "installDir", m_installDir);
+	ReadString(json, "launcherPath", m_launcherPath);
 
 	LOG_INFO << "launcher settings: hdPatch=" << (m_hdPatch.load() ? "1" : "0")
 	         << " realm=" << m_selectedRealmId.load()
-	         << " maxMBps=" << m_maxDownloadMBps.load();
+	         << " maxMBps=" << m_maxDownloadMBps.load()
+	         << " launcher=" << (m_launcherPath.empty() ? "<unset>" : m_launcherPath);
 }
 
 void LauncherSettings::SetHdPatch(bool enabled)

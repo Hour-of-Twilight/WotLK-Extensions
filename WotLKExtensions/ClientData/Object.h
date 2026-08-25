@@ -36,6 +36,8 @@ namespace ClientData
 		virtual void HandleOutOfRange();
 		virtual void UpdateWorldObject(uint32_t x);
 		virtual void ShouldFadeout();
+		// force != 0 skips the needs-update check and rebuilds the model outright: new CM2Model
+		// from the scene, geosets and skin re-applied, character component dropped and rebuilt.
 		virtual void UpdateDisplayInfo(int force);
 		virtual void GetNamePosition();
 		virtual void GetBag();
@@ -82,7 +84,7 @@ namespace ClientData
 		virtual void ObjectNameVisibilityChanged();
 		virtual void UpdateObjectNameString();
 		virtual void ShouldRenderObjectName();
-		virtual void GetObjectModel();
+		virtual void* GetObjectModel();
 		virtual const char* GetObjectName();
 		virtual void GetPageTextID();
 		virtual void CleanUpVehicleBoneAnimsBeforeObjectModelChange();

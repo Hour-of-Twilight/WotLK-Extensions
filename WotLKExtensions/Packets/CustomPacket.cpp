@@ -5,12 +5,11 @@
 #include "TestFramePackets.h"
 #include "UnitLevelCache.h"
 #include "GemSocketPackets.h"
+#include "GroupFinderPackets.h"
 #include "ItemGenPackets.h"
 #include "ItemLevelPackets.h"
 #include "ItemDbCachePackets.h"
 #include "FeaturePackets.h"
-#include "DBCRecordPackets.h"
-#include "StreamingPackets.h"
 #include "LootWindowPackets.h"
 #include <Character/MovementForce.h>
 #include "Streaming/BackgroundDownloader.h"
@@ -52,12 +51,11 @@ void CustomPacket::Apply()
 	sTalentFramePackets.Apply();
 	sFeaturePackets.Apply();
 	sGemSocketPackets.Apply();
+	sGroupFinderPackets.Apply();
 	sItemGenPackets.Apply();
 	sItemLevelPackets.Apply();
 	sTestFramePackets.Apply();
 	sUnitLevelCache.Apply();
-	DBCRecordPackets::Apply();
-	StreamingPackets::Apply();
 	sLootWindowPackets.Apply();
 	sMovementForce.Apply();
 	ItemDbCachePackets::RegisterHandlers();

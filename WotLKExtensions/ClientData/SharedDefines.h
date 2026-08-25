@@ -54,6 +54,8 @@ namespace CGUnit_C
 	CLIENT_FUNCTION(GetDistanceToPos, 0x004F61D0, __thiscall, float, (CGUnit*, C3Vector*))
 	CLIENT_FUNCTION(GetPosition, 0x6E6F10, __thiscall, C3Vector*, (CGUnit*, C3Vector*))
 	CLIENT_FUNCTION(GetWorldPosition, 0x6E6EF0, __thiscall, C3Vector*, (CGUnit*, C3Vector*))
+
+	CLIENT_FUNCTION(SendMovementUpdate, 0x0071F0C0, __thiscall, void, (void* self, uint32_t timeMs, uint32_t opcode, float unused, int a4, int a5, int a6, int a7))
 }
 
 namespace CGWorldFrame_C
@@ -66,6 +68,14 @@ namespace ClientDB
 {
 	CLIENT_FUNCTION(GetRow, 0x65C290, __thiscall, void*, (void*, uint32_t))
 	CLIENT_FUNCTION(GetLocalizedRow, 0x4CFD20, __thiscall, int, (void*, uint32_t, void*))
+
+	inline void* GetRowById(WoWClientDB* db, uint32_t id)
+	{
+		if (!db || !db->isLoaded)
+			return nullptr;
+
+		return GetRow(&db->funcTable2, id);
+	}
 }
 
 namespace ClientPacket

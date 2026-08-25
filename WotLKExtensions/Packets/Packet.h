@@ -15,6 +15,8 @@ public:
 
 	Packet& PutInt8(int8_t v);
 	Packet& PutUInt8(uint8_t v);
+	Packet& PutInt16(int16_t v);
+	Packet& PutUInt16(uint16_t v);
 	Packet& PutInt32(int32_t v);
 	Packet& PutUInt32(uint32_t v);
 	Packet& PutInt64(int64_t v);

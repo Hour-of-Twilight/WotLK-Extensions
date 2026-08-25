@@ -4,6 +4,9 @@
 
 struct CDataStore;
 
+// Server-replicated movement forces. The server owns the force list for a unit and pushes it to
+// every client that can see that unit, so all of them run the same drift simulation locally and
+// the pushed unit moves smoothly on every screen instead of snapping between heartbeats.
 class MovementForce
 {
 public:
@@ -15,6 +18,9 @@ public:
 	void Apply();
 
 	void Tick();
+
+	// Drop everything on world change, the server re-sends what is still active.
+	void Reset();
 
 private:
 	MovementForce() = default;

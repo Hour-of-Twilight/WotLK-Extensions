@@ -8,6 +8,7 @@
 #include <ClientDetours.h>
 #include <Editor/EditorObject.h>
 #include <Editor/EditorState.h>
+#include <Editor/FreeCam.h>
 #include <Editor/GizmoDraw.h>
 #include <Editor/GizmoPick.h>
 #include <Editor/QuatFunctions.h>
@@ -15,6 +16,11 @@
 
 #include <Character/MovementForce.h>
 #include <SharedDefines.h>
+
+#ifdef ENABLE_MAP_EDITOR
+#include <Editor/Map/MapEditorRuntime.h>
+#endif
+
 #include <cstdint>
 #include <cstdio>
 
@@ -308,20 +314,42 @@ namespace
 	{
 		GameClient::InitializeGame(a1, a2, a3, a4);
 		EditorRuntime::OnGameClientInitialize();
+#ifdef ENABLE_MAP_EDITOR
+		MapEditor::Runtime::OnGameClientInitialize();
+#endif
+		FreeCam::OnGameClientInitialize();
 	}
 
 	void __cdecl ClientDestroyGame_EditorRuntimeDetour(bool a1, bool a2, bool a3)
 	{
 		if (GameClient::IsInitialized())
+		{
 			EditorRuntime::OnGameClientDestroy();
+#ifdef ENABLE_MAP_EDITOR
+			MapEditor::Runtime::OnGameClientDestroy();
+#endif
+			FreeCam::OnGameClientDestroy();
+		}
+
+		// The unit GUIDs these are keyed on are gone once the world is torn down.
+		sMovementForce.Reset();
 
 		GameClient::DestroyGame(a1, a2, a3);
 	}
 
 	bool __fastcall CGWorldFrame_OnWorldRender_EditorRuntimeDetour(CGWorldFrameFull* worldFrame, void*)
 	{
+#ifdef ENABLE_MAP_EDITOR
+		// The map editor's brush decal is drawn by the client from inside OnWorldRender, so it
+		// has to be armed before the original runs.
+		MapEditor::Runtime::BeforeWorldRender(worldFrame);
+#endif
+
 		bool result = CGWorldFrame_OnWorldRender(worldFrame);
 		EditorRuntime::OnWorldRender(worldFrame);
+#ifdef ENABLE_MAP_EDITOR
+		MapEditor::Runtime::AfterWorldRender(worldFrame);
+#endif
 		// Piggyback
 		sActionRepeat.OnUpdate();
 		sMovementForce.Tick();
