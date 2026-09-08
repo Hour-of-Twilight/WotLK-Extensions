@@ -324,7 +324,7 @@ HidePanel();
 		FrameScript::Execute(script.c_str(), "HoTPatchStatus", 0);
 	}
 
-	CLIENT_DETOUR(Script_DefaultServerLogin, 0x004DC260, __cdecl, int, (lua_State* L))
+	CLIENT_DETOUR(Script_DefaultServerLogin, 0x004DC260, __cdecl, int, (lua_State * L))
 	{
 		if (PatchStatusUI::ClientUIMissing() && sBackgroundDownloader.IsBusy())
 		{

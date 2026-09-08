@@ -1,4 +1,5 @@
 #include <DiscordRPC.h>
+#include <Util.h>
 #include <chrono>
 #include <windows.h>
 #include <tlhelp32.h>
@@ -6,11 +7,20 @@
 
 DiscordRPC::DiscordRPC() = default;
 
+DiscordRPC::~DiscordRPC()
+{
+	Shutdown();
+}
+
+static const long long CLIENT_ID = 1420551644671901780;
+
 static bool IsDiscordRunning()
 {
 	HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	if (snap == INVALID_HANDLE_VALUE)
 		return false;
+
+	static const char* processNames[] = { "Discord", "DiscordPTB", "DiscordCanary", "DiscordDevelopment" };
 
 	PROCESSENTRY32 pe{};
 	pe.dwSize = sizeof(pe);
@@ -23,45 +33,27 @@ static bool IsDiscordRunning()
 			std::string name = pe.szExeFile;
 			if (name.size() > 4 && _stricmp(name.c_str() + name.size() - 4, ".exe") == 0)
 				name.resize(name.size() - 4);
-			if (_stricmp(name.c_str(), "Discord") == 0)
+			for (const char* candidate : processNames)
 			{
-				found = true;
-				break;
+				if (_stricmp(name.c_str(), candidate) == 0)
+				{
+					found = true;
+					break;
+				}
 			}
-		} while (Process32Next(snap, &pe));
+		} while (!found && Process32Next(snap, &pe));
 	}
 
 	CloseHandle(snap);
 	return found;
 }
 
-DiscordRPC::~DiscordRPC()
-{
-	Shutdown();
-}
-
-static const long long CLIENT_ID = 1420551644671901780;
-
 void DiscordRPC::Init()
 {
-	if (_initialized)
+	if (_initialized || Util::IsWine())
 		return;
 
-	if (!IsDiscordRunning())
-		return;
-
-	discord::Core* core{};
-	auto result = discord::Core::Create(CLIENT_ID, DiscordCreateFlags_Default, &core);
-	if (!core || result != discord::Result::Ok)
-	{
-		return;
-	}
-
-	_core = core;
-	_activityManager = &core->ActivityManager();
 	_running = true;
-
-	// Start background thread
 	_thread = std::thread([this]()
 	{
 		this->ThreadFunc();
@@ -79,20 +71,39 @@ void DiscordRPC::Shutdown()
 	if (_thread.joinable())
 		_thread.join();
 
-	ClearActivity();
-	delete _activityManager;
-	delete _core;
-	_core = nullptr;
-	_activityManager = nullptr;
+	if (_core)
+	{
+		if (_activityManager)
+			_activityManager->ClearActivity(nullptr);
+		_core->RunCallbacks();
+	}
+
+	Disconnect();
 	_initialized = false;
 }
 
-void DiscordRPC::ClearActivity()
+bool DiscordRPC::TryConnect()
 {
-	if (!_initialized || !_activityManager)
-		return;
+	discord::Core* core{};
+	auto result = discord::Core::Create(CLIENT_ID, DiscordCreateFlags_Default, &core);
+	if (!core || result != discord::Result::Ok)
+		return false;
 
-	_activityManager->ClearActivity(nullptr);
+	_core = core;
+	_activityManager = &core->ActivityManager();
+
+	std::lock_guard<std::mutex> lock(_mutex);
+	if (_hasActivity)
+		_hasPending = true;
+
+	return true;
+}
+
+void DiscordRPC::Disconnect()
+{
+	delete _core;
+	_core = nullptr;
+	_activityManager = nullptr;
 }
 
 void DiscordRPC::UpdateActivity(const std::string& state,
@@ -118,27 +129,54 @@ void DiscordRPC::UpdateActivity(const std::string& state,
 	if (!smallText.empty())
 		_pendingActivity.GetAssets().SetSmallText(smallText.c_str());
 
+	_hasActivity = true;
 	_hasPending = true;
+}
+
+void DiscordRPC::FlushPendingActivity()
+{
+	std::lock_guard<std::mutex> lock(_mutex);
+	if (!_hasPending)
+		return;
+
+	_activityManager->UpdateActivity(_pendingActivity, [](discord::Result)
+	{
+	});
+	_hasPending = false;
 }
 
 void DiscordRPC::ThreadFunc()
 {
+	using Clock = std::chrono::steady_clock;
+	Clock::time_point nextDetect{};
+
 	while (_running)
 	{
-		if (_core)
-			_core->RunCallbacks();
-
-		if (_hasPending && _activityManager)
+		if (!_core)
 		{
-			std::lock_guard<std::mutex> lock(_mutex);
-			_activityManager->UpdateActivity(_pendingActivity, [](discord::Result res)
+			auto now = Clock::now();
+			if (now >= nextDetect)
 			{
-				if (res != discord::Result::Ok)
-				{
-				}
-			});
-			_hasPending = false;
+				nextDetect = now + std::chrono::seconds(15);
+				if (IsDiscordRunning())
+					TryConnect();
+			}
+
+			if (!_core)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(500));
+				continue;
+			}
 		}
+
+		if (_core->RunCallbacks() != discord::Result::Ok)
+		{
+			Disconnect();
+			continue;
+		}
+
+		if (_activityManager)
+			FlushPendingActivity();
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}

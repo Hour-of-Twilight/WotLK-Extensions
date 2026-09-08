@@ -28,7 +28,7 @@ void TestFramePackets::Handler_SMSG_CUSTOM_TEST_FRAME(void*, uint32_t, uint32_t,
 		self.m_allowedStatGroups.push_back(r.GetUInt32());
 
 	self.m_hasData = true;
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TEST_FRAME"), "");
+	FrameXMLExtensions::SignalEvent("HOT_TEST_FRAME", "");
 }
 
 int TestFramePackets::GetTestFrameData(lua_State* L)

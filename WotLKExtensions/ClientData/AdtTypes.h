@@ -122,10 +122,10 @@ namespace ClientData
 		uint16_t vertexFormat; // 0 height+depth, 1 height+uv, 2 depth only
 		float minHeight;
 		float maxHeight;
-		uint8_t xOffset; // 0..7
-		uint8_t yOffset; // 0..7
-		uint8_t width;   // 1..8
-		uint8_t height;  // 1..8
+		uint8_t xOffset;             // 0..7
+		uint8_t yOffset;             // 0..7
+		uint8_t width;               // 1..8
+		uint8_t height;              // 1..8
 		uint32_t offsetExistsBitmap; // width * height bits, x fast. 0 means every cell exists.
 		uint32_t offsetVertexData;
 	};

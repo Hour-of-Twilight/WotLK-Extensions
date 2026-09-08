@@ -25,10 +25,13 @@ namespace MapEditor::Sculpt
 			float t = 1.0f - distance / radius;
 			switch (falloff)
 			{
-				case Falloff::Flat: return 1.0f;
-				case Falloff::Linear: return t;
-				case Falloff::Smooth:
-				default: return t * t * (3.0f - 2.0f * t);
+			case Falloff::Flat:
+				return 1.0f;
+			case Falloff::Linear:
+				return t;
+			case Falloff::Smooth:
+			default:
+				return t * t * (3.0f - 2.0f * t);
 			}
 		}
 
@@ -43,8 +46,7 @@ namespace MapEditor::Sculpt
 
 			bool operator==(ChunkRef const& other) const
 			{
-				return tileX == other.tileX && tileY == other.tileY && chunkX == other.chunkX
-				    && chunkY == other.chunkY;
+				return tileX == other.tileX && tileY == other.tileY && chunkX == other.chunkX && chunkY == other.chunkY;
 			}
 		};
 
@@ -212,9 +214,9 @@ namespace MapEditor::Sculpt
 			auto addFace = [&](C3Vector const& a, C3Vector const& b, C3Vector const& c, int32_t ia,
 			                   int32_t ib, int32_t ic)
 			{
-				C3Vector u{b.x - a.x, b.y - a.y, b.z - a.z};
-				C3Vector v{c.x - a.x, c.y - a.y, c.z - a.z};
-				C3Vector face{u.y * v.z - u.z * v.y, u.z * v.x - u.x * v.z, u.x * v.y - u.y * v.x};
+				C3Vector u{ b.x - a.x, b.y - a.y, b.z - a.z };
+				C3Vector v{ c.x - a.x, c.y - a.y, c.z - a.z };
+				C3Vector face{ u.y * v.z - u.z * v.y, u.z * v.x - u.x * v.z, u.x * v.y - u.y * v.x };
 
 				if (face.z < 0.0f)
 				{
@@ -223,7 +225,7 @@ namespace MapEditor::Sculpt
 					face.z = -face.z;
 				}
 
-				for (int32_t index : {ia, ib, ic})
+				for (int32_t index : { ia, ib, ic })
 				{
 					if (index < 0)
 						continue;
@@ -250,9 +252,7 @@ namespace MapEditor::Sculpt
 					// Off the edge of what is loaded. The centre chunk's own cells always resolve,
 					// so this only ever drops a neighbour's contribution, which is the old
 					// per-chunk behaviour and the best available at the edge of the loaded set.
-					if (!InnerAt(hood, row, col, inner) || !OuterAt(hood, row, col, tl)
-					    || !OuterAt(hood, row, col + 1, tr) || !OuterAt(hood, row + 1, col + 1, br)
-					    || !OuterAt(hood, row + 1, col, bl))
+					if (!InnerAt(hood, row, col, inner) || !OuterAt(hood, row, col, tl) || !OuterAt(hood, row, col + 1, tr) || !OuterAt(hood, row + 1, col + 1, br) || !OuterAt(hood, row + 1, col, bl))
 						continue;
 
 					int32_t ii = InnerIndex(row, col);
@@ -278,7 +278,7 @@ namespace MapEditor::Sculpt
 				float length = std::sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
 				if (length <= 0.0f)
 				{
-					n = C3Vector{0.0f, 0.0f, 1.0f};
+					n = C3Vector{ 0.0f, 0.0f, 1.0f };
 					length = 1.0f;
 				}
 
@@ -448,8 +448,8 @@ namespace MapEditor::Sculpt
 		if (converging ? stroke.blend <= 0.0f : stroke.amount == 0.0f)
 			return 0;
 
-		C3Vector lo{stroke.center.x - stroke.radius, stroke.center.y - stroke.radius, 0.0f};
-		C3Vector hi{stroke.center.x + stroke.radius, stroke.center.y + stroke.radius, 0.0f};
+		C3Vector lo{ stroke.center.x - stroke.radius, stroke.center.y - stroke.radius, 0.0f };
+		C3Vector hi{ stroke.center.x + stroke.radius, stroke.center.y + stroke.radius, 0.0f };
 
 		int32_t tileX0 = std::min(Coords::TileX(lo), Coords::TileX(hi));
 		int32_t tileX1 = std::max(Coords::TileX(lo), Coords::TileX(hi));
@@ -469,7 +469,7 @@ namespace MapEditor::Sculpt
 				{
 					for (int32_t chunkX = 0; chunkX < kSide; ++chunkX)
 					{
-						ChunkRef ref{tileX, tileY, chunkX, chunkY};
+						ChunkRef ref{ tileX, tileY, chunkX, chunkY };
 						CMapChunk* chunk = Resolve(ref);
 						if (!chunk || !chunk->vertices || !chunk->normals)
 							continue;
@@ -510,31 +510,31 @@ namespace MapEditor::Sculpt
 
 				switch (stroke.mode)
 				{
-					case Mode::Raise:
-						height += stroke.amount * weight;
-						break;
+				case Mode::Raise:
+					height += stroke.amount * weight;
+					break;
 
-					case Mode::Noise:
-						height += stroke.amount * weight * Jitter(target.ref, i);
-						break;
+				case Mode::Noise:
+					height += stroke.amount * weight * Jitter(target.ref, i);
+					break;
 
-					case Mode::Flatten:
-					{
-						float goal = stroke.targetHeight - target.chunk->topLeftCoords.z;
-						height += (goal - height) * weight * stroke.blend;
-						break;
-					}
+				case Mode::Flatten:
+				{
+					float goal = stroke.targetHeight - target.chunk->topLeftCoords.z;
+					height += (goal - height) * weight * stroke.blend;
+					break;
+				}
 
-					case Mode::Smooth:
-					{
-						float average = 0.0f;
-						if (!NeighborAverage(hood, i, average))
-							continue;
+				case Mode::Smooth:
+				{
+					float average = 0.0f;
+					if (!NeighborAverage(hood, i, average))
+						continue;
 
-						float goal = average - target.chunk->topLeftCoords.z;
-						height += (goal - height) * weight * stroke.blend;
-						break;
-					}
+					float goal = average - target.chunk->topLeftCoords.z;
+					height += (goal - height) * weight * stroke.blend;
+					break;
+				}
 				}
 
 				if (height == target.heights[i])

@@ -31,7 +31,10 @@ namespace MapEditor::Placements
 		int32_t index = -1;
 		uint32_t uniqueId = 0;
 
-		bool Valid() const { return index >= 0 && tileX >= 0 && tileY >= 0; }
+		bool Valid() const
+		{
+			return index >= 0 && tileX >= 0 && tileY >= 0;
+		}
 	};
 
 	// World position, Euler degrees on the MDDF/MODF axes, and a scale only doodads actually have.

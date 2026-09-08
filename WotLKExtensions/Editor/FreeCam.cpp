@@ -116,22 +116,22 @@ namespace FreeCam
 			FreeCamState& state = State();
 			switch (key)
 			{
-				case kKeyW:
-					return &state.forward;
-				case kKeyS:
-					return &state.back;
-				case kKeyA:
-					return &state.left;
-				case kKeyD:
-					return &state.right;
-				case kKeySpace:
-				case kKeyE:
-					return &state.up;
-				case kKeyX:
-				case kKeyQ:
-					return &state.down;
-				default:
-					return nullptr;
+			case kKeyW:
+				return &state.forward;
+			case kKeyS:
+				return &state.back;
+			case kKeyA:
+				return &state.left;
+			case kKeyD:
+				return &state.right;
+			case kKeySpace:
+			case kKeyE:
+				return &state.up;
+			case kKeyX:
+			case kKeyQ:
+				return &state.down;
+			default:
+				return nullptr;
 			}
 		}
 

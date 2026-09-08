@@ -1,5 +1,6 @@
 #include "DBCPatch.h"
 
+#include <Character/AnimationFixes.h>
 #include <ClientData/ClientFunctions.h>
 #include <SharedDefines.h>
 #include <ClientDetours.h>
@@ -436,6 +437,12 @@ static void RefreshCharacterComponent()
 
 void DBCPatch::RefreshDerivedState(const char* dbcName, WoWClientDB* db)
 {
+	if (iequals(dbcName, "spell"))
+	{
+		AnimationFixes::InvalidateSpellScan();
+		return;
+	}
+
 	if (iequals(dbcName, "charSections") || iequals(dbcName, "characterFacialHairStyles") ||
 	    iequals(dbcName, "chrRaces"))
 	{
@@ -468,8 +475,8 @@ void DBCPatch::RefreshDerivedState(const char* dbcName, WoWClientDB* db)
 	{
 		int id = static_cast<int>(i);
 		void* rec = (byId && id >= db->minIndex && id <= db->maxIndex)
-		    ? byId[id - db->minIndex]
-		    : nullptr;
+		                ? byId[id - db->minIndex]
+		                : nullptr;
 		if (!rec)
 			continue;
 		if (list[i])
@@ -652,8 +659,8 @@ std::vector<int> DBCPatch::SnapshotDenseOrder(WoWClientDB* db, uint32_t recordSi
 	for (int k = 0; k < db->numRows; ++k)
 	{
 		const void* row = inlineStorage
-		    ? static_cast<const void*>(reinterpret_cast<const uint8_t*>(db->FirstRow) + static_cast<size_t>(k) * recordSize)
-		    : reinterpret_cast<void**>(db->FirstRow)[k];
+		                      ? static_cast<const void*>(reinterpret_cast<const uint8_t*>(db->FirstRow) + static_cast<size_t>(k) * recordSize)
+		                      : reinterpret_cast<void**>(db->FirstRow)[k];
 		auto it = idOfRow.find(row);
 		if (it != idOfRow.end())
 			order.push_back(it->second);

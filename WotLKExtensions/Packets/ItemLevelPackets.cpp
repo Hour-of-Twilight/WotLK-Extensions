@@ -30,7 +30,7 @@ void ItemLevelPackets::Handler_SMSG_ITEM_LEVEL_BREAKDOWN(void*, uint32_t, uint32
 	}
 
 	self.m_hasData = true;
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_ITEM_LEVEL_UPDATE"), "");
+	FrameXMLExtensions::SignalEvent("HOT_ITEM_LEVEL_UPDATE", "");
 }
 
 int ItemLevelPackets::RequestItemLevelBreakdown(lua_State*)

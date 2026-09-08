@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstddef>
 #include <cstdint>
+#include <cstdarg>
 #include "ClientDetours.h"
 #include "Logger.h"
 #include "CustomLua.h"
@@ -37,6 +38,7 @@ public:
 	static void LoadNewEvents();
 	static void Apply();
 	static int GetEventIdByName(const char* eventName);
+	static bool SignalEvent(const char* eventName, const char* format = nullptr, ...);
 	static const std::vector<const char*>& getCustomEvents()
 	{
 		return s_customEvents;

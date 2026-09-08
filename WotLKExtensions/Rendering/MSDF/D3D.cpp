@@ -9,7 +9,6 @@
 #include <vector>
 
 #pragma comment(lib, "d3d9.lib")
-#pragma comment(lib, "d3dcompiler.lib")
 
 namespace D3D {
     Present_t oPresent = nullptr;
@@ -27,6 +26,14 @@ namespace D3D {
     Reset_t oReset = nullptr;
 
     namespace {
+        pD3DCompile GetD3DCompileFn() {
+            static pD3DCompile fn = []() -> pD3DCompile {
+                HMODULE mod = LoadLibraryW(L"d3dcompiler_47.dll");
+                return mod ? reinterpret_cast<pD3DCompile>(GetProcAddress(mod, "D3DCompile")) : nullptr;
+            }();
+            return fn;
+        }
+
         void LogShaderError(ID3DBlob* pError, uint32_t type) {
             if (pError) {
 //#ifdef _DEBUG
@@ -431,8 +438,10 @@ namespace D3D {
 
     IDirect3DVertexShader9* CompileVertexShader(const ResourceParams& p) {
         if (p.shaderCode.empty()) return nullptr;
+        pD3DCompile compile = GetD3DCompileFn();
+        if (!compile) return nullptr;
         ID3DBlob* pCode = nullptr, * pError = nullptr;
-        HRESULT hr = D3DCompile(p.shaderCode.data(), p.shaderCode.size(), nullptr, nullptr,
+        HRESULT hr = compile(p.shaderCode.data(), p.shaderCode.size(), nullptr, nullptr,
             nullptr, p.entryPoint.c_str(), p.target.c_str(), 0, 0, &pCode, &pError);
         if (FAILED(hr)) { LogShaderError(pError, 1); return nullptr; }
         IDirect3DVertexShader9* shader = nullptr;
@@ -452,8 +461,10 @@ namespace D3D {
 
     IDirect3DPixelShader9* CompilePixelShader(const ResourceParams& p) {
         if (p.shaderCode.empty()) return nullptr;
+        pD3DCompile compile = GetD3DCompileFn();
+        if (!compile) return nullptr;
         ID3DBlob* pCode = nullptr, * pError = nullptr;
-        HRESULT hr = D3DCompile(p.shaderCode.data(), p.shaderCode.size(), nullptr, nullptr,
+        HRESULT hr = compile(p.shaderCode.data(), p.shaderCode.size(), nullptr, nullptr,
             nullptr, p.entryPoint.c_str(), p.target.c_str(), 0, 0, &pCode, &pError);
         if (FAILED(hr)) { LogShaderError(pError, 0); return nullptr; }
         IDirect3DPixelShader9* shader = nullptr;

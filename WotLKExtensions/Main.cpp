@@ -11,17 +11,20 @@
 #endif
 #include <Character/AnimationFixes.h>
 #include <Spells/AutoRepeatDeadzone.h>
+#include <Spells/SpellDescriptionVars.h>
 #include <Config/LauncherSettings.h>
 #include <Config/LauncherSettingsLua.h>
 #include <FeatureCvars.h>
 #include <Logger.h>
+#include <Macros.h>
+#include <windows.h>
+#include <detours.h>
 void Main::OnAttach()
 {
 	sLog.Reset();
 	sLauncherSettings.Load();
 	Init();
-	if (!Util::IsWine())
-		MSDFBootstrap::initialize();
+	MSDFBootstrap::initialize();
 	sMpqScanner.Start();
 	// Apply patches
 	Misc::ApplyPatches();
@@ -36,6 +39,7 @@ void Main::OnAttach()
 	FrameXMLExtensions::Apply();
 	Spells::Apply();
 	AutoRepeatDeadzone::Apply();
+	sSpellDescriptionVars.Apply();
 	Item::Apply();
 	CDBCMgr::Load();
 
@@ -67,19 +71,17 @@ void Main::Init()
 extern "C"
 {
 	__declspec(dllexport) void WotLKExtensionsDummy() {}
+
+	extern __declspec(dllexport) const char HeyThereReverseEngineer[] =
+	    "Brother, this shit is on github, https://github.com/Hour-of-Twilight/WotLK-Extensions";
 }
 
-DWORD WINAPI DebuggerCheckThread(LPVOID)
+CLIENT_FUNCTION(ConsoleDeviceInitialize, 0x0076AB80, __cdecl, int, (char* title, int multithreaded, int arg3))
+
+static int __cdecl ConsoleDeviceInitializeBootstrap(char* title, int multithreaded, int arg3)
 {
-	static bool displayed = false;
-
-	if (!displayed && IsDebuggerPresent())
-	{
-		displayed = true;
-		MessageBoxA(nullptr, "Brother, this shit is on github, https://github.com/Hour-of-Twilight/WotLK-Extensions", "Nerd", MB_OK | MB_ICONEXCLAMATION);
-	}
-
-	return 0;
+	Main::OnAttach();
+	return ConsoleDeviceInitialize(title, multithreaded, arg3);
 }
 
 bool __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
@@ -87,12 +89,10 @@ bool __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 	if (fdwReason == DLL_PROCESS_ATTACH)
 	{
 		DisableThreadLibraryCalls(hinstDLL);
-		CreateThread(nullptr, 0, [](LPVOID) -> DWORD
-		{
-			Main::OnAttach();
-			CreateThread(nullptr, 0, DebuggerCheckThread, nullptr, 0, nullptr);
-			return 0;
-		}, nullptr, 0, nullptr);
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourAttach((PVOID*)&ConsoleDeviceInitialize, ConsoleDeviceInitializeBootstrap);
+		DetourTransactionCommit();
 	}
 	return true;
 }

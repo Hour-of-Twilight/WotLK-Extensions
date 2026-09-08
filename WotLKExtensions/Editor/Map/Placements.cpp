@@ -48,14 +48,13 @@ namespace MapEditor::Placements
 
 		CAaBox BoxAround(C3Vector const& point, float pad)
 		{
-			return {{point.x - pad, point.y - pad, point.z - pad},
-			    {point.x + pad, point.y + pad, point.z + pad}};
+			return { { point.x - pad, point.y - pad, point.z - pad },
+				{ point.x + pad, point.y + pad, point.z + pad } };
 		}
 
 		bool BoxIsFinite(CAaBox const& box)
 		{
-			return std::isfinite(box.b.x) && std::isfinite(box.b.y) && std::isfinite(box.b.z)
-			    && std::isfinite(box.t.x) && std::isfinite(box.t.y) && std::isfinite(box.t.z);
+			return std::isfinite(box.b.x) && std::isfinite(box.b.y) && std::isfinite(box.b.z) && std::isfinite(box.t.x) && std::isfinite(box.t.y) && std::isfinite(box.t.z);
 		}
 
 		float BoxDiagonal(CAaBox const& box)
@@ -101,8 +100,7 @@ namespace MapEditor::Placements
 			if (!BoxIsFinite(box) || BoxIsEmpty(box))
 				return false;
 
-			if (box.t.x - box.b.x > kMaxSaneBoxSpan || box.t.y - box.b.y > kMaxSaneBoxSpan
-			    || box.t.z - box.b.z > kMaxSaneBoxSpan)
+			if (box.t.x - box.b.x > kMaxSaneBoxSpan || box.t.y - box.b.y > kMaxSaneBoxSpan || box.t.z - box.b.z > kMaxSaneBoxSpan)
 				return false;
 
 			return BoxDistanceSqXY(box, origin) <= kMaxBoxDriftSq;
@@ -133,10 +131,10 @@ namespace MapEditor::Placements
 		// end so the fraction can be compared straight across candidates.
 		bool RayHitsBox(C3Vector const& start, C3Vector const& dir, CAaBox const& box, float& tHit)
 		{
-			float const s[3] = {start.x, start.y, start.z};
-			float const d[3] = {dir.x, dir.y, dir.z};
-			float const lo[3] = {box.b.x, box.b.y, box.b.z};
-			float const hi[3] = {box.t.x, box.t.y, box.t.z};
+			float const s[3] = { start.x, start.y, start.z };
+			float const d[3] = { dir.x, dir.y, dir.z };
+			float const lo[3] = { box.b.x, box.b.y, box.b.z };
+			float const hi[3] = { box.t.x, box.t.y, box.t.z };
 
 			float entry = 0.0f;
 			float exit = 1.0f;
@@ -462,8 +460,7 @@ namespace MapEditor::Placements
 			float maxY = Coords::kMapHalf - static_cast<float>(tileX * 16 + chunkX) * Coords::kChunkSize;
 			float maxX = Coords::kMapHalf - static_cast<float>(tileY * 16 + chunkY) * Coords::kChunkSize;
 
-			return bounds.t.x >= maxX - Coords::kChunkSize && bounds.b.x <= maxX
-			    && bounds.t.y >= maxY - Coords::kChunkSize && bounds.b.y <= maxY;
+			return bounds.t.x >= maxX - Coords::kChunkSize && bounds.b.x <= maxX && bounds.t.y >= maxY - Coords::kChunkSize && bounds.b.y <= maxY;
 		}
 
 		// Rewrites one chunk's MCRF. `want` says whether the chunk should list the index at all,
@@ -588,11 +585,11 @@ namespace MapEditor::Placements
 						TSExplicitList const& list = doodads ? chunk->doodadDefLink : chunk->mapObjDefLink;
 						Access::ForEachLink(list,
 						    [&](uint8_t* node)
-						    {
-							    void* owner = reinterpret_cast<CMapDefChunkLink*>(node)->owner;
-							    if (owner && seen.insert(owner).second)
-								    fn(owner);
-						    });
+						{
+							void* owner = reinterpret_cast<CMapDefChunkLink*>(node)->owner;
+							if (owner && seen.insert(owner).second)
+								fn(owner);
+						});
 					}
 				}
 			}
@@ -824,7 +821,7 @@ namespace MapEditor::Placements
 			uint32_t index = AppendEntry(*top, &entry, sizeof(entry));
 
 			CAaBox world = Merge(BoxAround(transform.position, 1.0f),
-			    {Coords::AdtToWorld(extents.b), Coords::AdtToWorld(extents.t)});
+			    { Coords::AdtToWorld(extents.b), Coords::AdtToWorld(extents.t) });
 
 			RetargetRefs(tile, false, index, Normalized(world));
 			tile.dirty = true;
@@ -842,8 +839,7 @@ namespace MapEditor::Placements
 		{
 			size_t count = 0;
 			SMDoodadDef* entries = DocDoodads(from, count);
-			if (!entries || static_cast<size_t>(ref.index) >= count
-			    || entries[ref.index].uniqueId != ref.uniqueId)
+			if (!entries || static_cast<size_t>(ref.index) >= count || entries[ref.index].uniqueId != ref.uniqueId)
 			{
 				error = "that placement is no longer at index " + std::to_string(ref.index);
 				return false;
@@ -904,8 +900,7 @@ namespace MapEditor::Placements
 		{
 			size_t count = 0;
 			SMMapObjDef* entries = DocMapObjs(from, count);
-			if (!entries || static_cast<size_t>(ref.index) >= count
-			    || entries[ref.index].uniqueId != ref.uniqueId)
+			if (!entries || static_cast<size_t>(ref.index) >= count || entries[ref.index].uniqueId != ref.uniqueId)
 			{
 				error = "that placement is no longer at index " + std::to_string(ref.index);
 				return false;
@@ -1027,51 +1022,51 @@ namespace MapEditor::Placements
 
 		ForEachLiveDef(true,
 		    [&](void* owner)
-		    {
-			    auto* def = static_cast<CMapDoodadDef*>(owner);
-			    CAaBox box = DoodadBounds(def);
+		{
+			auto* def = static_cast<CMapDoodadDef*>(owner);
+			CAaBox box = DoodadBounds(def);
 
-			    float t = 0.0f;
-			    if (!RayHitsBox(start, dir, box, t))
-				    return;
+			float t = 0.0f;
+			if (!RayHitsBox(start, dir, box, t))
+				return;
 
-			    float distance = t * rayLength;
-			    float size = BoxDiagonal(box);
-			    if (!beats(distance, size))
-				    return;
+			float distance = t * rayLength;
+			float size = BoxDiagonal(box);
+			if (!beats(distance, size))
+				return;
 
-			    Ref ref;
-			    if (!RefForDoodad(def, ref))
-				    return;
+			Ref ref;
+			if (!RefForDoodad(def, ref))
+				return;
 
-			    bestDistance = distance;
-			    bestSize = size;
-			    best = ref;
-		    });
+			bestDistance = distance;
+			bestSize = size;
+			best = ref;
+		});
 
 		ForEachLiveDef(false,
 		    [&](void* owner)
-		    {
-			    auto* def = static_cast<CMapObjDef*>(owner);
-			    CAaBox box = MapObjBounds(def);
+		{
+			auto* def = static_cast<CMapObjDef*>(owner);
+			CAaBox box = MapObjBounds(def);
 
-			    float t = 0.0f;
-			    if (!RayHitsBox(start, dir, box, t))
-				    return;
+			float t = 0.0f;
+			if (!RayHitsBox(start, dir, box, t))
+				return;
 
-			    float distance = t * rayLength;
-			    float size = BoxDiagonal(box);
-			    if (!beats(distance, size))
-				    return;
+			float distance = t * rayLength;
+			float size = BoxDiagonal(box);
+			if (!beats(distance, size))
+				return;
 
-			    Ref ref;
-			    if (!RefForMapObj(def, ref))
-				    return;
+			Ref ref;
+			if (!RefForMapObj(def, ref))
+				return;
 
-			    bestDistance = distance;
-			    bestSize = size;
-			    best = ref;
-		    });
+			bestDistance = distance;
+			bestSize = size;
+			best = ref;
+		});
 
 		if (!best.Valid())
 			return false;
@@ -1435,40 +1430,40 @@ namespace MapEditor::Placements
 		// you are standing at, so an origin test drops exactly the big WMOs you went looking for.
 		ForEachLiveDef(true,
 		    [&](void* owner)
-		    {
-			    auto* def = static_cast<CMapDoodadDef*>(owner);
-			    float distanceSq = BoxDistanceSqXY(DoodadBounds(def), center);
-			    if (distanceSq > limit)
-				    return;
+		{
+			auto* def = static_cast<CMapDoodadDef*>(owner);
+			float distanceSq = BoxDistanceSqXY(DoodadBounds(def), center);
+			if (distanceSq > limit)
+				return;
 
-			    Ref ref;
-			    if (RefForDoodad(def, ref))
-				    collect(ref, distanceSq);
-		    });
+			Ref ref;
+			if (RefForDoodad(def, ref))
+				collect(ref, distanceSq);
+		});
 
 		ForEachLiveDef(false,
 		    [&](void* owner)
-		    {
-			    auto* def = static_cast<CMapObjDef*>(owner);
-			    float distanceSq = BoxDistanceSqXY(MapObjBounds(def), center);
-			    if (distanceSq > limit)
-				    return;
+		{
+			auto* def = static_cast<CMapObjDef*>(owner);
+			float distanceSq = BoxDistanceSqXY(MapObjBounds(def), center);
+			if (distanceSq > limit)
+				return;
 
-			    Ref ref;
-			    if (RefForMapObj(def, ref))
-				    collect(ref, distanceSq);
-		    });
+			Ref ref;
+			if (RefForMapObj(def, ref))
+				collect(ref, distanceSq);
+		});
 
 		// Anything whose footprint you are standing in measures zero, so a city block of WMOs all
 		// tie at the top with nothing to order them. The origin breaks that tie, which puts the
 		// hut you are inside above the keep whose corner you happen to be clipping.
 		std::stable_sort(out.begin(), out.end(),
 		    [](Info const& a, Info const& b)
-		    {
-			    if (a.distance != b.distance)
-				    return a.distance < b.distance;
-			    return a.originDistance < b.originDistance;
-		    });
+		{
+			if (a.distance != b.distance)
+				return a.distance < b.distance;
+			return a.originDistance < b.originDistance;
+		});
 
 		return static_cast<int32_t>(out.size());
 	}
@@ -1541,8 +1536,8 @@ namespace MapEditor::Placements
 		// what culling runs on and nothing will ever correct a guess that was too small.
 		C3Vector adt = Coords::WorldToAdt(transform.position);
 		float radius = MapObjRadius(model);
-		CAaBox extents = {{adt.x - radius, adt.y - radius, adt.z - radius},
-		    {adt.x + radius, adt.y + radius, adt.z + radius}};
+		CAaBox extents = { { adt.x - radius, adt.y - radius, adt.z - radius },
+			{ adt.x + radius, adt.y + radius, adt.z + radius } };
 
 		return InsertMapObj(*tile, model, transform, extents, 0, 0, 0, out, error);
 	}
@@ -1579,8 +1574,7 @@ namespace MapEditor::Placements
 		{
 			size_t count = 0;
 			SMDoodadDef* entries = DocDoodads(*source, count);
-			if (!entries || static_cast<size_t>(ref.index) >= count
-			    || entries[ref.index].uniqueId != ref.uniqueId)
+			if (!entries || static_cast<size_t>(ref.index) >= count || entries[ref.index].uniqueId != ref.uniqueId)
 			{
 				error = "that placement is no longer at index " + std::to_string(ref.index);
 				return false;
@@ -1593,8 +1587,7 @@ namespace MapEditor::Placements
 		{
 			size_t count = 0;
 			SMMapObjDef* entries = DocMapObjs(*source, count);
-			if (!entries || static_cast<size_t>(ref.index) >= count
-			    || entries[ref.index].uniqueId != ref.uniqueId)
+			if (!entries || static_cast<size_t>(ref.index) >= count || entries[ref.index].uniqueId != ref.uniqueId)
 			{
 				error = "that placement is no longer at index " + std::to_string(ref.index);
 				return false;
@@ -1624,8 +1617,8 @@ namespace MapEditor::Placements
 		// source's came out of whatever built the tile in the first place.
 		C3Vector adt = Coords::WorldToAdt(transform.position);
 		C3Vector shift = VectorMath::Subtract(adt, mapObjEntry.position);
-		CAaBox extents = {VectorMath::Add(mapObjEntry.extents.b, shift),
-		    VectorMath::Add(mapObjEntry.extents.t, shift)};
+		CAaBox extents = { VectorMath::Add(mapObjEntry.extents.b, shift),
+			VectorMath::Add(mapObjEntry.extents.t, shift) };
 
 		return InsertMapObj(*tile, model, transform, extents, mapObjEntry.flags, mapObjEntry.doodadSet,
 		    mapObjEntry.nameSet, out, error);
@@ -1642,7 +1635,9 @@ namespace MapEditor::Placements
 		// Distance to the bounds rather than the origin, same reason ListNear measures that way.
 		std::sort(nearby.begin(), nearby.end(),
 		    [&](Info const& a, Info const& b)
-		    { return BoxDistanceSqXY(a.bounds, center) < BoxDistanceSqXY(b.bounds, center); });
+		{
+			return BoxDistanceSqXY(a.bounds, center) < BoxDistanceSqXY(b.bounds, center);
+		});
 
 		// Keeping the first sighting of each path leaves the list nearest first as well.
 		for (Info const& info : nearby)
@@ -1699,30 +1694,30 @@ namespace MapEditor::Placements
 
 			ForEachLiveDef(doodads,
 			    [&](void* owner)
-			    {
-				    ++live;
+			{
+				++live;
 
-				    CAaBox box = doodads ? DoodadBounds(static_cast<CMapDoodadDef*>(owner))
-				                         : MapObjBounds(static_cast<CMapObjDef*>(owner));
+				CAaBox box = doodads ? DoodadBounds(static_cast<CMapDoodadDef*>(owner))
+				                     : MapObjBounds(static_cast<CMapObjDef*>(owner));
 
-				    Ref ref;
-				    bool ok = doodads ? RefForDoodad(static_cast<CMapDoodadDef*>(owner), ref)
-				                      : RefForMapObj(static_cast<CMapObjDef*>(owner), ref);
-				    if (ok)
-					    ++resolved;
+				Ref ref;
+				bool ok = doodads ? RefForDoodad(static_cast<CMapDoodadDef*>(owner), ref)
+				                  : RefForMapObj(static_cast<CMapObjDef*>(owner), ref);
+				if (ok)
+					++resolved;
 
-				    float t = 0.0f;
-				    if (!RayHitsBox(start, dir, box, t))
-					    return;
+				float t = 0.0f;
+				if (!RayHitsBox(start, dir, box, t))
+					return;
 
-				    Candidate candidate;
-				    candidate.doodad = doodads;
-				    candidate.distance = t * rayLength;
-				    candidate.size = BoxDiagonal(box);
-				    candidate.resolved = ok;
-				    candidate.ref = ref;
-				    hits.push_back(candidate);
-			    });
+				Candidate candidate;
+				candidate.doodad = doodads;
+				candidate.distance = t * rayLength;
+				candidate.size = BoxDiagonal(box);
+				candidate.resolved = ok;
+				candidate.ref = ref;
+				hits.push_back(candidate);
+			});
 		};
 
 		int32_t liveDoodads = 0;
@@ -1740,7 +1735,10 @@ namespace MapEditor::Placements
 		lines.push_back(line);
 
 		std::sort(hits.begin(), hits.end(),
-		    [](Candidate const& a, Candidate const& b) { return a.distance < b.distance; });
+		    [](Candidate const& a, Candidate const& b)
+		{
+			return a.distance < b.distance;
+		});
 
 		size_t show = hits.size() < 8 ? hits.size() : 8;
 		for (size_t i = 0; i < show; ++i)

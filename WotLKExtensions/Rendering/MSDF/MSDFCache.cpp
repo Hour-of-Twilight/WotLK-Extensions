@@ -9,6 +9,7 @@ MSDFCache::MSDFCache(const FT_Byte* fontData, FT_Long dataSize, const char* fami
     uint32_t sdfRenderSize, uint32_t sdfSpread)
     : m_key{ .sdfRenderSize = sdfRenderSize, .sdfSpread = sdfSpread }
 {
+    m_enabled = MSDFManager::CacheAvailable();
     m_cacheBasePath = GetCacheBasePath(familyName, styleName, sdfRenderSize, sdfSpread);
     m_cacheManifestPath = m_cacheBasePath / "manifest.dat";
     m_cacheManifestLockPath = m_cacheBasePath / "manifest.lock";
@@ -16,11 +17,14 @@ MSDFCache::MSDFCache(const FT_Byte* fontData, FT_Long dataSize, const char* fami
 
     m_fontID = MSDFManager::RegisterFont(HashFont(fontData, dataSize));
 
-    std::error_code ec;
-    std::filesystem::create_directories(m_cacheBasePath, ec);
+    if (m_enabled) {
+        std::error_code ec;
+        std::filesystem::create_directories(m_cacheBasePath, ec);
+    }
 }
 
 MSDFCache::~MSDFCache() {
+    if (!m_enabled) return;
     FlushPendingWrites();
     CleanupOrphans();
     MSDFManager::FlushAll();
@@ -68,6 +72,7 @@ uint32_t MSDFCache::GetBlockId(uint32_t codepoint) {
 }
 
 bool MSDFCache::TryLoadGlyph(uint32_t codepoint, GlyphMetrics& outMetrics) {
+    if (!m_enabled) return false;
     auto mit = m_manifest.find(codepoint);
     if (mit == m_manifest.end()) return false;
     auto bit = m_blockWrap.find(mit->second.blockId);
@@ -84,6 +89,7 @@ bool MSDFCache::TryLoadGlyph(uint32_t codepoint, GlyphMetrics& outMetrics) {
 }
 
 bool MSDFCache::StoreGlyph(GlyphMetricsToStore&& metrics) {
+    if (!m_enabled) return true;
     if (!m_manifestLoaded) {
         if (!LoadManifest()) return false;
     }
@@ -253,6 +259,7 @@ bool MSDFCache::SaveManifest(bool isLocked) {
 }
 
 size_t MSDFCache::GetManifestSize() {
+    if (!m_enabled) return 0;
     if (!m_manifestLoaded) {
         LoadManifest();
     }

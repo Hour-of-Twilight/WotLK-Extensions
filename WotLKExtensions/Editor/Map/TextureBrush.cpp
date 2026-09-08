@@ -29,10 +29,13 @@ namespace MapEditor::TextureBrush
 			float t = 1.0f - distance / radius;
 			switch (falloff)
 			{
-				case Sculpt::Falloff::Flat: return 1.0f;
-				case Sculpt::Falloff::Linear: return t;
-				case Sculpt::Falloff::Smooth:
-				default: return t * t * (3.0f - 2.0f * t);
+			case Sculpt::Falloff::Flat:
+				return 1.0f;
+			case Sculpt::Falloff::Linear:
+				return t;
+			case Sculpt::Falloff::Smooth:
+			default:
+				return t * t * (3.0f - 2.0f * t);
 			}
 		}
 
@@ -103,8 +106,7 @@ namespace MapEditor::TextureBrush
 
 			for (uint32_t i = 0; i < mcnk.header.nLayers; ++i)
 			{
-				if (chunk->layers[i].textureId != fresh[i].textureId
-				    || chunk->layers[i].flags != fresh[i].flags)
+				if (chunk->layers[i].textureId != fresh[i].textureId || chunk->layers[i].flags != fresh[i].flags)
 					return true;
 			}
 			return false;
@@ -128,8 +130,7 @@ namespace MapEditor::TextureBrush
 			if (!layerBytes || mcly->data.size() < layerBytes)
 				return;
 
-			bool relayered
-			    = LayerSetChanged(chunk, mcnk, reinterpret_cast<SMLayer const*>(mcly->data.data()));
+			bool relayered = LayerSetChanged(chunk, mcnk, reinterpret_cast<SMLayer const*>(mcly->data.data()));
 
 			state.mcly.assign(mcly->data.begin(), mcly->data.begin() + layerBytes);
 			chunk->layers = reinterpret_cast<SMLayer*>(state.mcly.data());
@@ -326,7 +327,7 @@ namespace MapEditor::TextureBrush
 	void PushChunk(int32_t tileX, int32_t tileY, int32_t chunkX, int32_t chunkY, CMapChunk* chunk,
 	    Adt::Mcnk const& mcnk)
 	{
-		ChunkKey key{tileX, tileY, chunkX, chunkY};
+		ChunkKey key{ tileX, tileY, chunkX, chunkY };
 		PaintedChunk& state = Painted()[key];
 
 		// The layer list has moved under the accumulator, so drop it. Clearing the decoded layers
@@ -347,8 +348,8 @@ namespace MapEditor::TextureBrush
 		if (stroke.radius <= 0.0f || stroke.blend == 0.0f)
 			return 0;
 
-		C3Vector lo{stroke.center.x - stroke.radius, stroke.center.y - stroke.radius, 0.0f};
-		C3Vector hi{stroke.center.x + stroke.radius, stroke.center.y + stroke.radius, 0.0f};
+		C3Vector lo{ stroke.center.x - stroke.radius, stroke.center.y - stroke.radius, 0.0f };
+		C3Vector hi{ stroke.center.x + stroke.radius, stroke.center.y + stroke.radius, 0.0f };
 
 		int32_t tileX0 = std::min(Coords::TileX(lo), Coords::TileX(hi));
 		int32_t tileX1 = std::max(Coords::TileX(lo), Coords::TileX(hi));
@@ -385,7 +386,7 @@ namespace MapEditor::TextureBrush
 								break;
 						}
 
-						ChunkKey key{tileX, tileY, chunkX, chunkY};
+						ChunkKey key{ tileX, tileY, chunkX, chunkY };
 						changed += PaintChunk(stroke, key, chunk, *tile);
 					}
 				}

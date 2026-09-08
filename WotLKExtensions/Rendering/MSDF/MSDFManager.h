@@ -71,6 +71,8 @@ private:
         size_t SlotSize() const { return effectiveSlotSize; }
     };
 
+    static bool CacheAvailable() { return s_arena.base != nullptr; }
+
     static bool LoadGlyph(const BlockWrap& wrap, uint32_t codepoint, GlyphMetrics& outMetrics);
 
     static bool LoadMappedBlock(const BlockWrap& wrap, MappedBlock& outBlock, void* slotAddr, uint32_t slotIndex);

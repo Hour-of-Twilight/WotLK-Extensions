@@ -44,15 +44,6 @@ namespace MSDF {
 	inline bool INITIALIZED = false;
 	inline bool ALLOW_UNSAFE_FONTS = false; // due to how distance fields are calculated, some fonts with self-intersecting contours (e.g. diediedie) will break
 
-	inline const bool IS_WIN10 = []() {
-		HMODULE hKernel = GetModuleHandleW(L"kernelbase.dll");
-		if (!hKernel) return false;
-
-		return (GetProcAddress(hKernel, "VirtualAlloc2") != nullptr &&
-			GetProcAddress(hKernel, "MapViewOfFile3") != nullptr &&
-			GetProcAddress(hKernel, "UnmapViewOfFile2") != nullptr);
-		}();
-
 	inline std::string GetGameLocale() {
 		CVar* locale = CVar::Get("locale");
 		return (locale && locale->m_str) ? locale->m_str : std::string{};

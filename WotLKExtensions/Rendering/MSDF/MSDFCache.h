@@ -63,6 +63,7 @@ private:
     CacheKey m_key;
     ManifestMap m_manifest;
 
+    bool m_enabled = false;
     bool m_manifestLoaded = false;
     uint32_t m_fontID = 0xFFFFFFFF;
 

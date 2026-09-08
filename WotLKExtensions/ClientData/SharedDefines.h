@@ -13,6 +13,7 @@
 
 #include <ClientData/Object.h>
 
+#include <cstdarg>
 #include <cmath>
 
 using namespace ClientData;
@@ -54,8 +55,8 @@ namespace CGUnit_C
 	CLIENT_FUNCTION(GetDistanceToPos, 0x004F61D0, __thiscall, float, (CGUnit*, C3Vector*))
 	CLIENT_FUNCTION(GetPosition, 0x6E6F10, __thiscall, C3Vector*, (CGUnit*, C3Vector*))
 	CLIENT_FUNCTION(GetWorldPosition, 0x6E6EF0, __thiscall, C3Vector*, (CGUnit*, C3Vector*))
-
-	CLIENT_FUNCTION(SendMovementUpdate, 0x0071F0C0, __thiscall, void, (void* self, uint32_t timeMs, uint32_t opcode, float unused, int a4, int a5, int a6, int a7))
+	CLIENT_FUNCTION(SendMovementUpdate, 0x0071F0C0, __thiscall, void,
+	    (void* self, uint32_t timeMs, uint32_t opcode, float unused, int a4, int a5, int a6, int a7))
 }
 
 namespace CGWorldFrame_C
@@ -68,7 +69,6 @@ namespace ClientDB
 {
 	CLIENT_FUNCTION(GetRow, 0x65C290, __thiscall, void*, (void*, uint32_t))
 	CLIENT_FUNCTION(GetLocalizedRow, 0x4CFD20, __thiscall, int, (void*, uint32_t, void*))
-
 	inline void* GetRowById(WoWClientDB* db, uint32_t id)
 	{
 		if (!db || !db->isLoaded)
@@ -108,6 +108,7 @@ namespace FrameScript
 	CLIENT_FUNCTION(GetParam, 0x815500, __cdecl, bool, (lua_State*, int, int))
 	CLIENT_FUNCTION(GetText, 0x819D40, __cdecl, char*, (const char*, int, int))
 	CLIENT_FUNCTION(SignalEvent, 0x81B530, __cdecl, int, (uint32_t, const char*, ...))
+	CLIENT_FUNCTION(SignalEventV, 0x81AC90, __cdecl, void, (uint32_t, const char*, va_list))
 }
 
 namespace NTempest
@@ -130,6 +131,8 @@ namespace Spell_C
 	CLIENT_FUNCTION(GetPowerCost, 0x008012F0, __cdecl, uint32_t, (SpellRow*, CGUnit*))
 	CLIENT_FUNCTION(GetPowerCostPerSecond, 0x007FF100, __cdecl, uint32_t, (SpellRow*, CGUnit*))
 	CLIENT_FUNCTION(GetMinMaxRange, 0x007FF480, __cdecl, void, (CGUnit*, SpellRow*, float*, float*, uint32_t, uint32_t))
+	CLIENT_FUNCTION(GetMinMaxPoints, 0x008016C0, __cdecl, int,
+	    (SpellRow*, int effectIndex, int* outMin, int* outMax, int, int, int, int))
 	CLIENT_FUNCTION(UsesDefaultMinRange, 0x007FF3C0, __cdecl, bool, (SpellRow*))
 	CLIENT_FUNCTION(GetDefaultMinRange, 0x007FF400, __cdecl, void, (SpellRow*, float*))
 }

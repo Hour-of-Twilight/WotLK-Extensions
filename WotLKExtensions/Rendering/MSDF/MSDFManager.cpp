@@ -1,7 +1,6 @@
 #include "MSDFManager.h"
 #include "MSDFCache.h"
-
-#pragma comment(lib, "onecore.lib")
+#include <Util.h>
 
 MSDFManager::MSDFManager() {
     GetSystemInfo(&s_si);
@@ -23,7 +22,10 @@ void MSDFManager::MappedBlock::Close() {
 }
 
 MSDFManager::ArenaState::ArenaState() {
-    if (!MSDF::IS_WIN10) {
+    slotAddresses.fill(nullptr);
+    slotToBlockIndex.fill(0xFFFFFFFF);
+
+    if (!PlaceholderVA::Available() || Util::IsWine()) {
         base = nullptr;
         return;
     }
@@ -41,10 +43,8 @@ MSDFManager::ArenaState::ArenaState() {
     const size_t gran = s_si.dwAllocationGranularity;
     effectiveSlotSize = ((maxBlockSize + gran - 1) / gran) * gran;
 
-    slotToBlockIndex.fill(0xFFFFFFFF);
-
     const size_t totalSize = effectiveSlotSize * MAX_ARENA_SLOTS;
-    base = VirtualAlloc2(GetCurrentProcess(), nullptr, totalSize,
+    base = PlaceholderVA::VirtualAlloc2P()(GetCurrentProcess(), nullptr, totalSize,
         MEM_RESERVE | MEM_RESERVE_PLACEHOLDER,
         PAGE_NOACCESS, nullptr, 0);
     if (!base) return;
@@ -65,7 +65,7 @@ MSDFManager::ArenaState::~ArenaState() {
 }
 
 void* MSDFManager::ArenaState::GetFreeSlot(uint32_t blockIndex, uint32_t& outSlotIndex) {
-    if (freeMask == 0) return nullptr;
+    if (!base || freeMask == 0) return nullptr;
     uint32_t slotIdx = static_cast<uint32_t>(std::countr_zero(freeMask));
     freeMask &= ~(1ULL << slotIdx);
     slotToBlockIndex[slotIdx] = blockIndex;
@@ -74,7 +74,7 @@ void* MSDFManager::ArenaState::GetFreeSlot(uint32_t blockIndex, uint32_t& outSlo
 }
 
 void MSDFManager::ArenaState::FreeSlot(uint32_t slotIndex) {
-    if (slotIndex >= MAX_ARENA_SLOTS || !IsSlotOccupied(slotIndex)) return;
+    if (!base || slotIndex >= MAX_ARENA_SLOTS || !IsSlotOccupied(slotIndex)) return;
 
     void* slotAddr = slotAddresses[slotIndex];
     uintptr_t currentAddr = reinterpret_cast<uintptr_t>(slotAddr);
@@ -88,7 +88,7 @@ void MSDFManager::ArenaState::FreeSlot(uint32_t slotIndex) {
         size_t regionSize = mbi.RegionSize;
         if (mbi.State != MEM_FREE) {
             if (mbi.Type == MEM_MAPPED) {
-                UnmapViewOfFile2(GetCurrentProcess(), mbi.BaseAddress, 0);
+                PlaceholderVA::UnmapViewOfFile2P()(GetCurrentProcess(), mbi.BaseAddress, 0);
             }
             else {
                 VirtualFree(mbi.BaseAddress, 0, MEM_RELEASE);
@@ -98,7 +98,7 @@ void MSDFManager::ArenaState::FreeSlot(uint32_t slotIndex) {
     }
 
     VirtualFreeEx(GetCurrentProcess(), slotAddr, 0, MEM_RELEASE | MEM_COALESCE_PLACEHOLDERS);
-    VirtualAlloc2(GetCurrentProcess(), slotAddr, effectiveSlotSize,
+    PlaceholderVA::VirtualAlloc2P()(GetCurrentProcess(), slotAddr, effectiveSlotSize,
         MEM_RESERVE | MEM_RESERVE_PLACEHOLDER,
         PAGE_NOACCESS, nullptr, 0);
 
@@ -205,12 +205,13 @@ bool MSDFManager::LoadMappedBlock(const BlockWrap& wrap, MappedBlock& outBlock, 
         return false;
     }
 
-    outBlock.view.ptr = MapViewOfFile3(outBlock.mapping.handle, nullptr, slotAddr, 0, splitSize,
+    outBlock.view.ptr = PlaceholderVA::MapViewOfFile3P()(outBlock.mapping.handle, nullptr, slotAddr, 0, splitSize,
         MEM_REPLACE_PLACEHOLDER, PAGE_READONLY, nullptr, 0);
     if (!outBlock.view.ptr) {
         s_arena.FreeSlot(slotIndex);
         return false;
     }
+    outBlock.view.placeholder = true;
 
     outBlock.header = static_cast<const BlockFileHeader*>(outBlock.view.ptr);
     if (outBlock.header->magic != MSDF::BLOCK_MAGIC ||

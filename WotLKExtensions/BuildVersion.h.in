@@ -1,0 +1,9 @@
+// Generated at build time by BuildVersion.cmake. Do not edit, do not commit.
+#pragma once
+
+// Full 40-character git SHA-1 of the commit this DLL was built from, or 40 zeros
+// when the build tree is not a git checkout.
+#define HOTDLL_COMMIT_HASH "@HOTDLL_COMMIT_HASH@"
+
+// 1 when the working tree had uncommitted changes at build time.
+#define HOTDLL_COMMIT_DIRTY @HOTDLL_COMMIT_DIRTY@

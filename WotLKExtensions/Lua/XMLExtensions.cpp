@@ -55,7 +55,9 @@ void FrameXMLExtensions::LoadNewEvents()
 		"HOT_LFG_LIST_SEARCH_RESULT_UPDATED",
 		"HOT_LFG_LIST_APPLICATION_STATUS_UPDATED",
 		"HOT_LFG_LIST_APPLICANT_LIST_UPDATED",
-		"HOT_LFG_LIST_APPLICANT_UPDATED"
+		"HOT_LFG_LIST_APPLICANT_UPDATED",
+		"HOT_AURA_VALUES_UPDATED",
+		"HOT_PLAYER_SETTINGS_UPDATE"
 	};
 	for (const char* eventName : customFrameEvents)
 	{
@@ -74,6 +76,9 @@ inline EventList* GetEventList()
 }
 int FrameXMLExtensions::GetEventIdByName(const char* eventName)
 {
+	if (!eventName || !*eventName)
+		return -1;
+
 	EventList* eventList = GetEventList();
 	if (eventList->size == 0)
 		return -1;
@@ -85,6 +90,24 @@ int FrameXMLExtensions::GetEventIdByName(const char* eventName)
 			return i;
 	}
 	return -1;
+}
+
+bool FrameXMLExtensions::SignalEvent(const char* eventName, const char* format, ...)
+{
+	const int eventId = GetEventIdByName(eventName);
+	if (eventId < 0)
+	{
+		LOG_ERROR << "SignalEvent: no FrameScript event named \"" << (eventName ? eventName : "(null)")
+		          << "\" in the current event table, skipping. Glue and world load different event lists, "
+		             "so a world-only event cannot be fired from the glue screen.";
+		return false;
+	}
+
+	va_list args;
+	va_start(args, format);
+	FrameScript::SignalEventV(static_cast<uint32_t>(eventId), format, args);
+	va_end(args);
+	return true;
 }
 
 namespace RCString_C

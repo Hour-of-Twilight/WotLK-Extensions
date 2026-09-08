@@ -10,7 +10,7 @@ namespace MapEditor::Coords
 {
 	using namespace ClientData;
 
-	constexpr float kMapHalf = 17066.666f;  // flt_9E2ACC, 32 tiles either side of the origin
+	constexpr float kMapHalf = 17066.666f; // flt_9E2ACC, 32 tiles either side of the origin
 	constexpr float kTileSize = 533.33333f;
 	constexpr float kChunkSize = kTileSize / 16.0f; // 33.33333, flt_A3E554
 	constexpr float kUnitSize = kChunkSize / 8.0f;  // 4.1666665
@@ -45,12 +45,12 @@ namespace MapEditor::Coords
 	// horizontal axes and zero on the vertical.
 	inline C3Vector AdtToWorld(C3Vector const& adt)
 	{
-		return {kMapHalf - adt.z, kMapHalf - adt.x, adt.y};
+		return { kMapHalf - adt.z, kMapHalf - adt.x, adt.y };
 	}
 
 	inline C3Vector WorldToAdt(C3Vector const& world)
 	{
-		return {kMapHalf - world.y, world.z, kMapHalf - world.x};
+		return { kMapHalf - world.y, world.z, kMapHalf - world.x };
 	}
 
 	// Chunk index within its tile, 0..15 on each axis.

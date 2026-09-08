@@ -10,17 +10,17 @@ namespace MapEditor::Sculpt
 
 	enum class Falloff
 	{
-		Smooth,  // smoothstep, soft edge and a flat-ish centre
-		Linear,  // straight cone
-		Flat,    // no falloff at all, a cylinder
+		Smooth, // smoothstep, soft edge and a flat-ish centre
+		Linear, // straight cone
+		Flat,   // no falloff at all, a cylinder
 	};
 
 	enum class Mode
 	{
-		Raise,    // signed height offset, negative to sink
-		Flatten,  // converge on targetHeight
-		Smooth,   // converge on the local average
-		Noise,    // per-vertex jitter, keyed on position so it is stable and seam-safe
+		Raise,   // signed height offset, negative to sink
+		Flatten, // converge on targetHeight
+		Smooth,  // converge on the local average
+		Noise,   // per-vertex jitter, keyed on position so it is stable and seam-safe
 	};
 
 	struct Stroke

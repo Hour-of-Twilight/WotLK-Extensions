@@ -184,7 +184,7 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVITY_CACHE(void*, uint32_t, u
 	}
 
 	self.m_hasActivities = true;
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_LFG_LIST_ACTIVITIES_UPDATE"), "");
+	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_ACTIVITIES_UPDATE", "");
 }
 
 void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVE_ENTRY(void*, uint32_t, uint32_t, CDataStore* pkt)
@@ -215,13 +215,13 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVE_ENTRY(void*, uint32_t, uin
 		self.m_applicants.clear();
 	}
 
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_LFG_LIST_ACTIVE_ENTRY_UPDATE"), "");
+	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_ACTIVE_ENTRY_UPDATE", "");
 }
 
 void GroupFinderPackets::Handler_SMSG_LFG_LIST_ENTRY_RESULT(void*, uint32_t, uint32_t, CDataStore* pkt)
 {
 	uint8_t result = Packet(pkt).GetUInt8();
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_LFG_LIST_ENTRY_RESULT"), "%u", (uint32_t)result);
+	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_ENTRY_RESULT", "%u", (uint32_t)result);
 }
 
 void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULTS(void*, uint32_t, uint32_t, CDataStore* pkt)
@@ -240,7 +240,7 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULTS(void*, uint32_t, u
 		self.m_searchResults.push_back(std::move(result));
 	}
 
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_LFG_LIST_SEARCH_RESULTS_RECEIVED"), "%u", count);
+	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_SEARCH_RESULTS_RECEIVED", "%u", count);
 }
 
 void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULT_UPDATE(void*, uint32_t, uint32_t, CDataStore* pkt)
@@ -264,7 +264,7 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULT_UPDATE(void*, uint3
 		else
 			self.m_searchResults[i] = std::move(result);
 
-		FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_LFG_LIST_SEARCH_RESULT_UPDATED"),
+		FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_SEARCH_RESULT_UPDATED",
 		    "%u%u", searchResultId, (uint32_t)delisted);
 		return;
 	}
@@ -273,7 +273,7 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULT_UPDATE(void*, uint3
 		return;
 
 	self.m_searchResults.push_back(std::move(result));
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_LFG_LIST_SEARCH_RESULT_UPDATED"),
+	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_SEARCH_RESULT_UPDATED",
 	    "%u%u", searchResultId, (uint32_t)0);
 }
 
@@ -301,7 +301,7 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICATION_UPDATE(void*, uint32_
 		break;
 	}
 
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_LFG_LIST_APPLICATION_STATUS_UPDATED"),
+	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_APPLICATION_STATUS_UPDATED",
 	    "%u%u%u", searchResultId, (uint32_t)status, (uint32_t)listingRemoved);
 }
 
@@ -321,7 +321,7 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICANT_LIST(void*, uint32_t, u
 		self.m_applicants.push_back(std::move(applicant));
 	}
 
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_LFG_LIST_APPLICANT_LIST_UPDATED"), "%u", count);
+	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_APPLICANT_LIST_UPDATED", "%u", count);
 }
 
 void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICANT_UPDATE(void*, uint32_t, uint32_t, CDataStore* pkt)
@@ -349,7 +349,7 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICANT_UPDATE(void*, uint32_t,
 	if (!found)
 		self.m_applicants.push_back(std::move(applicant));
 
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_LFG_LIST_APPLICANT_UPDATED"),
+	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_APPLICANT_UPDATED",
 	    "%u%u", applicantId, status);
 }
 

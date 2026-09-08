@@ -23,6 +23,7 @@
 #include <Editor/Map/TextureBrush.h>
 #include <Editor/Map/TextureLayers.h>
 #include <Editor/Map/TileSession.h>
+#include <Player.h>
 #include <SharedDefines.h>
 
 #include <cmath>
@@ -158,6 +159,22 @@ namespace MapEditor::Runtime
 			const char* lastMiss = "not run yet";
 		};
 
+		constexpr int8_t kRequiredSecurityLevel = 3;
+
+		bool HasEditorAccess()
+		{
+			return HasSecurityClearance(kRequiredSecurityLevel);
+		}
+
+		template <int (*Fn)(lua_State*)>
+		int Gated(lua_State* L)
+		{
+			if (!HasEditorAccess())
+				return 0;
+
+			return Fn(L);
+		}
+
 		RuntimeState& State()
 		{
 			static RuntimeState state;
@@ -199,6 +216,9 @@ namespace MapEditor::Runtime
 		// Anything at all to do this frame.
 		bool AnyModeLive()
 		{
+			if (!HasEditorAccess())
+				return false;
+
 			return State().enabled || PlaceOnly();
 		}
 
@@ -738,8 +758,7 @@ namespace MapEditor::Runtime
 					state.drag.active = true;
 					state.drag.axis = state.hoverAxis;
 					state.drag.startPosition = state.selected.position;
-					state.drag.anchorOnAxis
-					    = VectorMath::Add(state.selected.position, VectorMath::Scale(axis, along));
+					state.drag.anchorOnAxis = VectorMath::Add(state.selected.position, VectorMath::Scale(axis, along));
 					return 0;
 				}
 
@@ -952,9 +971,8 @@ namespace MapEditor::Runtime
 			Adt::Mcnk const* mcnk = tile ? tile->doc.ChunkAt(cursor.chunkX, cursor.chunkY) : nullptr;
 
 			Adt::ChunkAlpha alpha;
-			bool haveAlpha = mcnk
-			    && Adt::ReadChunkAlpha(*mcnk, Adt::FormatFor(*mcnk, *Access::sMapFlags), alpha,
-			        error);
+			bool haveAlpha = mcnk && Adt::ReadChunkAlpha(*mcnk, Adt::FormatFor(*mcnk, *Access::sMapFlags), alpha,
+			                             error);
 
 			int32_t texel = 0;
 			if (haveAlpha)
@@ -1064,8 +1082,8 @@ namespace MapEditor::Runtime
 		{
 			RuntimeState& state = State();
 			int32_t layer = FrameScript::IsNumber(L, 1)
-			    ? static_cast<int32_t>(FrameScript::GetNumber(L, 1))
-			    : state.paintLayer;
+			                    ? static_cast<int32_t>(FrameScript::GetNumber(L, 1))
+			                    : state.paintLayer;
 
 			CursorInfo cursor = Focus();
 			if (!cursor.valid)
@@ -1607,8 +1625,7 @@ namespace MapEditor::Runtime
 				return 0;
 			}
 
-			bool identical = rebuilt.size() == original.size()
-			    && std::memcmp(original.data(), rebuilt.data(), original.size()) == 0;
+			bool identical = rebuilt.size() == original.size() && std::memcmp(original.data(), rebuilt.data(), original.size()) == 0;
 
 			if (!Adt::SaveTile(mapName, cursor.tileX, cursor.tileY, rebuilt, error))
 			{
@@ -1639,8 +1656,8 @@ namespace MapEditor::Runtime
 			}
 
 			float delta = FrameScript::IsNumber(L, 1)
-			    ? static_cast<float>(FrameScript::GetNumber(L, 1))
-			    : 5.0f;
+			                  ? static_cast<float>(FrameScript::GetNumber(L, 1))
+			                  : 5.0f;
 
 			char const* mapName = Access::sMapName;
 			std::string path = Adt::TilePath(mapName, cursor.tileX, cursor.tileY);
@@ -1736,10 +1753,14 @@ namespace MapEditor::Runtime
 		{
 			switch (tool)
 			{
-				case Tool::Paint: return "paint";
-				case Tool::Place: return "place";
-				case Tool::Liquid: return "liquid";
-				default: return "sculpt";
+			case Tool::Paint:
+				return "paint";
+			case Tool::Place:
+				return "place";
+			case Tool::Liquid:
+				return "liquid";
+			default:
+				return "sculpt";
 			}
 		}
 
@@ -1747,10 +1768,14 @@ namespace MapEditor::Runtime
 		{
 			switch (state.mode)
 			{
-				case Sculpt::Mode::Flatten: return "flatten";
-				case Sculpt::Mode::Smooth: return "smooth";
-				case Sculpt::Mode::Noise: return "noise";
-				default: return state.sink ? "lower" : "raise";
+			case Sculpt::Mode::Flatten:
+				return "flatten";
+			case Sculpt::Mode::Smooth:
+				return "smooth";
+			case Sculpt::Mode::Noise:
+				return "noise";
+			default:
+				return state.sink ? "lower" : "raise";
 			}
 		}
 
@@ -1758,9 +1783,12 @@ namespace MapEditor::Runtime
 		{
 			switch (falloff)
 			{
-				case Sculpt::Falloff::Linear: return "linear";
-				case Sculpt::Falloff::Flat: return "flat";
-				default: return "smooth";
+			case Sculpt::Falloff::Linear:
+				return "linear";
+			case Sculpt::Falloff::Flat:
+				return "flat";
+			default:
+				return "smooth";
 			}
 		}
 
@@ -1827,8 +1855,8 @@ namespace MapEditor::Runtime
 			for (uint32_t i = 0; i < 4; ++i)
 			{
 				char const* name = i < chunk->header->nLayers
-				    ? Access::TerrainTextureName(area, chunk->layers[i].textureId)
-				    : nullptr;
+				                       ? Access::TerrainTextureName(area, chunk->layers[i].textureId)
+				                       : nullptr;
 
 				FrameScript::PushString(L, name ? name : "");
 			}
@@ -1922,8 +1950,8 @@ namespace MapEditor::Runtime
 			}
 
 			float radius = FrameScript::IsNumber(L, 1)
-			    ? static_cast<float>(FrameScript::GetNumber(L, 1))
-			    : 30.0f;
+			                   ? static_cast<float>(FrameScript::GetNumber(L, 1))
+			                   : 30.0f;
 
 			std::vector<Placements::Info> found;
 			Placements::ListNear(cursor.position, radius, found);
@@ -2313,8 +2341,8 @@ namespace MapEditor::Runtime
 			}
 
 			float height = FrameScript::IsNumber(L, 1)
-			    ? static_cast<float>(FrameScript::GetNumber(L, 1))
-			    : cursor.position.z + state.liquidOffset;
+			                   ? static_cast<float>(FrameScript::GetNumber(L, 1))
+			                   : cursor.position.z + state.liquidOffset;
 
 			std::vector<Liquids::TileRef> touched;
 			std::string error;
@@ -2347,8 +2375,8 @@ namespace MapEditor::Runtime
 			}
 
 			int32_t layer = FrameScript::IsNumber(L, 1)
-			    ? static_cast<int32_t>(FrameScript::GetNumber(L, 1))
-			    : -1;
+			                    ? static_cast<int32_t>(FrameScript::GetNumber(L, 1))
+			                    : -1;
 
 			std::vector<Liquids::TileRef> touched;
 			std::string error;
@@ -2379,8 +2407,8 @@ namespace MapEditor::Runtime
 			}
 
 			int32_t layer = FrameScript::IsNumber(L, 1)
-			    ? static_cast<int32_t>(FrameScript::GetNumber(L, 1))
-			    : -1;
+			                    ? static_cast<int32_t>(FrameScript::GetNumber(L, 1))
+			                    : -1;
 
 			std::vector<Liquids::TileRef> touched;
 			std::string error;
@@ -2422,8 +2450,8 @@ namespace MapEditor::Runtime
 
 			float height = static_cast<float>(FrameScript::GetNumber(L, 1));
 			int32_t layer = FrameScript::IsNumber(L, 2)
-			    ? static_cast<int32_t>(FrameScript::GetNumber(L, 2))
-			    : -1;
+			                    ? static_cast<int32_t>(FrameScript::GetNumber(L, 2))
+			                    : -1;
 
 			std::vector<Liquids::TileRef> touched;
 			std::string error;
@@ -2687,8 +2715,7 @@ namespace MapEditor::Runtime
 					C3Vector const& corner = hitChunk->topLeftCoords;
 					float dx = corner.x - state.cursor.position.x;
 					float dy = corner.y - state.cursor.position.y;
-					bool inside = dx >= 0.0f && dx <= Coords::kChunkSize && dy >= 0.0f
-					    && dy <= Coords::kChunkSize;
+					bool inside = dx >= 0.0f && dx <= Coords::kChunkSize && dy >= 0.0f && dy <= Coords::kChunkSize;
 
 					Print("  chunk corner (%.2f %.2f %.2f)  offset (%.2f %.2f)  inside %d", corner.x,
 					    corner.y, corner.z, dx, dy, inside ? 1 : 0);
@@ -2741,60 +2768,97 @@ namespace MapEditor::Runtime
 
 	void Apply()
 	{
-		sLua.RegisterFunction("MapEditor_SetEnabled", &SetEnabled, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_IsEnabled", &IsEnabled, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetPlacementMode", &SetPlacementMode, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetBrushRadius", &SetBrushRadius, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetBrushStrength", &SetBrushStrength, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetBrushMode", &SetBrushMode, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetTool", &SetTool, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetPaintLayer", &SetPaintLayer, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_ListTextures", &ListTextures, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_ListTileTextures", &ListTileTextures, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_AddLayer", &AddLayer, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_RemoveLayer", &RemoveLayer, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetFalloff", &SetFalloff, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SaveEdits", &SaveEdits, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_RevertEdits", &RevertEdits, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_GetBrushRadius", &GetBrushRadius, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetShowGrid", &SetShowGrid, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_GetCursorInfo", &GetCursorInfo, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_DumpTile", &DumpTile, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SaveTile", &SaveTile, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_RaiseChunk", &RaiseChunk, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_RestoreTile", &RestoreTile, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_ReloadTile", &ReloadTile, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_RoundTrip", &RoundTrip, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_RoundTripAll", &RoundTripAll, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_RoundTripMap", &RoundTripMap, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_GetState", &GetState, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_GetSelection", &GetSelection, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_GetChunkLayers", &GetChunkLayers, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SelectPlacement", &SelectPlacement, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_PlacementInfo", &PlacementInfo, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_ListPlacements", &ListPlacements, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_GetNearbyPlacements", &GetNearbyPlacements,
+		sLua.RegisterFunction("MapEditor_SetEnabled", &Gated<&SetEnabled>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_IsEnabled", &Gated<&IsEnabled>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetPlacementMode", &Gated<&SetPlacementMode>,
 		    LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_MovePlacement", &MovePlacement, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_RotatePlacement", &RotatePlacement, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_ScalePlacement", &ScalePlacement, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_DeletePlacement", &DeletePlacement, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_AddPlacement", &AddPlacement, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_ClonePlacement", &ClonePlacement, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_GetNearbyModels", &GetNearbyModels, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_GetLiquidTypes", &GetLiquidTypes, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetLiquidType", &SetLiquidType, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_GetLiquidType", &GetLiquidType, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetLiquidOffset", &SetLiquidOffset, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_AddLiquid", &AddLiquid, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_RemoveLiquid", &RemoveLiquid, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_RetypeLiquid", &RetypeLiquid, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetLiquidHeight", &SetLiquidHeight, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_NudgeLiquidHeight", &NudgeLiquidHeight, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_SetLiquidFlags", &SetLiquidFlags, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_LiquidInfo", &LiquidInfo, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_GetChunkLiquid", &GetChunkLiquid, LuaFunctionState::FRAME);
-		sLua.RegisterFunction("MapEditor_Debug", &Debug, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetBrushRadius", &Gated<&SetBrushRadius>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetBrushStrength", &Gated<&SetBrushStrength>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetBrushMode", &Gated<&SetBrushMode>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetTool", &Gated<&SetTool>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetPaintLayer", &Gated<&SetPaintLayer>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_ListTextures", &Gated<&ListTextures>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_ListTileTextures", &Gated<&ListTileTextures>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_AddLayer", &Gated<&AddLayer>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_RemoveLayer", &Gated<&RemoveLayer>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetFalloff", &Gated<&SetFalloff>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SaveEdits", &Gated<&SaveEdits>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_RevertEdits", &Gated<&RevertEdits>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_GetBrushRadius", &Gated<&GetBrushRadius>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetShowGrid", &Gated<&SetShowGrid>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_GetCursorInfo", &Gated<&GetCursorInfo>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_DumpTile", &Gated<&DumpTile>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SaveTile", &Gated<&SaveTile>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_RaiseChunk", &Gated<&RaiseChunk>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_RestoreTile", &Gated<&RestoreTile>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_ReloadTile", &Gated<&ReloadTile>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_RoundTrip", &Gated<&RoundTrip>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_RoundTripAll", &Gated<&RoundTripAll>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_RoundTripMap", &Gated<&RoundTripMap>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_GetState", &Gated<&GetState>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_GetSelection", &Gated<&GetSelection>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_GetChunkLayers", &Gated<&GetChunkLayers>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SelectPlacement", &Gated<&SelectPlacement>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_PlacementInfo", &Gated<&PlacementInfo>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_ListPlacements", &Gated<&ListPlacements>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_GetNearbyPlacements", &Gated<&GetNearbyPlacements>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_MovePlacement", &Gated<&MovePlacement>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_RotatePlacement", &Gated<&RotatePlacement>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_ScalePlacement", &Gated<&ScalePlacement>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_DeletePlacement", &Gated<&DeletePlacement>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_AddPlacement", &Gated<&AddPlacement>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_ClonePlacement", &Gated<&ClonePlacement>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_GetNearbyModels", &Gated<&GetNearbyModels>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_GetLiquidTypes", &Gated<&GetLiquidTypes>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetLiquidType", &Gated<&SetLiquidType>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_GetLiquidType", &Gated<&GetLiquidType>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetLiquidOffset", &Gated<&SetLiquidOffset>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_AddLiquid", &Gated<&AddLiquid>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_RemoveLiquid", &Gated<&RemoveLiquid>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_RetypeLiquid", &Gated<&RetypeLiquid>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetLiquidHeight", &Gated<&SetLiquidHeight>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_NudgeLiquidHeight", &Gated<&NudgeLiquidHeight>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_SetLiquidFlags", &Gated<&SetLiquidFlags>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_LiquidInfo", &Gated<&LiquidInfo>, LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_GetChunkLiquid", &Gated<&GetChunkLiquid>,
+		    LuaFunctionState::FRAME);
+		sLua.RegisterFunction("MapEditor_Debug", &Gated<&Debug>, LuaFunctionState::FRAME);
 	}
 
 	void OnGameClientInitialize()
@@ -2836,7 +2900,7 @@ namespace MapEditor::Runtime
 	void BeforeWorldRender(CGWorldFrameFull*)
 	{
 		RuntimeState& state = State();
-		if (!state.enabled)
+		if (!state.enabled || !HasEditorAccess())
 			return;
 
 		// CGWorldFrame::OnLayerUpdate clears the decal mode to 3 every frame before we get here,
@@ -2882,4 +2946,3 @@ namespace MapEditor::Runtime
 			DrawChunkGrid(worldFrame);
 	}
 }
-

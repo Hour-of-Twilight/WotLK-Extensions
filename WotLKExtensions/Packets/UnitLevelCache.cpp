@@ -100,7 +100,7 @@ void UnitLevelCache::ApplyPlayerItemLevel(CGUnit* unit, uint32_t ilvl)
 	uint64_t guid = unit->objectBase.ObjectData->OBJECT_FIELD_GUID;
 	const char* token = Script_GetTokenFromGUID(guid);
 	if (token)
-		FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("UNIT_LEVEL"), "%s", token);
+		FrameXMLExtensions::SignalEvent("UNIT_LEVEL", "%s", token);
 }
 
 void UnitLevelCache::ApplyCreatureDungeonLevel(CGUnit* unit, uint32_t level)
@@ -148,7 +148,7 @@ void UnitLevelCache::Handler_SMSG_UNIT_LEVEL_CACHE_RESPONSE(void*, uint32_t, uin
 		Util::DebugOutput("UnitLevelCache: GUID %016llX  type=player  ilvl=%u  subClass=%u",
 		    (unsigned long long)guid, value, subClass);
 		if (guid == ClntObjMgr::GetActivePlayer())
-			FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_PLAYER_ITEM_LEVEL"), "%u", value);
+			FrameXMLExtensions::SignalEvent("HOT_PLAYER_ITEM_LEVEL", "%u", value);
 		// else if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
 		//	ApplyPlayerItemLevel(unit, value);
 	}

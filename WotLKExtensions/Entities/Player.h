@@ -91,9 +91,25 @@ public:
 	{
 		return m_playerInWorld;
 	}
-	uint32 GetCustomSpellPen(uint8 school) const
+	int32 GetCustomSpellPen(uint8 school) const
 	{
 		return m_customSpellPen[school];
+	}
+	int32 GetCustomSpellPenTotal() const
+	{
+		return m_customSpellPenTotal;
+	}
+	int32 GetCustomSpellHealing(uint8 school) const
+	{
+		return m_customSpellHealing[school];
+	}
+	float GetHealthRegen() const
+	{
+		return m_healthRegen;
+	}
+	float GetHealthRegenInCombat() const
+	{
+		return m_healthRegenInCombat;
 	}
 
 	void SetSecurityLevel(int8 level)
@@ -128,9 +144,22 @@ public:
 	{
 		m_playerInWorld = val;
 	}
-	void SetCustomSpellPen(uint8 school, uint32 val)
+	void SetCustomSpellPen(uint8 school, int32 val)
 	{
 		m_customSpellPen[school] = val;
+	}
+	void SetCustomSpellPenTotal(int32 val)
+	{
+		m_customSpellPenTotal = val;
+	}
+	void SetCustomSpellHealing(uint8 school, int32 val)
+	{
+		m_customSpellHealing[school] = val;
+	}
+	void SetHealthRegen(float outOfCombat, float inCombat)
+	{
+		m_healthRegen = outOfCombat;
+		m_healthRegenInCombat = inCombat;
 	}
 
 	void ApplyPatches();
@@ -158,12 +187,16 @@ private:
 	Player() = default;
 
 	int8 m_securityLevel = 0;
-	uint32 m_customSpellPen[MAX_SPELL_SCHOOL] = { 0 };
+	int32 m_customSpellPen[MAX_SPELL_SCHOOL] = { 0 };
+	int32 m_customSpellPenTotal = 0;
+	int32 m_customSpellHealing[MAX_SPELL_SCHOOL] = { 0 };
 	int32 m_magicFind = 0;
 	float m_healthLeech = 0.0f;
 	float m_manaLeech = 0.0f;
 	float m_critDamageMod = 0.0f;
 	float m_critHealingMod = 0.0f;
+	float m_healthRegen = 0.0f;
+	float m_healthRegenInCombat = 0.0f;
 	uint8 m_charCreateGameMode = 0;
 	bool m_playerInWorld = false;
 

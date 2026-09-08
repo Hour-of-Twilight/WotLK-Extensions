@@ -55,7 +55,7 @@ CLIENT_DETOUR(CGItemSocketInfo__SetGem, 0x005C4780, __cdecl, int, (uint32_t sock
 	{
 		*gemGuidLow = 0;
 		*gemGuidHigh = 0;
-		FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("SOCKET_INFO_UPDATE"), "");
+		FrameXMLExtensions::SignalEvent("SOCKET_INFO_UPDATE", "");
 		return 1;
 	}
 
@@ -100,7 +100,7 @@ CLIENT_DETOUR(CGItemSocketInfo__SetGem, 0x005C4780, __cdecl, int, (uint32_t sock
 	*gemArg2 = static_cast<uint32_t>(arg_10);
 	*gemFlags = static_cast<uint8_t>(arg_14);
 
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("SOCKET_INFO_UPDATE"), nullptr);
+	FrameXMLExtensions::SignalEvent("SOCKET_INFO_UPDATE", nullptr);
 	return 1;
 }
 
@@ -153,6 +153,6 @@ void __cdecl CGSpellBook__AddKnownSpell_PutActionInSlotHook(int slot)
 	// WowClientDb_C::nullsub_3(&newRow);
 
 	if (!found)
-		FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_PLACE_ACTION"), "%u%u", spellId, (uint32_t)slot);
+		FrameXMLExtensions::SignalEvent("HOT_PLACE_ACTION", "%u%u", spellId, (uint32_t)slot);
 	CGGameUI::ClearCursor(1, 1);
 }

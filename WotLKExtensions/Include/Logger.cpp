@@ -1,6 +1,5 @@
 #include "Logger.h"
 
-#include <ClientData/SharedDefines.h> // CGChat::AddChatMessage
 #include <ctime>
 #include <iomanip>
 #include <windows.h>

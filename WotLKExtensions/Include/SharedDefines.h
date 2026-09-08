@@ -3,12 +3,12 @@
 #include <flag96.h>
 #include <PatchConfig.h>
 #include <Util.h>
+#include <DllVersion.h>
 
 constexpr uint32 MAX_AFFIXES = 4;
 // constexpr uint32 MAX_SPELL_SCHOOL = 7;
-constexpr uint32 DLL_VER = 2;
 
-static uint32_t dummy = 0;
+inline uint32_t dummy = 0;
 
 #include <ClientData/Enums.h>
 #include <ClientData/ObjectModel.h>

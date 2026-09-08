@@ -36,7 +36,7 @@ namespace DbcFromMpq
 			uint8_t copyCount;
 			const DbcStr* strings;
 			uint8_t strCount;
-			uint16_t idOff;     // struct offset the client keys m_recordsById off
+			uint16_t idOff;      // struct offset the client keys m_recordsById off
 			uint8_t idGenerated; // 1: no ID column, the key is the 0-based row index
 		};
 

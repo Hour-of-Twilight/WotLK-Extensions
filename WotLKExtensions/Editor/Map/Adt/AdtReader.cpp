@@ -172,10 +172,10 @@ namespace MapEditor::Adt
 				uint32_t bounds[9] = {};
 				uint32_t boundCount = 0;
 
-				uint32_t const fields[] = {chunk.header.ofsHeight, chunk.header.ofsMCCV,
-				    chunk.header.ofsNormal, chunk.header.ofsLayer, chunk.header.ofsRefs,
-				    chunk.header.ofsAlpha, chunk.header.ofsShadow, chunk.header.ofsLiquid,
-				    chunk.header.ofsSndEmitters};
+				uint32_t const fields[] = { chunk.header.ofsHeight, chunk.header.ofsMCCV,
+					chunk.header.ofsNormal, chunk.header.ofsLayer, chunk.header.ofsRefs,
+					chunk.header.ofsAlpha, chunk.header.ofsShadow, chunk.header.ofsLiquid,
+					chunk.header.ofsSndEmitters };
 
 				for (uint32_t field : fields)
 				{

@@ -61,9 +61,54 @@ if(NOT TARGET ankerl::unordered_dense)
     add_library(ankerl::unordered_dense ALIAS ankerl_unordered_dense)
 endif()
 
+# ---- Build version ----
+# Has to track HEAD on every build, not just on a reconfigure. Generate once now so the
+# header exists for IDE indexing, then again as a pre-build step.
+set(HOTDLL_VERSION_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+set(HOTDLL_VERSION_HEADER "${HOTDLL_VERSION_DIR}/BuildVersion.h")
+set(HOTDLL_VERSION_ARGS
+    "-DHOTDLL_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+    "-DHOTDLL_TEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/BuildVersion.h.in"
+    "-DHOTDLL_OUTPUT=${HOTDLL_VERSION_HEADER}"
+)
+execute_process(COMMAND ${CMAKE_COMMAND} ${HOTDLL_VERSION_ARGS} -P "${CMAKE_CURRENT_SOURCE_DIR}/BuildVersion.cmake")
+
+add_custom_target(WotLKExtensionsBuildVersion
+    BYPRODUCTS "${HOTDLL_VERSION_HEADER}"
+    COMMAND ${CMAKE_COMMAND} ${HOTDLL_VERSION_ARGS} -P "${CMAKE_CURRENT_SOURCE_DIR}/BuildVersion.cmake"
+    COMMENT "Resolving git commit hash for WotLKExtensions"
+    VERBATIM
+)
+
 add_library(WotLKExtensions SHARED ${WOTLK_EXTENSIONS_FILES})
+add_dependencies(WotLKExtensions WotLKExtensionsBuildVersion)
 set_property(TARGET WotLKExtensions PROPERTY CXX_STANDARD 20)
 set_property(TARGET WotLKExtensions PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+
+target_compile_definitions(WotLKExtensions PRIVATE NOMINMAX _CRT_SECURE_NO_WARNINGS)
+target_precompile_headers(WotLKExtensions PRIVATE
+    <Windows.h>
+    <algorithm>
+    <array>
+    <cmath>
+    <cstdint>
+    <cstdio>
+    <cstdlib>
+    <cstring>
+    <deque>
+    <filesystem>
+    <fstream>
+    <functional>
+    <memory>
+    <mutex>
+    <sstream>
+    <string>
+    <string_view>
+    <unordered_map>
+    <unordered_set>
+    <vector>
+    <ankerl/unordered_dense.h>
+)
 
 set_property(TARGET WotLKExtensions PROPERTY USE_FOLDERS true)
 
@@ -80,6 +125,7 @@ target_link_libraries(WotLKExtensions PRIVATE
 )
 target_include_directories(WotLKExtensions PUBLIC
     ${detours_SOURCE_DIR}/src
+	${HOTDLL_VERSION_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_SOURCE_DIR}/Helpers

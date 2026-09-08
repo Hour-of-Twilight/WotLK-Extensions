@@ -68,6 +68,7 @@ private:
 
 	static int CustomLfgQueue(lua_State* L);
 	static int GetSpellPen(lua_State* L);
+	static int GetTotalSpellPen(lua_State* L);
 	static int GetMagicFind(lua_State* L);
 #ifdef ENABLE_DISCORD
 	static int UpdateDiscordPresence(lua_State* L);
@@ -81,6 +82,7 @@ private:
 	static int SendSanityCheck(lua_State* L);
 	static int GetHealthLeech(lua_State* L);
 	static int GetManaLeech(lua_State* L);
+	static int GetHealthRegen(lua_State* L);
 	static int GetCritDamageMod(lua_State* L);
 	static int GetCritHealingMod(lua_State* L);
 	static int OpenUrl(lua_State* L);

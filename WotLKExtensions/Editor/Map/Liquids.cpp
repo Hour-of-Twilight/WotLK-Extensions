@@ -128,10 +128,8 @@ namespace MapEditor::Liquids
 			{
 				for (int32_t cx = 0; cx < Adt::kLiquidCellSide; ++cx)
 				{
-					float worldX = chunk->topLeftCoords.x
-					    - (static_cast<float>(cy) + 0.5f) * Coords::kUnitSize;
-					float worldY = chunk->topLeftCoords.y
-					    - (static_cast<float>(cx) + 0.5f) * Coords::kUnitSize;
+					float worldX = chunk->topLeftCoords.x - (static_cast<float>(cy) + 0.5f) * Coords::kUnitSize;
+					float worldY = chunk->topLeftCoords.y - (static_cast<float>(cx) + 0.5f) * Coords::kUnitSize;
 
 					float dx = center.x - worldX;
 					float dy = center.y - worldY;
@@ -181,8 +179,8 @@ namespace MapEditor::Liquids
 
 			// Tile coordinates run backwards along both world axes, so the corner that gives the
 			// low index is the one at plus radius.
-			C3Vector lo{center.x + radius, center.y + radius, 0.0f};
-			C3Vector hi{center.x - radius, center.y - radius, 0.0f};
+			C3Vector lo{ center.x + radius, center.y + radius, 0.0f };
+			C3Vector hi{ center.x - radius, center.y - radius, 0.0f };
 
 			for (int32_t tileY = Coords::TileY(lo); tileY <= Coords::TileY(hi); ++tileY)
 			{
@@ -230,7 +228,7 @@ namespace MapEditor::Liquids
 						continue;
 
 					tile->dirty = true;
-					touched.push_back({tileX, tileY});
+					touched.push_back({ tileX, tileY });
 					changed += here;
 				}
 			}
@@ -298,60 +296,60 @@ namespace MapEditor::Liquids
 
 		int32_t changed = EditTiles(center, radius, touched, error,
 		    [&](Adt::ChunkLiquid& liquid, Adt::Mcnk const& mcnk, uint64_t mask)
-		    {
-			    Adt::LiquidLayer* layer = nullptr;
-			    for (Adt::LiquidLayer& candidate : liquid.layers)
-			    {
-				    if (candidate.type == type)
-				    {
-					    layer = &candidate;
-					    break;
-				    }
-			    }
+		{
+			Adt::LiquidLayer* layer = nullptr;
+			for (Adt::LiquidLayer& candidate : liquid.layers)
+			{
+				if (candidate.type == type)
+				{
+					layer = &candidate;
+					break;
+				}
+			}
 
-			    if (!layer)
-			    {
-				    if (static_cast<int32_t>(liquid.layers.size()) >= kMaxLayers)
-				    {
-					    ++full;
-					    return false;
-				    }
+			if (!layer)
+			{
+				if (static_cast<int32_t>(liquid.layers.size()) >= kMaxLayers)
+				{
+					++full;
+					return false;
+				}
 
-				    Adt::LiquidLayer fresh;
-				    fresh.type = static_cast<uint16_t>(type);
-				    fresh.format = FormatFor(info.soundBank);
+				Adt::LiquidLayer fresh;
+				fresh.type = static_cast<uint16_t>(type);
+				fresh.format = FormatFor(info.soundBank);
 
-				    // Seeded flat across the whole grid so growing this layer later never lands a
-				    // cell next to a vertex that was never given a height.
-				    for (int32_t v = 0; v < Adt::kLiquidVerts; ++v)
-					    fresh.height[v] = height;
+				// Seeded flat across the whole grid so growing this layer later never lands a
+				// cell next to a vertex that was never given a height.
+				for (int32_t v = 0; v < Adt::kLiquidVerts; ++v)
+					fresh.height[v] = height;
 
-				    liquid.layers.push_back(fresh);
-				    layer = &liquid.layers.back();
-			    }
+				liquid.layers.push_back(fresh);
+				layer = &liquid.layers.back();
+			}
 
-			    for (int32_t cy = 0; cy < Adt::kLiquidCellSide; ++cy)
-			    {
-				    for (int32_t cx = 0; cx < Adt::kLiquidCellSide; ++cx)
-				    {
-					    int32_t cell = Adt::LiquidCell(cx, cy);
-					    if (!(mask & (1ull << cell)))
-						    continue;
+			for (int32_t cy = 0; cy < Adt::kLiquidCellSide; ++cy)
+			{
+				for (int32_t cx = 0; cx < Adt::kLiquidCellSide; ++cx)
+				{
+					int32_t cell = Adt::LiquidCell(cx, cy);
+					if (!(mask & (1ull << cell)))
+						continue;
 
-					    layer->exists[cell] = true;
-					    liquid.fishable |= 1ull << cell;
+					layer->exists[cell] = true;
+					liquid.fishable |= 1ull << cell;
 
-					    for (int32_t dy = 0; dy <= 1; ++dy)
-					    {
-						    for (int32_t dx = 0; dx <= 1; ++dx)
-							    layer->height[Adt::LiquidVert(cx + dx, cy + dy)] = height;
-					    }
-				    }
-			    }
+					for (int32_t dy = 0; dy <= 1; ++dy)
+					{
+						for (int32_t dx = 0; dx <= 1; ++dx)
+							layer->height[Adt::LiquidVert(cx + dx, cy + dy)] = height;
+					}
+				}
+			}
 
-			    Finish(*layer, mcnk, info.soundBank);
-			    return true;
-		    });
+			Finish(*layer, mcnk, info.soundBank);
+			return true;
+		});
 
 		if (!changed && error.empty())
 		{
@@ -367,33 +365,33 @@ namespace MapEditor::Liquids
 	{
 		int32_t changed = EditTiles(center, radius, touched, error,
 		    [&](Adt::ChunkLiquid& liquid, Adt::Mcnk const&, uint64_t mask)
-		    {
-			    bool any = false;
+		{
+			bool any = false;
 
-			    for (size_t i = 0; i < liquid.layers.size(); ++i)
-			    {
-				    if (!Targeted(layer, i))
-					    continue;
+			for (size_t i = 0; i < liquid.layers.size(); ++i)
+			{
+				if (!Targeted(layer, i))
+					continue;
 
-				    for (int32_t cell = 0; cell < Adt::kLiquidCells; ++cell)
-				    {
-					    if (!(mask & (1ull << cell)) || !liquid.layers[i].exists[cell])
-						    continue;
+				for (int32_t cell = 0; cell < Adt::kLiquidCells; ++cell)
+				{
+					if (!(mask & (1ull << cell)) || !liquid.layers[i].exists[cell])
+						continue;
 
-					    liquid.layers[i].exists[cell] = false;
-					    any = true;
-				    }
-			    }
+					liquid.layers[i].exists[cell] = false;
+					any = true;
+				}
+			}
 
-			    if (!any)
-				    return false;
+			if (!any)
+				return false;
 
-			    // A cell nothing covers any more has no business staying fishable or fatiguing.
-			    uint64_t left = OccupiedCells(liquid);
-			    liquid.fishable &= left;
-			    liquid.fatigue &= left;
-			    return true;
-		    });
+			// A cell nothing covers any more has no business staying fishable or fatiguing.
+			uint64_t left = OccupiedCells(liquid);
+			liquid.fishable &= left;
+			liquid.fatigue &= left;
+			return true;
+		});
 
 		if (!changed && error.empty())
 			error = "no liquid under the brush";
@@ -413,31 +411,31 @@ namespace MapEditor::Liquids
 
 		int32_t changed = EditTiles(center, radius, touched, error,
 		    [&](Adt::ChunkLiquid& liquid, Adt::Mcnk const& mcnk, uint64_t mask)
-		    {
-			    bool any = false;
+		{
+			bool any = false;
 
-			    for (size_t i = 0; i < liquid.layers.size(); ++i)
-			    {
-				    if (!Targeted(layer, i) || liquid.layers[i].type == type)
-					    continue;
+			for (size_t i = 0; i < liquid.layers.size(); ++i)
+			{
+				if (!Targeted(layer, i) || liquid.layers[i].type == type)
+					continue;
 
-				    // Only layers the brush is actually over, so a wide circle does not quietly
-				    // retype a pond on the far side of the chunk.
-				    bool touching = false;
-				    for (int32_t cell = 0; cell < Adt::kLiquidCells && !touching; ++cell)
-					    touching = (mask & (1ull << cell)) && liquid.layers[i].exists[cell];
+				// Only layers the brush is actually over, so a wide circle does not quietly
+				// retype a pond on the far side of the chunk.
+				bool touching = false;
+				for (int32_t cell = 0; cell < Adt::kLiquidCells && !touching; ++cell)
+					touching = (mask & (1ull << cell)) && liquid.layers[i].exists[cell];
 
-				    if (!touching)
-					    continue;
+				if (!touching)
+					continue;
 
-				    liquid.layers[i].type = static_cast<uint16_t>(type);
-				    liquid.layers[i].format = FormatFor(info.soundBank);
-				    Finish(liquid.layers[i], mcnk, info.soundBank);
-				    any = true;
-			    }
+				liquid.layers[i].type = static_cast<uint16_t>(type);
+				liquid.layers[i].format = FormatFor(info.soundBank);
+				Finish(liquid.layers[i], mcnk, info.soundBank);
+				any = true;
+			}
 
-			    return any;
-		    });
+			return any;
+		});
 
 		if (!changed && error.empty())
 			error = "no liquid under the brush was a different type";
@@ -450,54 +448,54 @@ namespace MapEditor::Liquids
 	{
 		int32_t changed = EditTiles(center, radius, touched, error,
 		    [&](Adt::ChunkLiquid& liquid, Adt::Mcnk const& mcnk, uint64_t mask)
-		    {
-			    bool any = false;
+		{
+			bool any = false;
 
-			    for (size_t i = 0; i < liquid.layers.size(); ++i)
-			    {
-				    if (!Targeted(layer, i))
-					    continue;
+			for (size_t i = 0; i < liquid.layers.size(); ++i)
+			{
+				if (!Targeted(layer, i))
+					continue;
 
-				    Adt::LiquidLayer& target = liquid.layers[i];
+				Adt::LiquidLayer& target = liquid.layers[i];
 
-				    // Vertices belonging to a covered cell that this layer actually has, so the
-				    // edge of a pool moves with its middle.
-				    bool moved[Adt::kLiquidVerts] = {};
-				    for (int32_t cy = 0; cy < Adt::kLiquidCellSide; ++cy)
-				    {
-					    for (int32_t cx = 0; cx < Adt::kLiquidCellSide; ++cx)
-					    {
-						    int32_t cell = Adt::LiquidCell(cx, cy);
-						    if (!(mask & (1ull << cell)) || !target.exists[cell])
-							    continue;
+				// Vertices belonging to a covered cell that this layer actually has, so the
+				// edge of a pool moves with its middle.
+				bool moved[Adt::kLiquidVerts] = {};
+				for (int32_t cy = 0; cy < Adt::kLiquidCellSide; ++cy)
+				{
+					for (int32_t cx = 0; cx < Adt::kLiquidCellSide; ++cx)
+					{
+						int32_t cell = Adt::LiquidCell(cx, cy);
+						if (!(mask & (1ull << cell)) || !target.exists[cell])
+							continue;
 
-						    for (int32_t dy = 0; dy <= 1; ++dy)
-						    {
-							    for (int32_t dx = 0; dx <= 1; ++dx)
-								    moved[Adt::LiquidVert(cx + dx, cy + dy)] = true;
-						    }
-					    }
-				    }
+						for (int32_t dy = 0; dy <= 1; ++dy)
+						{
+							for (int32_t dx = 0; dx <= 1; ++dx)
+								moved[Adt::LiquidVert(cx + dx, cy + dy)] = true;
+						}
+					}
+				}
 
-				    bool here = false;
-				    for (int32_t v = 0; v < Adt::kLiquidVerts; ++v)
-				    {
-					    if (!moved[v])
-						    continue;
+				bool here = false;
+				for (int32_t v = 0; v < Adt::kLiquidVerts; ++v)
+				{
+					if (!moved[v])
+						continue;
 
-					    target.height[v] = relative ? target.height[v] + height : height;
-					    here = true;
-				    }
+					target.height[v] = relative ? target.height[v] + height : height;
+					here = true;
+				}
 
-				    if (!here)
-					    continue;
+				if (!here)
+					continue;
 
-				    Finish(target, mcnk, BankOf(target.type));
-				    any = true;
-			    }
+				Finish(target, mcnk, BankOf(target.type));
+				any = true;
+			}
 
-			    return any;
-		    });
+			return any;
+		});
 
 		if (!changed && error.empty())
 			error = "no liquid under the brush";
@@ -516,28 +514,28 @@ namespace MapEditor::Liquids
 
 		int32_t changed = EditTiles(center, radius, touched, error,
 		    [&](Adt::ChunkLiquid& liquid, Adt::Mcnk const&, uint64_t mask)
-		    {
-			    // Only where there is liquid. The masks are per cell for the whole chunk, so
-			    // setting a bit on a dry cell means nothing and just makes the file harder to read.
-			    uint64_t live = mask & OccupiedCells(liquid);
-			    if (!live)
-				    return false;
+		{
+			// Only where there is liquid. The masks are per cell for the whole chunk, so
+			// setting a bit on a dry cell means nothing and just makes the file harder to read.
+			uint64_t live = mask & OccupiedCells(liquid);
+			if (!live)
+				return false;
 
-			    uint64_t wasFishable = liquid.fishable;
-			    uint64_t wasFatigue = liquid.fatigue;
+			uint64_t wasFishable = liquid.fishable;
+			uint64_t wasFatigue = liquid.fatigue;
 
-			    if (fishable == 0)
-				    liquid.fishable &= ~live;
-			    else if (fishable > 0)
-				    liquid.fishable |= live;
+			if (fishable == 0)
+				liquid.fishable &= ~live;
+			else if (fishable > 0)
+				liquid.fishable |= live;
 
-			    if (fatigue == 0)
-				    liquid.fatigue &= ~live;
-			    else if (fatigue > 0)
-				    liquid.fatigue |= live;
+			if (fatigue == 0)
+				liquid.fatigue &= ~live;
+			else if (fatigue > 0)
+				liquid.fatigue |= live;
 
-			    return liquid.fishable != wasFishable || liquid.fatigue != wasFatigue;
-		    });
+			return liquid.fishable != wasFishable || liquid.fatigue != wasFatigue;
+		});
 
 		if (!changed && error.empty())
 			error = "no liquid under the brush, or it was already set that way";

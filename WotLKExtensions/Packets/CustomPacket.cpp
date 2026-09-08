@@ -4,12 +4,14 @@
 #include <TalentFramePackets.h>
 #include "TestFramePackets.h"
 #include "UnitLevelCache.h"
+#include "AuraValuesCache.h"
 #include "GemSocketPackets.h"
 #include "GroupFinderPackets.h"
 #include "ItemGenPackets.h"
 #include "ItemLevelPackets.h"
 #include "ItemDbCachePackets.h"
 #include "FeaturePackets.h"
+#include "PlayerSettingsPackets.h"
 #include "LootWindowPackets.h"
 #include <Character/MovementForce.h>
 #include "Streaming/BackgroundDownloader.h"
@@ -50,12 +52,14 @@ void CustomPacket::Apply()
 
 	sTalentFramePackets.Apply();
 	sFeaturePackets.Apply();
+	sPlayerSettingsPackets.Apply();
 	sGemSocketPackets.Apply();
 	sGroupFinderPackets.Apply();
 	sItemGenPackets.Apply();
 	sItemLevelPackets.Apply();
 	sTestFramePackets.Apply();
 	sUnitLevelCache.Apply();
+	sAuraValuesCache.Apply();
 	sLootWindowPackets.Apply();
 	sMovementForce.Apply();
 	ItemDbCachePackets::RegisterHandlers();
@@ -200,8 +204,14 @@ void CustomPacket::Packet_SMSG_CUSTOM_STAT_TRACK(void* handlerParam, uint32_t op
 	Util::DebugOutput("%d %f %f %f %f", sPlayer.GetMagicFind(), sPlayer.GetHealthLeech(), sPlayer.GetManaLeech(), sPlayer.GetCritDamageMod(), sPlayer.GetCritHealingMod());
 	for (uint8 i = 0; i < MAX_SPELL_SCHOOL; ++i)
 		sPlayer.SetCustomSpellPen(i, r.GetInt32());
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_STAT_UPDATE"), "");
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("COMBAT_RATING_UPDATE"), "");
+	sPlayer.SetCustomSpellPenTotal(r.GetInt32());
+	for (uint8 i = 0; i < MAX_SPELL_SCHOOL; ++i)
+		sPlayer.SetCustomSpellHealing(i, r.GetInt32());
+	float healthRegen = r.GetFloat();
+	float healthRegenInCombat = r.GetFloat();
+	sPlayer.SetHealthRegen(healthRegen, healthRegenInCombat);
+	FrameXMLExtensions::SignalEvent("HOT_STAT_UPDATE", "");
+	FrameXMLExtensions::SignalEvent("COMBAT_RATING_UPDATE", "");
 }
 
 void CustomPacket::Packet_SMSG_SANITY_CHECK(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3)
@@ -217,7 +227,7 @@ void CustomPacket::Packet_SMSG_BACKGROUND_DOWNLOAD(void* handlerParam, uint32_t 
 void CustomPacket::SendSanityCheck(bool sendMpqs)
 {
 	Packet pkt(CMSG_SANITY_CHECK);
-	pkt.PutInt32(DLL_VER);
+	pkt.PutString(DllVersion::Commit.data());
 	if (sendMpqs)
 	{
 		std::vector<MpqInfo> mpqs = sMpqScanner.GetResults();
@@ -245,7 +255,7 @@ void CustomPacket::Packet_SMSG_FUCKED_CLIENT_DETECTED(void* handlerParam, uint32
 		return;
 	}
 
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_BAD_MPQ_NUM"), "%d", numberOfFiles);
+	FrameXMLExtensions::SignalEvent("HOT_BAD_MPQ_NUM", "%d", numberOfFiles);
 
 	for (int32 i = 0; i < numberOfFiles; ++i)
 	{
@@ -253,7 +263,7 @@ void CustomPacket::Packet_SMSG_FUCKED_CLIENT_DETECTED(void* handlerParam, uint32
 		r.GetString(filename, sizeof(filename));
 		uint32 crc = r.GetUInt32();
 
-		FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_BAD_MPQ_FILE_INFO"), "%s%u", filename, crc);
+		FrameXMLExtensions::SignalEvent("HOT_BAD_MPQ_FILE_INFO", "%s%u", filename, crc);
 	}
 }
 
@@ -271,7 +281,7 @@ void CustomPacket::Packet_SMSG_REQUEST_CHAR_ENUM_LEVELS(void* handlerParam, uint
 		uint32 subClass = r.GetUInt32();
 		int8_t gameMode = r.GetInt8();
 
-		FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_CHAR_SELECT_UPDATE"), "%s%u%u%u%u", name, level, talentLevel, subClass, (uint32)gameMode);
+		FrameXMLExtensions::SignalEvent("HOT_CHAR_SELECT_UPDATE", "%s%u%u%u%u", name, level, talentLevel, subClass, (uint32)gameMode);
 	}
 }
 
@@ -286,6 +296,6 @@ void CustomPacket::Packet_SMSG_GOB_EDITOR_SELECT(void* handlerParam, uint32_t op
 	EditorRuntime::SelectGameObject(guid);
 	CGGameObject_C* object = EditorRuntime::SelectedGameObject();
 	if (object)
-		FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_GOB_SELECTED"), "%s%u%f%f%f", EditorObject::GuidToString(guid), 0 /*todo get gameobject entry too lazy atm.*/,
+		FrameXMLExtensions::SignalEvent("HOT_GOB_SELECTED", "%s%u%f%f%f", EditorObject::GuidToString(guid), 0 /*todo get gameobject entry too lazy atm.*/,
 		    object->m_passenger.position.x, object->m_passenger.position.y, object->m_passenger.position.z);
 }

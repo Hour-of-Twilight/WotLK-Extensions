@@ -8,22 +8,15 @@
 class DiscordRPC
 {
 public:
-	// Get the singleton instance
 	static DiscordRPC& Get()
 	{
 		static DiscordRPC instance;
 		return instance;
 	}
 
-	// Initialize with your Discord Client ID
 	void Init();
-
-	// Shutdown and clean up
 	void Shutdown();
 
-	void ClearActivity();
-
-	// Update Rich Presence data
 	void UpdateActivity(const std::string& state,
 	    const std::string& details,
 	    const std::string& largeImage = "",
@@ -43,6 +36,9 @@ private:
 	DiscordRPC& operator=(const DiscordRPC&) = delete;
 
 	void ThreadFunc();
+	bool TryConnect();
+	void Disconnect();
+	void FlushPendingActivity();
 
 	discord::Core* _core{ nullptr };
 	discord::ActivityManager* _activityManager{ nullptr };
@@ -51,6 +47,7 @@ private:
 	std::mutex _mutex;
 	std::atomic<bool> _running{ false };
 	bool _initialized{ false };
+	bool _hasActivity{ false };
 	bool _hasPending{ false };
 };
 

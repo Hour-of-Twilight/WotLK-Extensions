@@ -45,32 +45,45 @@ namespace MapEditor::Adt
 
 				switch (sub.id)
 				{
-					case kMCVT: header.ofsHeight = at; break;
-					case kMCNR: header.ofsNormal = at; break;
-					case kMCLY: header.ofsLayer = at; break;
-					case kMCRF: header.ofsRefs = at; break;
-					case kMCAL:
-						header.ofsAlpha = at;
-						if (sub.Resized())
-							header.sizeAlpha = span;
-						break;
-					case kMCSH:
-						header.ofsShadow = at;
-						// sizeShadow counts the data alone, unlike sizeAlpha and sizeLiquid which
-						// both include the 8 byte sub-chunk header. Noggit writes a bare 0x200
-						// here next to a sizeAlpha of 8 + length, so the asymmetry is real rather
-						// than a quirk of one toolchain.
-						if (sub.Resized())
-							header.sizeShadow = static_cast<uint32_t>(sub.data.size());
-						break;
-					case kMCSE: header.ofsSndEmitters = at; break;
-					case kMCLQ:
-						header.ofsLiquid = at;
-						if (sub.Resized())
-							header.sizeLiquid = span;
-						break;
-					case kMCCV: header.ofsMCCV = at; break;
-					default: break;
+				case kMCVT:
+					header.ofsHeight = at;
+					break;
+				case kMCNR:
+					header.ofsNormal = at;
+					break;
+				case kMCLY:
+					header.ofsLayer = at;
+					break;
+				case kMCRF:
+					header.ofsRefs = at;
+					break;
+				case kMCAL:
+					header.ofsAlpha = at;
+					if (sub.Resized())
+						header.sizeAlpha = span;
+					break;
+				case kMCSH:
+					header.ofsShadow = at;
+					// sizeShadow counts the data alone, unlike sizeAlpha and sizeLiquid which
+					// both include the 8 byte sub-chunk header. Noggit writes a bare 0x200
+					// here next to a sizeAlpha of 8 + length, so the asymmetry is real rather
+					// than a quirk of one toolchain.
+					if (sub.Resized())
+						header.sizeShadow = static_cast<uint32_t>(sub.data.size());
+					break;
+				case kMCSE:
+					header.ofsSndEmitters = at;
+					break;
+				case kMCLQ:
+					header.ofsLiquid = at;
+					if (sub.Resized())
+						header.sizeLiquid = span;
+					break;
+				case kMCCV:
+					header.ofsMCCV = at;
+					break;
+				default:
+					break;
 				}
 
 				at += span;
@@ -85,7 +98,7 @@ namespace MapEditor::Adt
 		// Where each top level chunk's IFF header starts, so MHDR and MCIN can be patched once
 		// the real layout is known.
 		uint32_t mhdrData = 0;
-		uint32_t offsets[12] = {};  // mcin, mtex, mmdx, mmid, mwmo, mwid, mddf, modf, mfbo, mh2o, mtxf
+		uint32_t offsets[12] = {}; // mcin, mtex, mmdx, mmid, mwmo, mwid, mddf, modf, mfbo, mh2o, mtxf
 		uint32_t mcinData = 0;
 		bool sawMhdr = false;
 		bool sawMcin = false;
@@ -141,26 +154,47 @@ namespace MapEditor::Adt
 
 			switch (top.id)
 			{
-				case kMHDR:
-					mhdrData = start + kIffSize;
-					sawMhdr = true;
-					break;
-				case kMCIN:
-					offsets[0] = start;
-					mcinData = start + kIffSize;
-					sawMcin = true;
-					break;
-				case kMTEX: offsets[1] = start; break;
-				case kMMDX: offsets[2] = start; break;
-				case kMMID: offsets[3] = start; break;
-				case kMWMO: offsets[4] = start; break;
-				case kMWID: offsets[5] = start; break;
-				case kMDDF: offsets[6] = start; break;
-				case kMODF: offsets[7] = start; break;
-				case kMFBO: offsets[8] = start; break;
-				case kMH2O: offsets[9] = start; break;
-				case kMTXF: offsets[10] = start; break;
-				default: break;
+			case kMHDR:
+				mhdrData = start + kIffSize;
+				sawMhdr = true;
+				break;
+			case kMCIN:
+				offsets[0] = start;
+				mcinData = start + kIffSize;
+				sawMcin = true;
+				break;
+			case kMTEX:
+				offsets[1] = start;
+				break;
+			case kMMDX:
+				offsets[2] = start;
+				break;
+			case kMMID:
+				offsets[3] = start;
+				break;
+			case kMWMO:
+				offsets[4] = start;
+				break;
+			case kMWID:
+				offsets[5] = start;
+				break;
+			case kMDDF:
+				offsets[6] = start;
+				break;
+			case kMODF:
+				offsets[7] = start;
+				break;
+			case kMFBO:
+				offsets[8] = start;
+				break;
+			case kMH2O:
+				offsets[9] = start;
+				break;
+			case kMTXF:
+				offsets[10] = start;
+				break;
+			default:
+				break;
 			}
 		}
 
@@ -173,9 +207,9 @@ namespace MapEditor::Adt
 		// MHDR offsets are relative to MHDR's data start and point at the target's IFF header.
 		// A chunk that is not present stays zero.
 		SMMapHeader header = doc.header;
-		uint32_t* fields[11] = {&header.mcin, &header.mtex, &header.mmdx, &header.mmid,
-		    &header.mwmo, &header.mwid, &header.mddf, &header.modf, &header.mfbo, &header.mh2o,
-		    &header.mtxf};
+		uint32_t* fields[11] = { &header.mcin, &header.mtex, &header.mmdx, &header.mmid,
+			&header.mwmo, &header.mwid, &header.mddf, &header.modf, &header.mfbo, &header.mh2o,
+			&header.mtxf };
 
 		for (int i = 0; i < 11; ++i)
 			*fields[i] = offsets[i] ? offsets[i] - mhdrData : 0;
@@ -199,4 +233,3 @@ namespace MapEditor::Adt
 		return true;
 	}
 }
-

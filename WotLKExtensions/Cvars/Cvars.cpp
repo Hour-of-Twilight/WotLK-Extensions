@@ -1,7 +1,6 @@
 #include "Cvars.h"
 
 #include <ClientData/SharedDefines.h> // CVar_C::Register, ClientData::CVar
-#include <ClientDetours.h>
 #include <cstdio>
 
 using ClientData::CVar;
@@ -95,10 +94,4 @@ char __cdecl Cvars::OnCvarChanged(CVar* cvar, const char* /*prev*/, const char* 
 		}
 	}
 	return 1;
-}
-
-CLIENT_DETOUR(CVarInitialize, 0x00768340, __cdecl, void, (char* filename))
-{
-	CVarInitialize(filename);
-	sCvars.ReapplyAll();
 }

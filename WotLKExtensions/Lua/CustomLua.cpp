@@ -716,6 +716,12 @@ int CustomLua::GetSpellPen(lua_State* L)
 	return 1;
 }
 
+int CustomLua::GetTotalSpellPen(lua_State* L)
+{
+	FrameScript::PushNumber(L, sPlayer.GetCustomSpellPenTotal());
+	return 1;
+}
+
 int CustomLua::GetMagicFind(lua_State* L)
 {
 	FrameScript::PushNumber(L, sPlayer.GetMagicFind());
@@ -825,6 +831,14 @@ int CustomLua::GetManaLeech(lua_State* L)
 	return 1;
 }
 
+// health per 5 sec the server would actually apply, out of combat then in combat
+int CustomLua::GetHealthRegen(lua_State* L)
+{
+	FrameScript::PushNumber(L, sPlayer.GetHealthRegen());
+	FrameScript::PushNumber(L, sPlayer.GetHealthRegenInCombat());
+	return 2;
+}
+
 int CustomLua::GetCritDamageMod(lua_State* L)
 {
 	FrameScript::PushNumber(L, sPlayer.GetCritDamageMod());
@@ -875,7 +889,7 @@ int CustomLua::OpenUrl(lua_State* L)
 
 int CustomLua::GetDllVersion(lua_State* L)
 {
-	FrameScript::PushNumber(L, DLL_VER);
+	FrameScript::PushString(L, DllVersion::Commit.data());
 	return 1;
 }
 
@@ -1119,11 +1133,12 @@ void CustomLua::RegisterBuiltinFunctions()
 	{
 		RegisterFunction("CustomLfgQueue", &CustomLfgQueue, LuaFunctionState::FRAME);
 		RegisterFunction("GetSpellPen", &GetSpellPen, LuaFunctionState::FRAME);
+		RegisterFunction("GetTotalSpellPen", &GetTotalSpellPen, LuaFunctionState::FRAME);
 		RegisterFunction("GetMagicFind", &GetMagicFind, LuaFunctionState::FRAME);
 		// RegisterFunction("PortGraveyard", &PortGraveyard, LuaFunctionState::FRAME);
 	}
 #ifdef ENABLE_DISCORD
-	RegisterFunction("UpdateDiscordPresence", &UpdateDiscordPresence, LuaFunctionState::FRAME);
+	RegisterFunction("UpdateDiscordPresence", &UpdateDiscordPresence, LuaFunctionState::ALL);
 	RegisterFunction("ToggleDiscord", &ToggleDiscord, LuaFunctionState::ALL);
 #endif
 	RegisterFunction("GetPlayerX", &GetPlayerX, LuaFunctionState::FRAME);
@@ -1132,6 +1147,7 @@ void CustomLua::RegisterBuiltinFunctions()
 	RegisterFunction("GetPlayerSecurityLevel", &GetPlayerSecurityLevel, LuaFunctionState::FRAME);
 	RegisterFunction("GetHealthLeech", &GetHealthLeech, LuaFunctionState::FRAME);
 	RegisterFunction("GetManaLeech", &GetManaLeech, LuaFunctionState::FRAME);
+	RegisterFunction("GetHealthRegen", &GetHealthRegen, LuaFunctionState::FRAME);
 	RegisterFunction("GetCritDamageMod", &GetCritDamageMod, LuaFunctionState::FRAME);
 	RegisterFunction("GetCritHealingMod", &GetCritHealingMod, LuaFunctionState::FRAME);
 	RegisterFunction("OpenUrl", &OpenUrl, LuaFunctionState::ALL);

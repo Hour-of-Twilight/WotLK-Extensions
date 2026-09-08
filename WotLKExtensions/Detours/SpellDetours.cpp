@@ -43,7 +43,7 @@ CLIENT_DETOUR_THISCALL(ClientDb__GetLocalizedSpellRow, 0x004CFD20, int, (uint32_
 
 // safety net for the callers that hand these a row they did not copy through GetLocalizedRow. the
 // lookup only touches the class mask, the row is copied when there is a change to make
-CLIENT_DETOUR(Spell_C_GetPowerCost, 0x008012F0, __cdecl, uint32_t, (SpellRow * pSpellRec, CGUnit * caster))
+CLIENT_DETOUR(Spell_C_GetPowerCost, 0x008012F0, __cdecl, uint32_t, (SpellRow * pSpellRec, CGUnit* caster))
 {
 	int32_t powerType = 0;
 	if (pSpellRec && sPlayer.GetSpellPowerType(pSpellRec, powerType) && (uint32_t)powerType != pSpellRec->m_powerType)
@@ -58,7 +58,7 @@ CLIENT_DETOUR(Spell_C_GetPowerCost, 0x008012F0, __cdecl, uint32_t, (SpellRow * p
 
 // decides whether the caster can pay for the spell, so it picks both the cost and the bar it is
 // compared against. this is what greys the action button out and what fails the cast locally
-CLIENT_DETOUR(Spell_C_HaveSpellPower, 0x008017E0, __cdecl, bool, (CGUnit * caster, SpellRow * pSpellRec))
+CLIENT_DETOUR(Spell_C_HaveSpellPower, 0x008017E0, __cdecl, bool, (CGUnit * caster, SpellRow* pSpellRec))
 {
 	int32_t powerType = 0;
 	if (pSpellRec && sPlayer.GetSpellPowerType(pSpellRec, powerType) && (uint32_t)powerType != pSpellRec->m_powerType)
@@ -73,7 +73,7 @@ CLIENT_DETOUR(Spell_C_HaveSpellPower, 0x008017E0, __cdecl, bool, (CGUnit * caste
 
 // hand the original a relaxed copy so it never sees the requirements the caster can ignore
 CLIENT_DETOUR(Spell_C_HaveEquippedSpellItems, 0x008093D0, __cdecl, bool,
-    (CGUnit * unit, SpellRow * pSpellRec, int32_t checkInventory, int32_t reportError, void* spellCast))
+    (CGUnit * unit, SpellRow* pSpellRec, int32_t checkInventory, int32_t reportError, void* spellCast))
 {
 	if (pSpellRec)
 	{

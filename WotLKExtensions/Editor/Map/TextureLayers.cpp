@@ -248,7 +248,7 @@ namespace MapEditor::TextureLayers
 					std::memcpy(mtxf->data.data() + added * sizeof(int32_t), &flags, sizeof(flags));
 				}
 
-				std::vector<int32_t>& owned = OwnedTextureFlags()[{tile.tileX, tile.tileY}];
+				std::vector<int32_t>& owned = OwnedTextureFlags()[{ tile.tileX, tile.tileY }];
 				owned.assign(names.size(), 0);
 				std::memcpy(owned.data(), mtxf->data.data(), mtxf->data.size());
 				area->textureFlags = owned.data();
@@ -306,8 +306,8 @@ namespace MapEditor::TextureLayers
 		{
 			// Tile coordinates run backwards along both world axes, so the corner that gives the
 			// low index is the one at plus radius.
-			C3Vector lo{center.x + radius, center.y + radius, 0.0f};
-			C3Vector hi{center.x - radius, center.y - radius, 0.0f};
+			C3Vector lo{ center.x + radius, center.y + radius, 0.0f };
+			C3Vector hi{ center.x - radius, center.y - radius, 0.0f };
 
 			for (int32_t tileY = Coords::TileY(lo); tileY <= Coords::TileY(hi); ++tileY)
 			{
@@ -387,48 +387,48 @@ namespace MapEditor::TextureLayers
 		ForEachChunk(center, radius,
 		    [&](CMapArea* area, Session::OpenTile& tile, CMapChunk* chunk, int32_t chunkX,
 		        int32_t chunkY)
-		    {
-			    uint32_t textureId = 0;
-			    if (!EnsureTexture(tile, area, texture, textureId, error))
-			    {
-				    ++skipped;
-				    return;
-			    }
+		{
+			uint32_t textureId = 0;
+			if (!EnsureTexture(tile, area, texture, textureId, error))
+			{
+				++skipped;
+				return;
+			}
 
-			    bool changed = EditChunk(tile, chunk, chunkX, chunkY,
-			        [&](Adt::ChunkAlpha& alpha)
-			        {
-				        if (alpha.layers.size() >= kMaxLayers)
-					        return false;
+			bool changed = EditChunk(tile, chunk, chunkX, chunkY,
+			    [&](Adt::ChunkAlpha& alpha)
+			{
+				if (alpha.layers.size() >= kMaxLayers)
+					return false;
 
-				        for (SMLayer const& layer : alpha.layers)
-				        {
-					        if (layer.textureId == textureId)
-						        return false;
-				        }
+				for (SMLayer const& layer : alpha.layers)
+				{
+					if (layer.textureId == textureId)
+						return false;
+				}
 
-				        SMLayer fresh{};
-				        fresh.textureId = textureId;
-				        fresh.flags = Adt::kLayerUseAlpha;
+				SMLayer fresh{};
+				fresh.textureId = textureId;
+				fresh.flags = Adt::kLayerUseAlpha;
 
-				        // Ground effect doodads are keyed off the layer, and a texture the tile
-				        // never had cannot inherit one. Zero is none, which is the honest answer
-				        // until there is a way to pick.
-				        fresh.effectId = 0;
+				// Ground effect doodads are keyed off the layer, and a texture the tile
+				// never had cannot inherit one. Zero is none, which is the honest answer
+				// until there is a way to pick.
+				fresh.effectId = 0;
 
-				        alpha.layers.push_back(fresh);
+				alpha.layers.push_back(fresh);
 
-				        // Covering nothing to start with. WriteChunkAlpha fills in the flags and
-				        // the MCAL offset, so the mask is all this has to supply.
-				        alpha.maps.emplace_back();
-				        return true;
-			        });
+				// Covering nothing to start with. WriteChunkAlpha fills in the flags and
+				// the MCAL offset, so the mask is all this has to supply.
+				alpha.maps.emplace_back();
+				return true;
+			});
 
-			    if (changed)
-				    ++added;
-			    else
-				    ++skipped;
-		    });
+			if (changed)
+				++added;
+			else
+				++skipped;
+		});
 
 		if (!added && error.empty())
 			error = "every chunk already had it, or was already at four layers";
@@ -452,26 +452,26 @@ namespace MapEditor::TextureLayers
 		ForEachChunk(center, radius,
 		    [&](CMapArea*, Session::OpenTile& tile, CMapChunk* chunk, int32_t chunkX,
 		        int32_t chunkY)
-		    {
-			    bool changed = EditChunk(tile, chunk, chunkX, chunkY,
-			        [&](Adt::ChunkAlpha& alpha)
-			        {
-				        if (layer >= static_cast<int32_t>(alpha.layers.size()))
-					        return false;
+		{
+			bool changed = EditChunk(tile, chunk, chunkX, chunkY,
+			    [&](Adt::ChunkAlpha& alpha)
+			{
+				if (layer >= static_cast<int32_t>(alpha.layers.size()))
+					return false;
 
-				        // Nothing has to be redistributed. Coverage of the base is whatever the
-				        // masks leave over, so dropping a mask hands exactly what it held back to
-				        // the layers underneath, which is what removing a layer should mean.
-				        alpha.layers.erase(alpha.layers.begin() + layer);
-				        alpha.maps.erase(alpha.maps.begin() + layer);
-				        return true;
-			        });
+				// Nothing has to be redistributed. Coverage of the base is whatever the
+				// masks leave over, so dropping a mask hands exactly what it held back to
+				// the layers underneath, which is what removing a layer should mean.
+				alpha.layers.erase(alpha.layers.begin() + layer);
+				alpha.maps.erase(alpha.maps.begin() + layer);
+				return true;
+			});
 
-			    if (changed)
-				    ++removed;
-			    else
-				    ++skipped;
-		    });
+			if (changed)
+				++removed;
+			else
+				++skipped;
+		});
 
 		if (!removed && error.empty())
 			error = "no chunk under the brush had that layer";

@@ -41,12 +41,18 @@ void Player::CharacterCreationRaceCrashfix()
 void Player::ResetVariables()
 {
 	for (uint8 i = 0; i < MAX_SPELL_SCHOOL; i++)
+	{
 		m_customSpellPen[i] = 0;
+		m_customSpellHealing[i] = 0;
+	}
+	m_customSpellPenTotal = 0;
 	m_magicFind = 0;
 	m_healthLeech = 0.0f;
 	m_manaLeech = 0.0f;
 	m_critDamageMod = 0.0f;
 	m_critHealingMod = 0.0f;
+	m_healthRegen = 0.0f;
+	m_healthRegenInCombat = 0.0f;
 	ClearSpellMods();
 }
 

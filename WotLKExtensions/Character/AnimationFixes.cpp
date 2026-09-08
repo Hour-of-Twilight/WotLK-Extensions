@@ -4,6 +4,7 @@
 #include <ClientData/SharedDefines.h>
 #include <Config/LauncherSettings.h>
 
+#include <algorithm>
 #include <cstring>
 #include <intrin.h>
 #include <vector>
@@ -76,58 +77,52 @@ namespace
 		return false;
 	}
 
-	bool UnitHasAuraType(CGUnit* unit, uint32_t auraType)
+	bool s_monkUnarmedSpellsScanned = false;
+	std::vector<uint32_t> s_monkUnarmedSpellIds;
+
+	bool EnsureMonkUnarmedSpellScan()
 	{
-		if (!unit)
-			return false;
+		if (s_monkUnarmedSpellsScanned)
+			return true;
 
 		WoWClientDB* spellDB = reinterpret_cast<WoWClientDB*>(0x00AD49D0);
 		if (!spellDB || !spellDB->isLoaded)
 			return false;
 
 		SpellRow row{};
+
+		for (int spellId = spellDB->minIndex; spellId <= spellDB->maxIndex; ++spellId)
+			if (ClientDB::GetLocalizedRow(spellDB, spellId, &row) && SpellHasAuraType(row, SPELL_AURA_MONK_UNARMED))
+				s_monkUnarmedSpellIds.push_back(row.m_ID);
+
+		std::sort(s_monkUnarmedSpellIds.begin(), s_monkUnarmedSpellIds.end());
+		s_monkUnarmedSpellsScanned = true;
+		return true;
+	}
+
+	bool UnitHasMonkUnarmedAura(CGUnit* unit)
+	{
+		if (!unit || !EnsureMonkUnarmedSpellScan() || s_monkUnarmedSpellIds.empty())
+			return false;
+
 		const int auraCount = CGUnit_C::GetAuraCount(unit);
 
 		for (int auraIndex = 0; auraIndex < auraCount; ++auraIndex)
 		{
 			AuraData* aura = CGUnit_C::GetAura(unit, auraIndex);
-			if (!aura)
-				continue;
-
-			if (!ClientDB::GetLocalizedRow(spellDB, aura->spellId, &row))
-				continue;
-
-			if (SpellHasAuraType(row, auraType))
+			if (aura && std::binary_search(s_monkUnarmedSpellIds.begin(), s_monkUnarmedSpellIds.end(), aura->spellId))
 				return true;
 		}
 
 		return false;
 	}
 
-	bool UnitKnowsAuraTypeSpell(CGUnit* unit, uint32_t auraType)
+	bool UnitKnowsMonkUnarmedSpell(CGUnit* unit)
 	{
-		static bool scanned = false;
-		static std::vector<uint32_t> spellIds;
-
-		if (!unit)
+		if (!unit || !EnsureMonkUnarmedSpellScan())
 			return false;
 
-		if (!scanned)
-		{
-			WoWClientDB* spellDB = reinterpret_cast<WoWClientDB*>(0x00AD49D0);
-			if (!spellDB || !spellDB->isLoaded)
-				return false;
-
-			SpellRow row{};
-
-			for (int spellId = spellDB->minIndex; spellId <= spellDB->maxIndex; ++spellId)
-				if (ClientDB::GetLocalizedRow(spellDB, spellId, &row) && SpellHasAuraType(row, auraType))
-					spellIds.push_back(row.m_ID);
-
-			scanned = true;
-		}
-
-		for (uint32_t spellId : spellIds)
+		for (uint32_t spellId : s_monkUnarmedSpellIds)
 			if (CGUnit_C__IsSpellKnown_MonkUnarmed(unit, spellId))
 				return true;
 
@@ -141,7 +136,7 @@ namespace
 
 	bool ShouldPreventMeleeUnsheath(CGUnit* unit)
 	{
-		return UnitIsMonk(unit) || UnitHasAuraType(unit, SPELL_AURA_MONK_UNARMED) || UnitKnowsAuraTypeSpell(unit, SPELL_AURA_MONK_UNARMED);
+		return UnitIsMonk(unit) || UnitHasMonkUnarmedAura(unit) || UnitKnowsMonkUnarmedSpell(unit);
 	}
 
 	bool IsHandItemAttachSequence(int boneSeqSlot, int sequence)
@@ -822,6 +817,12 @@ namespace
 bool AnimationFixes::ShouldUseUnarmedAnimations(void* unit)
 {
 	return ShouldPreventMeleeUnsheath(reinterpret_cast<CGUnit*>(unit));
+}
+
+void AnimationFixes::InvalidateSpellScan()
+{
+	s_monkUnarmedSpellsScanned = false;
+	s_monkUnarmedSpellIds.clear();
 }
 
 void AnimationFixes::Apply()

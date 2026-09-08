@@ -152,7 +152,7 @@ namespace MapEditor::Adt
 		// tile to anything else that reads it.
 		size_t McalInsertPoint(Mcnk const& mcnk)
 		{
-			uint32_t const before[] = {kMCRF, kMCLY, kMCNR, kMCVT};
+			uint32_t const before[] = { kMCRF, kMCLY, kMCNR, kMCVT };
 
 			for (uint32_t id : before)
 			{

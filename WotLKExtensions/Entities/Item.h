@@ -6,6 +6,7 @@ class Item
 {
 public:
 	static void Apply();
+	static void PatchItemDBC();
 	static void AddItemToDBC(int itemID, int itemClass, int itemSubClass, int displayInfo, int inventorySlot, int materialID = 1, int soundOverride = -1, int sheathID = 0);
 	static void RemoveItem(int itemID);
 	static bool ItemExists(int itemID);
@@ -16,7 +17,6 @@ public:
 	    int invType, int sheath);
 
 private:
-	static void PatchItemDBC();
 	static void PatchHeroicQualityTooltipLabel();
 	static void PatchTooltipLabelPush(uint32_t pushSite, void* stub);
 };

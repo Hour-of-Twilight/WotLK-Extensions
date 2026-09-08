@@ -5,4 +5,6 @@ namespace AnimationFixes
 	void Apply();
 
 	bool ShouldUseUnarmedAnimations(void* unit);
+
+	void InvalidateSpellScan();
 }

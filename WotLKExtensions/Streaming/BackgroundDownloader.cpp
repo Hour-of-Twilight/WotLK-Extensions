@@ -111,6 +111,22 @@ namespace Streaming
 			return out;
 		}
 
+		std::string NarrowOem(const std::wstring& s, bool* lossy)
+		{
+			if (s.empty())
+				return "";
+			const bool utf8 = GetOEMCP() == CP_UTF8;
+			const DWORD flags = utf8 ? 0 : WC_NO_BEST_FIT_CHARS;
+			BOOL usedDefault = FALSE;
+			BOOL* used = utf8 ? nullptr : &usedDefault;
+			int n = WideCharToMultiByte(CP_OEMCP, flags, s.c_str(), (int)s.size(), nullptr, 0, nullptr, nullptr);
+			std::string out(n, '\0');
+			WideCharToMultiByte(CP_OEMCP, flags, s.c_str(), (int)s.size(), out.data(), n, nullptr, used);
+			if (lossy && usedDefault)
+				*lossy = true;
+			return out;
+		}
+
 		std::wstring WidenAcp(const std::string& s)
 		{
 			if (s.empty())
@@ -334,8 +350,7 @@ namespace Streaming
 			// A cached digest of the wrong kind can't answer the question, so fall through and
 			// recompute rather than reporting a mismatch and re-downloading the whole file.
 			auto it = g_localHashes.find(LowerPath(path));
-			if (it != g_localHashes.end() && it->second.size == size && it->second.mtime == mtime
-			    && IsQuickDigest(it->second.sha) == IsQuickDigest(expected))
+			if (it != g_localHashes.end() && it->second.size == size && it->second.mtime == mtime && IsQuickDigest(it->second.sha) == IsQuickDigest(expected))
 				return _stricmp(it->second.sha.c_str(), expected.c_str()) == 0;
 
 			std::string got = IsQuickDigest(expected) ? QuickDigestFile(path) : Sha256File(path);
@@ -416,12 +431,18 @@ namespace Streaming
 			std::ofstream f(PendingFile(), std::ios::trunc | std::ios::binary);
 			if (!f)
 				return;
+			bool lossy = false;
 			for (const PendingMove& m : g_pendingMoves)
-				f << "M|" << NarrowAcp(ToBackslashes(m.src)) << "|" << NarrowAcp(ToBackslashes(m.dst))
-				  << "\r\n";
+				f << "M|" << NarrowOem(ToBackslashes(m.src), &lossy) << "|"
+				  << NarrowOem(ToBackslashes(m.dst), &lossy) << "\r\n";
 			for (const std::wstring& d : g_pendingDeletes)
-				f << "D|" << NarrowAcp(ToBackslashes(d)) << "\r\n";
+				f << "D|" << NarrowOem(ToBackslashes(d), &lossy) << "\r\n";
+			if (lossy)
+				StreamLog("stream: pending path not representable in OEM code page %u, exit swap may fail",
+				    GetOEMCP());
 		}
+
+		HANDLE g_swapHold = INVALID_HANDLE_VALUE;
 
 		void SpawnCloseSwapHelper()
 		{
@@ -429,9 +450,24 @@ namespace Streaming
 			if (spawned.exchange(true))
 				return;
 
-			const DWORD pid = GetCurrentProcessId();
-			const std::string pend = NarrowAcp(PendingFile().wstring());
-			fs::path cmdPath = fs::path(g_installDir) / "Cache" / "hotstream-swap.cmd";
+			const fs::path cacheDir = PendingFile().parent_path();
+			const std::string pendName = PendingFile().filename().string();
+			const char* cmdName = "hotstream-swap.cmd";
+			const char* holdName = "hotstream-swap.hold";
+			fs::path cmdPath = cacheDir / cmdName;
+			fs::path holdPath = cacheDir / holdName;
+
+			g_swapHold = CreateFileW(holdPath.c_str(), GENERIC_WRITE, 0, nullptr,
+			    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+			if (g_swapHold == INVALID_HANDLE_VALUE)
+			{
+				StreamLog("stream: swap hold create FAILED (err %lu), relying on in-process swap at exit",
+				    GetLastError());
+				return;
+			}
+
+			const std::string hold = std::string("%~dp0") + holdName;
+			const std::string pend = std::string("%~dp0") + pendName;
 
 			{
 				std::ofstream b(cmdPath, std::ios::trunc | std::ios::binary);
@@ -439,13 +475,14 @@ namespace Streaming
 					return;
 				b << "@echo off\r\n";
 				b << ":wait\r\n";
-				b << "tasklist /fi \"PID eq " << pid << "\" /nh 2>nul | find \"" << pid
-				  << "\" >nul && ( ping -n 2 127.0.0.1 >nul & goto wait )\r\n";
+				b << "2>nul type nul >>\"" << hold
+				  << "\" || (ping -n 2 127.0.0.1 >nul & goto wait)\r\n";
 				b << "for /f \"usebackq tokens=1,2,3 delims=|\" %%a in (\"" << pend << "\") do (\r\n";
 				b << "  if \"%%a\"==\"M\" move /y \"%%b\" \"%%c\" >nul 2>&1\r\n";
 				b << "  if \"%%a\"==\"D\" del /q \"%%b\" >nul 2>&1\r\n";
 				b << ")\r\n";
 				b << "del /q \"" << pend << "\" >nul 2>&1\r\n";
+				b << "del /q \"" << hold << "\" >nul 2>&1\r\n";
 				b << "del /q \"%~f0\" >nul 2>&1\r\n";
 			}
 
@@ -1154,12 +1191,10 @@ namespace Streaming
 		if (active != s_prevActive)
 		{
 			s_prevActive = active;
-			int eventId = FrameXMLExtensions::GetEventIdByName(
-			    active ? "HOT_STREAMING_STARTED" : "HOT_STREAMING_STOPPED");
-			EnqueueEvent([eventId]
+			const char* eventName = active ? "HOT_STREAMING_STARTED" : "HOT_STREAMING_STOPPED";
+			EnqueueEvent([eventName]
 			{
-				if (eventId >= 0)
-					FrameScript::SignalEvent((uint32_t)eventId, "");
+				FrameXMLExtensions::SignalEvent(eventName, "");
 			});
 		}
 

@@ -50,7 +50,7 @@ void ItemGenPackets::Handler_SMSG_ITEMGEN_STAT_GROUPS(void*, uint32_t, uint32_t,
 	}
 
 	self.m_hasData = true;
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_STAT_GROUPS"), "");
+	FrameXMLExtensions::SignalEvent("HOT_STAT_GROUPS", "");
 }
 
 int ItemGenPackets::RequestStatGroups(lua_State*)

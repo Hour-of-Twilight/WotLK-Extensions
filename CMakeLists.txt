@@ -5,5 +5,9 @@ cmake_policy(SET CMP0048 NEW)
 
 project(WotLKExtensions)
 
+if(MSVC)
+    add_compile_options(/MP)
+endif()
+
 add_subdirectory(Patcher)
 add_subdirectory(WotLKExtensions)

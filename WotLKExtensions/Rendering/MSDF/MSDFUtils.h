@@ -26,6 +26,28 @@
 #include FT_OUTLINE_H
 #include "MSDFCacheTypes.h"
 
+namespace PlaceholderVA {
+    inline FARPROC KernelBaseProc(const char* name) {
+        HMODULE mod = GetModuleHandleW(L"kernelbase.dll");
+        return mod ? GetProcAddress(mod, name) : nullptr;
+    }
+    inline decltype(&::VirtualAlloc2) VirtualAlloc2P() {
+        static auto fn = reinterpret_cast<decltype(&::VirtualAlloc2)>(KernelBaseProc("VirtualAlloc2"));
+        return fn;
+    }
+    inline decltype(&::MapViewOfFile3) MapViewOfFile3P() {
+        static auto fn = reinterpret_cast<decltype(&::MapViewOfFile3)>(KernelBaseProc("MapViewOfFile3"));
+        return fn;
+    }
+    inline decltype(&::UnmapViewOfFile2) UnmapViewOfFile2P() {
+        static auto fn = reinterpret_cast<decltype(&::UnmapViewOfFile2)>(KernelBaseProc("UnmapViewOfFile2"));
+        return fn;
+    }
+    inline bool Available() {
+        return VirtualAlloc2P() && MapViewOfFile3P() && UnmapViewOfFile2P();
+    }
+}
+
 class ScopedFileLock {
     HANDLE hFile = INVALID_HANDLE_VALUE;
     OVERLAPPED ol{};
@@ -189,12 +211,19 @@ struct MappingGuard {
 
 struct ViewGuard {
     void* ptr = nullptr;
+    bool placeholder = false;
     ViewGuard(void* p = nullptr) : ptr(p) {}
     ~ViewGuard() { Close(); }
     void* Release() { void* p = ptr; ptr = nullptr; return p; }
     void Close() {
         if (ptr) {
-            UnmapViewOfFile2(GetCurrentProcess(), ptr, MEM_PRESERVE_PLACEHOLDER);
+            if (placeholder) {
+                if (auto unmap = PlaceholderVA::UnmapViewOfFile2P())
+                    unmap(GetCurrentProcess(), ptr, MEM_PRESERVE_PLACEHOLDER);
+            }
+            else {
+                UnmapViewOfFile(ptr);
+            }
             ptr = nullptr;
         }
     }

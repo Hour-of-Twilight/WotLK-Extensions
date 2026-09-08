@@ -3,7 +3,6 @@
 #include <Macros.h>
 
 #include <Windows.h>
-#include <functional>
 #include <filesystem>
 namespace fs = std::filesystem;
 class Util

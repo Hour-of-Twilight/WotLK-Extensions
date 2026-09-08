@@ -17,7 +17,7 @@ void FeaturePackets::Handler_SMSG_FEATURE_TOGGLE(void*, uint32_t, uint32_t, CDat
 
 	Instance().m_mask = mask;
 	Instance().m_hasData = true;
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_FEATURE_UPDATE"), "");
+	FrameXMLExtensions::SignalEvent("HOT_FEATURE_UPDATE", "");
 }
 
 int FeaturePackets::RequestFeatureFlags(lua_State*)

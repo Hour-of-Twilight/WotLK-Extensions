@@ -33,14 +33,14 @@ void GemSocketPackets::Handler_SMSG_GEM_SOCKET_LIST(void*, uint32_t, uint32_t, C
 	}
 
 	self.m_hasData = true;
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_GEM_SOCKET_UPDATE"), "");
+	FrameXMLExtensions::SignalEvent("HOT_GEM_SOCKET_UPDATE", "");
 }
 
 // SMSG_GEM_SOCKET_ERROR: UInt8 errorCode.
 void GemSocketPackets::Handler_SMSG_GEM_SOCKET_ERROR(void*, uint32_t, uint32_t, CDataStore* pkt)
 {
 	int8_t code = Packet(pkt).GetInt8();
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_GEM_SOCKET_ERROR"), "%d", (int)code);
+	FrameXMLExtensions::SignalEvent("HOT_GEM_SOCKET_ERROR", "%d", (int)code);
 }
 
 // SMSG_GEM_SOCKET_COST: UInt32 itemId, UInt32 cost, UInt8 purchased, UInt8 canPurchase.
@@ -53,7 +53,7 @@ void GemSocketPackets::Handler_SMSG_GEM_SOCKET_COST(void*, uint32_t, uint32_t, C
 	self.m_purchased = r.GetUInt8();
 	self.m_canPurchase = r.GetUInt8();
 	self.m_hasCost = true;
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_GEM_SOCKET_COST_UPDATE"), "");
+	FrameXMLExtensions::SignalEvent("HOT_GEM_SOCKET_COST_UPDATE", "");
 }
 
 // SMSG_GEM_SOCKET_OPEN: no payload. Open the Jewelcrafting

@@ -73,12 +73,12 @@ static const uint32_t kFlagOnTransport = 0x00000200;
 static const uint32_t kClientOwnsZ =
     0x00C010FF | kFlagSwimming | kFlagFlying | kFlagOnTransport;
 
-static const float kWaistTrace = 1.2f;  // height above feet to sweep for walls
-static const float kWallSkin = 0.1f;    // stop this far short of a wall
-static const float kGroundUp = 2.0f;    // start the ground probe this far above feet
-static const float kGroundDown = 3.0f;  // probe this far below feet
-static const float kMaxStepDown = 2.0f; // snap down at most this far; a bigger drop is a fall
-static const float kZDeadzone = 0.05f;  // ignore ground differences smaller than this
+static const float kWaistTrace = 1.2f;      // height above feet to sweep for walls
+static const float kWallSkin = 0.1f;        // stop this far short of a wall
+static const float kGroundUp = 2.0f;        // start the ground probe this far above feet
+static const float kGroundDown = 3.0f;      // probe this far below feet
+static const float kMaxStepDown = 2.0f;     // snap down at most this far; a bigger drop is a fall
+static const float kZDeadzone = 0.05f;      // ignore ground differences smaller than this
 static const float kOriginDeadzone = 0.05f; // close enough to a radial origin to count as on it
 
 static UnitForces* FindUnit(uint64_t guid)
@@ -377,7 +377,7 @@ void MovementForce::Handler_ApplyForce(void*, uint32_t, uint32_t, CDataStore* pk
 	if (field.type == FORCE_TYPE_DIRECTIONAL)
 	{
 		float len = std::sqrt(field.direction.x * field.direction.x +
-		    field.direction.y * field.direction.y + field.direction.z * field.direction.z);
+		                      field.direction.y * field.direction.y + field.direction.z * field.direction.z);
 		if (len <= 0.0001f)
 			return; // a directional force with no direction does nothing
 

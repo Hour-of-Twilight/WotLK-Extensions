@@ -21,10 +21,10 @@ namespace ClientData::AutoRepeat
 	CLIENT_FUNCTION(CancelRangedSpells, 0x00806550, __cdecl, void, ())
 	CLIENT_FUNCTION(CancelMeleeSpells, 0x00806480, __cdecl, void, ())
 
-	CLIENT_FUNCTION(IsInMeleeRange, 0x0071B820, __thiscall, int, (CGUnit* self, CGUnit* target))
+	CLIENT_FUNCTION(IsInMeleeRange, 0x0071B820, __thiscall, int, (CGUnit * self, CGUnit* target))
 
 	// Ends in CancelAutoRepeat(1), which is what kills auto shot on melee-range entry.
-	CLIENT_FUNCTION(MeleeModeEnter, 0x006E2610, __thiscall, void, (CGUnit* self, uint64_t* targetGuid))
+	CLIENT_FUNCTION(MeleeModeEnter, 0x006E2610, __thiscall, void, (CGUnit * self, uint64_t* targetGuid))
 
 	// flt_9EBF34 and flt_9F987C.
 	constexpr float MELEE_RANGE_FLOOR = 5.0f;
@@ -33,7 +33,7 @@ namespace ClientData::AutoRepeat
 	// CGObject_C vtable slot, as a byte offset, that writes the world position to an out param.
 	constexpr uintptr_t VF_GET_POSITION = 0x2C;
 
-	using GetPositionFn = C3Vector*(__thiscall*)(CGUnit* self, C3Vector* out);
+	using GetPositionFn = C3Vector*(__thiscall*)(CGUnit * self, C3Vector* out);
 
 	// In CGPlayer_C::AutoCombatModeEventHandler (0x006E2BE0), the IsInMeleeRange call whose
 	// true branch runs MeleeModeEnter. The other call site (0x006E4B51) is left stock.

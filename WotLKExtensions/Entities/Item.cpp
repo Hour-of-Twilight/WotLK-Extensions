@@ -8,9 +8,9 @@
 enum ItemFlags2 : uint32
 {
 	ITEM_FLAG2_PARADOXICAL = 0x10000000,
-	ITEM_FLAG2_HEIRLOOM    = 0x20000000,
-	ITEM_FLAG2_LEGENDARY   = 0x40000000,
-	ITEM_FLAG2_CORRUPTED   = 0x80000000,
+	ITEM_FLAG2_HEIRLOOM = 0x20000000,
+	ITEM_FLAG2_LEGENDARY = 0x40000000,
+	ITEM_FLAG2_CORRUPTED = 0x80000000,
 };
 
 // Most specific combination first, so an item flagged corrupted and legendary reads as
@@ -21,14 +21,14 @@ static const struct
 	const char* key;
 } sTooltipLabels[] = {
 	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_CORRUPTED | ITEM_FLAG2_LEGENDARY, "ITEM_PARADOXICAL_TIME_WARPED_LEGENDARY" },
-	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_CORRUPTED,                        "ITEM_PARADOXICAL_CORRUPTED" },
-	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_LEGENDARY,                        "ITEM_PARADOXICAL_LEGENDARY" },
-	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_HEIRLOOM,                         "ITEM_PARADOXICAL_HEIRLOOM" },
-	{ ITEM_FLAG2_CORRUPTED | ITEM_FLAG2_LEGENDARY,                          "ITEM_TIME_WARPED_LEGENDARY" },
-	{ ITEM_FLAG2_CORRUPTED,                                                 "ITEM_CORRUPTED" },
-	{ ITEM_FLAG2_PARADOXICAL,                                               "ITEM_PARADOXICAL" },
-	{ ITEM_FLAG2_LEGENDARY,                                                 "ITEM_LEGENDARY" },
-	{ ITEM_FLAG2_HEIRLOOM,                                                  "ITEM_HEIRLOOM" },
+	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_CORRUPTED, "ITEM_PARADOXICAL_CORRUPTED" },
+	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_LEGENDARY, "ITEM_PARADOXICAL_LEGENDARY" },
+	{ ITEM_FLAG2_PARADOXICAL | ITEM_FLAG2_HEIRLOOM, "ITEM_PARADOXICAL_HEIRLOOM" },
+	{ ITEM_FLAG2_CORRUPTED | ITEM_FLAG2_LEGENDARY, "ITEM_TIME_WARPED_LEGENDARY" },
+	{ ITEM_FLAG2_CORRUPTED, "ITEM_CORRUPTED" },
+	{ ITEM_FLAG2_PARADOXICAL, "ITEM_PARADOXICAL" },
+	{ ITEM_FLAG2_LEGENDARY, "ITEM_LEGENDARY" },
+	{ ITEM_FLAG2_HEIRLOOM, "ITEM_HEIRLOOM" },
 };
 
 static const char* GetHeroicQualityLabelKey(const ItemCache* item, const char* defaultKey)
@@ -81,8 +81,13 @@ __declspec(naked) static void CGTooltip__SetItem_HeroicLabel()
 
 void Item::Apply()
 {
-	PatchItemDBC();
 	PatchHeroicQualityTooltipLabel();
+}
+
+CLIENT_DETOUR(ClientDBInitialize, 0x00634E00, __cdecl, void, (void))
+{
+	ClientDBInitialize();
+	Item::PatchItemDBC();
 }
 
 void Item::PatchHeroicQualityTooltipLabel()
@@ -108,10 +113,10 @@ void Item::PatchTooltipLabelPush(uint32_t pushSite, void* stub)
 
 void Item::PatchItemDBC()
 {
-	while (!g_itemDB->b_base_01.m_loaded)
+	if (!g_itemDB->b_base_01.m_loaded)
 	{
-		LOG_DEBUG << "Waiting for item dbc to be loaded...";
-		Sleep(100);
+		LOG_ERROR << "Item dbc is not loaded, skipping item record table expansion.";
+		return;
 	}
 
 	int oldMinID = g_itemDB->b_base_01.m_minID;

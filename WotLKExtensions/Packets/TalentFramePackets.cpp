@@ -60,7 +60,7 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_CACHE(void*, uint32_t, uint3
 		nodes[info.index] = std::move(info);
 	}
 
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_CACHE"), "");
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_CACHE", "");
 }
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_SMALL_CACHE(void*, uint32_t, uint32_t, CDataStore* a3)
@@ -72,28 +72,28 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_SMALL_CACHE(void*, uint32_t,
 	self.m_talentLevel = r.GetUInt32();
 	ReadLearntTalents(r, self.m_learntTalents);
 	ReadLearntTalents(r, self.m_itemGrantedTalents);
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_SMALL_CACHE"), "");
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_SMALL_CACHE", "");
 }
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_ITEM_GRANTED_UPDATE(void*, uint32_t, uint32_t, CDataStore* a3)
 {
 	Packet r(a3);
 	ReadLearntTalents(r, Instance().m_itemGrantedTalents);
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_ITEM_GRANTED_UPDATE"), "");
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_ITEM_GRANTED_UPDATE", "");
 }
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_POINTS(void*, uint32_t, uint32_t, CDataStore* a3)
 {
 	uint32_t freePoints = Packet(a3).GetUInt32();
 	Instance().m_freePoints = freePoints;
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_POINTS"), "%u", freePoints);
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_POINTS", "%u", freePoints);
 }
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEVEL(void*, uint32_t, uint32_t, CDataStore* a3)
 {
 	uint32_t talentLevel = Packet(a3).GetUInt32();
 	Instance().m_talentLevel = talentLevel;
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_LEVEL"), "%u", talentLevel);
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_LEVEL", "%u", talentLevel);
 }
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARN_RESPONSE(void*, uint32_t, uint32_t, CDataStore* a3)
@@ -101,7 +101,7 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARN_RESPONSE(void*, uint32
 	Packet r(a3);
 	uint32_t nodeId = r.GetUInt32();
 	uint8_t canLearn = r.GetUInt8();
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_LEARN_RESPONSE"), "%u%u", nodeId, (uint32_t)canLearn);
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_LEARN_RESPONSE", "%u%u", nodeId, (uint32_t)canLearn);
 }
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_UNLEARN_RESPONSE(void*, uint32_t, uint32_t, CDataStore* a3)
@@ -109,7 +109,7 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_UNLEARN_RESPONSE(void*, uint
 	Packet r(a3);
 	uint32_t nodeId = r.GetUInt32();
 	uint8_t result = r.GetUInt8();
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_UNLEARN_RESPONSE"), "%u%u", nodeId, (uint32_t)result);
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_UNLEARN_RESPONSE", "%u%u", nodeId, (uint32_t)result);
 }
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_RESET(void*, uint32_t, uint32_t, CDataStore* a3)
@@ -118,7 +118,7 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_RESET(void*, uint32_t, uint3
 	TalentFramePackets& self = Instance();
 	self.m_freePoints = freePoints;
 	self.m_learntTalents.clear();
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_RESET"), "%u", freePoints);
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_RESET", "%u", freePoints);
 }
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_INSPECT_RESPONSE(void*, uint32_t, uint32_t, CDataStore* a3)
@@ -128,13 +128,13 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_INSPECT_RESPONSE(void*, uint
 	self.m_inspectFreePoints = r.GetUInt32();
 	self.m_inspectTalentLevel = r.GetUInt32();
 	ReadLearntTalents(r, self.m_inspectLearntTalents);
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_INSPECT_RESPONSE"), "");
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_INSPECT_RESPONSE", "");
 }
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_NEW(void*, uint32_t, uint32_t, CDataStore* a3)
 {
 	uint32_t nodeId = Packet(a3).GetUInt32();
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_NEW"), "%u", nodeId);
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_NEW", "%u", nodeId);
 }
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARNT_UPDATE(void*, uint32_t, uint32_t, CDataStore* a3)
@@ -143,7 +143,7 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARNT_UPDATE(void*, uint32_
 	uint32_t freePoints = r.GetUInt32();
 	ReadLearntTalents(r, Instance().m_learntTalents);
 	Instance().m_freePoints = freePoints;
-	FrameScript::SignalEvent(FrameXMLExtensions::GetEventIdByName("HOT_TALENT_LEARNT_UPDATE"), "%u", freePoints);
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_LEARNT_UPDATE", "%u", freePoints);
 }
 
 int TalentFramePackets::GetCustomTalentStorage(lua_State* L)
