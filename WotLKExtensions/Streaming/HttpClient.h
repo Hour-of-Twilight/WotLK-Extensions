@@ -14,6 +14,7 @@ namespace Streaming
 		std::function<long long()> bytesPerSecond; // re-read every chunk, 0 or unset = unlimited
 		std::function<void(long long)> onBytes;
 		std::function<bool()> cancel;
+		std::string* sha256Out = nullptr;
 	};
 	bool HttpDownloadFile(const std::wstring& url, const std::wstring& destPath, const DownloadOptions& opt);
 }

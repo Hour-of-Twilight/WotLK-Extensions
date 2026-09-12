@@ -17,6 +17,7 @@ namespace ClientData
 		{
 			SPELL_AURA_SCHOOL_ABSORB = 69,
 			SPELL_AURA_MANA_SHIELD = 97,
+			SPELL_AURA_SCHOOL_HEAL_ABSORB = 301,
 		};
 
 		// SetTooltipUnitAura's "call CGTooltip__SetBuff", where esi is the CGUnit and edi the slot.

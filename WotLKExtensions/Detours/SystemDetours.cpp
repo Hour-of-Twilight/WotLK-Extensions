@@ -7,6 +7,8 @@
 #include <Misc.h>
 #include <UnitLevelCache.h>
 #include <AuraValuesCache.h>
+#include <UnitHealthPrediction.h>
+#include <CraftingPackets.h>
 #include <ItemLevelPackets.h>
 
 CLIENT_DETOUR(CGlueMgr__EnterWorld, 0x4D9BD0, __cdecl, void, ())
@@ -16,6 +18,8 @@ CLIENT_DETOUR(CGlueMgr__EnterWorld, 0x4D9BD0, __cdecl, void, ())
 	sPlayer.ResetVariables();
 	sUnitLevelCache.ClearAll();
 	sAuraValuesCache.ClearAll();
+	sUnitHealthPrediction.ClearAll();
+	sCraftingPackets.Reset();
 	sItemLevelPackets.Clear();
 	sCustomPacket.SendSanityCheck(true);
 }
@@ -38,6 +42,7 @@ CLIENT_DETOUR(InitializeProgressBar, 0x0040A990, __cdecl, int, (char arg0))
 	int result = InitializeProgressBar(arg0);
 	sUnitLevelCache.ClearCreatures();
 	sAuraValuesCache.ClearAll();
+	sUnitHealthPrediction.ClearAll();
 	return result;
 }
 

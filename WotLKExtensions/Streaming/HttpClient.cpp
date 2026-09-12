@@ -1,9 +1,13 @@
 #include "HttpClient.h"
 
+#include "Sha256.h"
+
 #include <windows.h>
 #include <winhttp.h>
 
+#include <algorithm>
 #include <fstream>
+#include <memory>
 #include <vector>
 #include <chrono>
 #include <thread>
@@ -90,6 +94,25 @@ namespace Streaming
 				return false;
 			return true;
 		}
+
+		bool HashPrefix(const std::wstring& path, long long count, Sha256Stream& hash)
+		{
+			std::ifstream in(path, std::ios::binary);
+			if (!in)
+				return false;
+			std::vector<char> buf(1 << 20);
+			while (count > 0)
+			{
+				std::streamsize want = (std::streamsize)std::min<long long>(count, (long long)buf.size());
+				in.read(buf.data(), want);
+				std::streamsize got = in.gcount();
+				if (got <= 0)
+					return false;
+				hash.Update(buf.data(), (size_t)got);
+				count -= got;
+			}
+			return true;
+		}
 	}
 
 	bool HttpGetString(const std::wstring& url, std::string& out)
@@ -122,6 +145,9 @@ namespace Streaming
 
 	bool HttpDownloadFile(const std::wstring& url, const std::wstring& destPath, const DownloadOptions& opt)
 	{
+		if (opt.sha256Out)
+			opt.sha256Out->clear();
+
 		Conn c;
 		if (!OpenGet(c, url, opt.resumeFrom))
 			return false;
@@ -132,6 +158,14 @@ namespace Streaming
 		const bool resuming = (opt.resumeFrom > 0 && status == 206);
 		if (status != 200 && status != 206)
 			return false;
+
+		std::unique_ptr<Sha256Stream> hash;
+		if (opt.sha256Out)
+		{
+			hash = std::make_unique<Sha256Stream>();
+			if (resuming && !HashPrefix(destPath, opt.resumeFrom, *hash))
+				hash.reset();
+		}
 
 		std::ofstream f(destPath, std::ios::binary | (resuming ? std::ios::app : std::ios::trunc));
 		if (!f)
@@ -161,6 +195,8 @@ namespace Streaming
 			f.write(buf.data(), read);
 			if (!f)
 				return false;
+			if (hash)
+				hash->Update(buf.data(), read);
 			written += read;
 			if (opt.onBytes)
 				opt.onBytes(written);
@@ -185,6 +221,12 @@ namespace Streaming
 				}
 			}
 		}
+
+		f.close();
+		if (!f)
+			return false;
+		if (hash)
+			*opt.sha256Out = hash->Finish();
 		return true;
 	}
 }

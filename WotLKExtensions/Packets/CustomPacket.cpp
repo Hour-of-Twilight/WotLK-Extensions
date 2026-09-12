@@ -5,9 +5,12 @@
 #include "TestFramePackets.h"
 #include "UnitLevelCache.h"
 #include "AuraValuesCache.h"
+#include "UnitHealthPrediction.h"
+#include "CraftingPackets.h"
 #include "GemSocketPackets.h"
 #include "GroupFinderPackets.h"
 #include "ItemGenPackets.h"
+#include "GameTelePackets.h"
 #include "ItemLevelPackets.h"
 #include "ItemDbCachePackets.h"
 #include "FeaturePackets.h"
@@ -56,10 +59,13 @@ void CustomPacket::Apply()
 	sGemSocketPackets.Apply();
 	sGroupFinderPackets.Apply();
 	sItemGenPackets.Apply();
+	sGameTelePackets.Apply();
 	sItemLevelPackets.Apply();
 	sTestFramePackets.Apply();
 	sUnitLevelCache.Apply();
 	sAuraValuesCache.Apply();
+	sUnitHealthPrediction.Apply();
+	sCraftingPackets.Apply();
 	sLootWindowPackets.Apply();
 	sMovementForce.Apply();
 	ItemDbCachePackets::RegisterHandlers();
@@ -226,11 +232,27 @@ void CustomPacket::Packet_SMSG_BACKGROUND_DOWNLOAD(void* handlerParam, uint32_t 
 
 void CustomPacket::SendSanityCheck(bool sendMpqs)
 {
-	Packet pkt(CMSG_SANITY_CHECK);
-	pkt.PutString(DllVersion::Commit.data());
-	if (sendMpqs)
+	if (!sendMpqs)
 	{
-		std::vector<MpqInfo> mpqs = sMpqScanner.GetResults();
+		Packet pkt(CMSG_SANITY_CHECK);
+		pkt.PutString(DllVersion::Commit.data());
+		pkt.PutInt32(0);
+		pkt.Send();
+		return;
+	}
+
+	if (m_sanityCheckQueued)
+		return;
+	m_sanityCheckQueued = true;
+
+	sMpqScanner.ScanAsync([](const std::vector<MpqInfo>& mpqs)
+	{
+		sCustomPacket.m_sanityCheckQueued = false;
+		if (!sPlayer.IsInWorld())
+			return;
+
+		Packet pkt(CMSG_SANITY_CHECK);
+		pkt.PutString(DllVersion::Commit.data());
 		pkt.PutUInt32(static_cast<uint32>(mpqs.size()));
 		for (const auto& mpq : mpqs)
 		{
@@ -238,11 +260,8 @@ void CustomPacket::SendSanityCheck(bool sendMpqs)
 			pkt.PutUInt8(mpq.updating ? 1 : 0);
 			pkt.PutString(mpq.digest.c_str());
 		}
-	}
-	else
-		pkt.PutInt32(0);
-
-	pkt.Send();
+		pkt.Send();
+	});
 }
 
 void CustomPacket::Packet_SMSG_FUCKED_CLIENT_DETECTED(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3)

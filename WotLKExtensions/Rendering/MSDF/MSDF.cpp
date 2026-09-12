@@ -5,6 +5,8 @@
 #include "MSDFShaders.h"
 #include "Hooks.h"
 #include <Cvars.h>
+#include <Logger.h>
+#include <Util.h>
 #include <cstdlib>
 #include <cstring>
 #include <ranges>
@@ -607,8 +609,13 @@ namespace {
         return 0;
     }
 
+    bool MsdfSupported() {
+        static const bool supported = true;//!Util::IsWine();
+        return supported;
+    }
+
     void ApplyMsdfMode(int mode) {
-        s_msdfMode = mode;
+        s_msdfMode = MsdfSupported() ? mode : 0;
         if (s_msdfMode > 0 && !s_freeTypeInitHooked) {
             DetourTransactionBegin();
             DetourUpdateThread(GetCurrentThread());
@@ -620,6 +627,10 @@ namespace {
 }
 
 void MSDF::initialize() {
+    if (!MsdfSupported()) {
+        LOG_INFO << "MSDF text rendering disabled: Wine/Proton has no glyph disk cache, live generation tanks the framerate";
+    }
+
     sCvars.Register(
         "MSDFMode",
         "0 = Disabled; 1 = Enabled; 2 = Enabled for unsafe/self-intersecting fonts",

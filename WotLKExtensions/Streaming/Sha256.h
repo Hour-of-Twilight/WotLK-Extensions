@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 namespace Streaming
@@ -17,4 +18,24 @@ namespace Streaming
 
 	// Raw 32-byte digest of a memory buffer, for callers that need the bytes rather than hex.
 	bool Sha256Raw(const void* data, size_t size, unsigned char out[32]);
+
+	// Lowercase hex digest of a memory buffer, "" if the hash provider is unavailable.
+	std::string Sha256Hex(const void* data, size_t size);
+
+	class Sha256Stream
+	{
+	public:
+		Sha256Stream();
+		~Sha256Stream();
+
+		Sha256Stream(const Sha256Stream&) = delete;
+		Sha256Stream& operator=(const Sha256Stream&) = delete;
+
+		void Update(const void* data, size_t size);
+		std::string Finish();
+
+	private:
+		struct Impl;
+		std::unique_ptr<Impl> m_impl;
+	};
 }

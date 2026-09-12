@@ -4,6 +4,14 @@
 #include "HttpClient.h"
 #include "ManifestSignature.h"
 #include "Sha256.h"
+#include "ArchiveManifest.h"
+#include "ArchivePatcher.h"
+#include "ArchiveRegistry.h"
+#include "BlobContainer.h"
+#include "MpqFile.h"
+#include "LocalDigests.h"
+#include "StreamLog.h"
+#include "TextConv.h"
 
 #include <ClientData/Streaming.h>
 
@@ -24,6 +32,7 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <atomic>
 #include <thread>
 #include <chrono>
@@ -83,16 +92,6 @@ namespace Streaming
 			g_totalBytes = 0;
 		}
 
-		void StreamLog(const char* fmt, ...)
-		{
-			char buf[1024];
-			va_list a;
-			va_start(a, fmt);
-			std::vsnprintf(buf, sizeof(buf), fmt, a);
-			va_end(a);
-			sLog.Write("DEBUG", "stream", buf);
-		}
-
 		constexpr int kMountPriorityBase = 1000000;
 		std::atomic<int> g_nextMountPriority{ kMountPriorityBase };
 
@@ -124,16 +123,6 @@ namespace Streaming
 			WideCharToMultiByte(CP_OEMCP, flags, s.c_str(), (int)s.size(), out.data(), n, nullptr, used);
 			if (lossy && usedDefault)
 				*lossy = true;
-			return out;
-		}
-
-		std::wstring WidenAcp(const std::string& s)
-		{
-			if (s.empty())
-				return L"";
-			int n = MultiByteToWideChar(CP_ACP, 0, s.c_str(), (int)s.size(), nullptr, 0);
-			std::wstring out(n, L'\0');
-			MultiByteToWideChar(CP_ACP, 0, s.c_str(), (int)s.size(), out.data(), n);
 			return out;
 		}
 
@@ -256,71 +245,9 @@ namespace Streaming
 			return ec ? -1 : (long long)s;
 		}
 
-		long long FileMtime(const std::wstring& p)
-		{
-			std::error_code ec;
-			auto t = fs::last_write_time(p, ec);
-			return ec ? -1 : (long long)t.time_since_epoch().count();
-		}
-
 		fs::path PendingFile()
 		{
 			return fs::path(g_installDir) / "Cache" / "hotstream-pending.txt";
-		}
-
-		fs::path HashCacheFile()
-		{
-			return fs::path(g_installDir) / "Cache" / "hotstream-local.txt";
-		}
-
-		struct HashEntry
-		{
-			long long size;
-			long long mtime;
-			std::string sha;
-		};
-
-		std::map<std::wstring, HashEntry> g_localHashes;
-		bool g_localHashesDirty = false;
-
-		void LoadLocalHashes()
-		{
-			g_localHashes.clear();
-			g_localHashesDirty = false;
-			std::ifstream in(HashCacheFile(), std::ios::binary);
-			std::string line;
-			while (in && std::getline(in, line))
-			{
-				if (!line.empty() && line.back() == '\r')
-					line.pop_back();
-				size_t a = line.find('|');
-				size_t b = (a == std::string::npos) ? a : line.find('|', a + 1);
-				size_t c = (b == std::string::npos) ? b : line.find('|', b + 1);
-				if (c == std::string::npos)
-					continue;
-				HashEntry e;
-				e.size = _atoi64(line.substr(0, a).c_str());
-				e.mtime = _atoi64(line.substr(a + 1, b - a - 1).c_str());
-				e.sha = line.substr(b + 1, c - b - 1);
-				std::string path = line.substr(c + 1);
-				if (!path.empty())
-					g_localHashes[LowerPath(WidenAcp(path))] = e;
-			}
-		}
-
-		void SaveLocalHashes()
-		{
-			if (!g_localHashesDirty)
-				return;
-			std::error_code ec;
-			fs::create_directories(HashCacheFile().parent_path(), ec);
-			std::ofstream f(HashCacheFile(), std::ios::trunc | std::ios::binary);
-			if (!f)
-				return;
-			for (const auto& kv : g_localHashes)
-				f << kv.second.size << "|" << kv.second.mtime << "|" << kv.second.sha << "|"
-				  << NarrowAcp(kv.first) << "\r\n";
-			g_localHashesDirty = false;
 		}
 
 		// What we check an already-present file against. MPQs carry a sampled digest so verifying
@@ -330,35 +257,19 @@ namespace Streaming
 			return mf.quick.empty() ? mf.sha256 : mf.quick;
 		}
 
-		void RememberLocal(const std::wstring& path, const std::string& digest)
+		void RememberPlaced(const std::wstring& path, const ManifestFile& mf, const ManifestArchive* arc)
 		{
-			long long size = FileSize(path);
-			long long mtime = FileMtime(path);
-			if (size < 0 || mtime < 0)
-				return;
-			g_localHashes[LowerPath(path)] = HashEntry{ size, mtime, digest };
-			g_localHashesDirty = true;
+			LocalDigests::Remember(path, LocalDigests::Kind::Sha256, mf.sha256);
+			LocalDigests::Remember(path, LocalDigests::Kind::Quick, mf.quick);
+			if (arc)
+				LocalDigests::Remember(path, LocalDigests::Kind::ContentId, arc->contentId);
 		}
 
 		bool LocalMatches(const std::wstring& path, const std::string& expected)
 		{
-			long long size = FileSize(path);
-			long long mtime = FileMtime(path);
-			if (size < 0 || mtime < 0)
-				return false;
-
-			// A cached digest of the wrong kind can't answer the question, so fall through and
-			// recompute rather than reporting a mismatch and re-downloading the whole file.
-			auto it = g_localHashes.find(LowerPath(path));
-			if (it != g_localHashes.end() && it->second.size == size && it->second.mtime == mtime && IsQuickDigest(it->second.sha) == IsQuickDigest(expected))
-				return _stricmp(it->second.sha.c_str(), expected.c_str()) == 0;
-
-			std::string got = IsQuickDigest(expected) ? QuickDigestFile(path) : Sha256File(path);
-			if (got.empty())
-				return false;
-			g_localHashes[LowerPath(path)] = HashEntry{ size, mtime, got };
-			g_localHashesDirty = true;
-			return _stricmp(got.c_str(), expected.c_str()) == 0;
+			const LocalDigests::Kind kind = IsQuickDigest(expected) ? LocalDigests::Kind::Quick : LocalDigests::Kind::Sha256;
+			std::string got;
+			return LocalDigests::Get(path, kind, got) && _stricmp(got.c_str(), expected.c_str()) == 0;
 		}
 
 		std::wstring ToBackslashes(std::wstring p)
@@ -443,6 +354,73 @@ namespace Streaming
 		}
 
 		HANDLE g_swapHold = INVALID_HANDLE_VALUE;
+		constexpr const char* kSwapHoldName = "hotstream-swap.hold";
+
+		bool WriteSwapScript(const fs::path& cmdPath, const std::string& hold,
+		    const std::string& pend, bool spinFirst)
+		{
+			std::ofstream b(cmdPath, std::ios::trunc | std::ios::binary);
+			if (!b)
+				return false;
+
+			b << "@echo off\r\n";
+			b << "set tries=0\r\n";
+
+			if (spinFirst)
+			{
+				b << "set spin=0\r\n";
+				b << ":spin\r\n";
+				b << "2>nul type nul >>\"" << hold << "\" && goto apply\r\n";
+				b << "set /a spin+=1\r\n";
+				b << "if %spin% lss 4000 goto spin\r\n";
+			}
+
+			b << ":wait\r\n";
+			b << "2>nul type nul >>\"" << hold
+			  << "\" || (ping -n 2 127.0.0.1 >nul & goto wait)\r\n";
+			b << ":apply\r\n";
+			b << "if not exist \"" << pend << "\" goto done\r\n";
+			b << "set failed=0\r\n";
+			b << "for /f \"usebackq tokens=1,2,3 delims=|\" %%a in (\"" << pend << "\") do (\r\n";
+			b << "  if \"%%a\"==\"M\" if exist \"%%b\" (move /y \"%%b\" \"%%c\" >nul 2>&1 || set failed=1)\r\n";
+			b << "  if \"%%a\"==\"D\" if exist \"%%b\" (del /q \"%%b\" >nul 2>&1 || set failed=1)\r\n";
+			b << ")\r\n";
+			b << "if \"%failed%\"==\"1\" if %tries% lss 10 "
+			     "(set /a tries+=1 & ping -n 2 127.0.0.1 >nul & goto apply)\r\n";
+			b << ":done\r\n";
+			b << "del /q \"" << pend << "\" >nul 2>&1\r\n";
+			b << "del /q \"" << hold << "\" >nul 2>&1\r\n";
+			b << "del /q \"%~f0\" >nul 2>&1\r\n";
+			return true;
+		}
+
+		bool SpawnSwapScript(const fs::path& cmdPath)
+		{
+			std::wstring cmdline = L"cmd.exe /c \"" + cmdPath.wstring() + L"\"";
+			std::vector<wchar_t> cl(cmdline.begin(), cmdline.end());
+			cl.push_back(0);
+			STARTUPINFOW si{};
+			si.cb = sizeof(si);
+			si.dwFlags = STARTF_USESHOWWINDOW;
+			si.wShowWindow = SW_HIDE;
+			PROCESS_INFORMATION pi{};
+			if (!CreateProcessW(nullptr, cl.data(), nullptr, nullptr, FALSE,
+			        CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi))
+				return false;
+			CloseHandle(pi.hThread);
+			CloseHandle(pi.hProcess);
+			return true;
+		}
+
+		std::string HoldRef()
+		{
+			return std::string("%~dp0") + kSwapHoldName;
+		}
+
+		std::string PendRef()
+		{
+			return std::string("%~dp0") + PendingFile().filename().string();
+		}
 
 		void SpawnCloseSwapHelper()
 		{
@@ -451,11 +429,8 @@ namespace Streaming
 				return;
 
 			const fs::path cacheDir = PendingFile().parent_path();
-			const std::string pendName = PendingFile().filename().string();
-			const char* cmdName = "hotstream-swap.cmd";
-			const char* holdName = "hotstream-swap.hold";
-			fs::path cmdPath = cacheDir / cmdName;
-			fs::path holdPath = cacheDir / holdName;
+			fs::path cmdPath = cacheDir / "hotstream-swap.cmd";
+			fs::path holdPath = cacheDir / kSwapHoldName;
 
 			g_swapHold = CreateFileW(holdPath.c_str(), GENERIC_WRITE, 0, nullptr,
 			    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -466,45 +441,31 @@ namespace Streaming
 				return;
 			}
 
-			const std::string hold = std::string("%~dp0") + holdName;
-			const std::string pend = std::string("%~dp0") + pendName;
+			if (!WriteSwapScript(cmdPath, HoldRef(), PendRef(), false))
+				return;
 
-			{
-				std::ofstream b(cmdPath, std::ios::trunc | std::ios::binary);
-				if (!b)
-					return;
-				b << "@echo off\r\n";
-				b << ":wait\r\n";
-				b << "2>nul type nul >>\"" << hold
-				  << "\" || (ping -n 2 127.0.0.1 >nul & goto wait)\r\n";
-				b << "for /f \"usebackq tokens=1,2,3 delims=|\" %%a in (\"" << pend << "\") do (\r\n";
-				b << "  if \"%%a\"==\"M\" move /y \"%%b\" \"%%c\" >nul 2>&1\r\n";
-				b << "  if \"%%a\"==\"D\" del /q \"%%b\" >nul 2>&1\r\n";
-				b << ")\r\n";
-				b << "del /q \"" << pend << "\" >nul 2>&1\r\n";
-				b << "del /q \"" << hold << "\" >nul 2>&1\r\n";
-				b << "del /q \"%~f0\" >nul 2>&1\r\n";
-			}
-
-			std::wstring cmdline = L"cmd.exe /c \"" + cmdPath.wstring() + L"\"";
-			std::vector<wchar_t> cl(cmdline.begin(), cmdline.end());
-			cl.push_back(0);
-			STARTUPINFOW si{};
-			si.cb = sizeof(si);
-			si.dwFlags = STARTF_USESHOWWINDOW;
-			si.wShowWindow = SW_HIDE;
-			PROCESS_INFORMATION pi{};
-			if (CreateProcessW(nullptr, cl.data(), nullptr, nullptr, FALSE,
-			        CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi))
-			{
-				CloseHandle(pi.hThread);
-				CloseHandle(pi.hProcess);
+			if (SpawnSwapScript(cmdPath))
 				StreamLog("stream: spawned close-swap helper");
-			}
 			else
-			{
 				StreamLog("stream: close-swap helper spawn FAILED (err %lu)", GetLastError());
-			}
+		}
+
+		void SpawnExitSwapHelper()
+		{
+			static std::atomic<bool> spawned{ false };
+			if (spawned.exchange(true))
+				return;
+			if (g_swapHold == INVALID_HANDLE_VALUE)
+				return;
+
+			fs::path cmdPath = PendingFile().parent_path() / "hotstream-swap-now.cmd";
+			if (!WriteSwapScript(cmdPath, HoldRef(), PendRef(), true))
+				return;
+
+			if (SpawnSwapScript(cmdPath))
+				StreamLog("stream: spawned exit swap helper");
+			else
+				StreamLog("stream: exit swap helper spawn FAILED (err %lu)", GetLastError());
 		}
 
 		void RecordPending(const std::wstring& newPath, const std::wstring& target, bool needsRestart)
@@ -634,14 +595,55 @@ namespace Streaming
 			WritePendingLocked();
 		}
 
+		void SwapOnClose()
+		{
+			{
+				std::lock_guard<std::mutex> lock(g_pendingMutex);
+				if (g_pendingMoves.empty() && g_pendingDeletes.empty())
+					return;
+			}
+
+			ApplyPending();
+
+			bool remaining;
+			{
+				std::lock_guard<std::mutex> lock(g_pendingMutex);
+				remaining = !g_pendingMoves.empty() || !g_pendingDeletes.empty();
+			}
+			if (remaining)
+				SpawnExitSwapHelper();
+		}
+
 		struct MountRequest
 		{
 			std::string path;
 		};
 
-		std::mutex g_mountMutex;
-		std::vector<MountRequest> g_mountQueue;
+		// Everything one pass produced for the main thread. Nothing in it is applied until the
+		// whole pass has finished downloading, so a pass that touches several archives refreshes
+		// DBCs and models once, against the newest copy of each file.
+		struct PassBatch
+		{
+			std::vector<ArchivePatchJob> jobs;
+			std::vector<MountRequest> mounts;
+		};
+
+		std::mutex g_batchMutex;
+		std::deque<PassBatch> g_batchQueue;
+		size_t g_frontJobsDone = 0;       // guarded by g_batchMutex
+		PassBatch g_passBatch;            // background thread only, published at the end of a pass
 		std::set<std::wstring> g_mounted; // path + hash, so a re-download of a path still remounts
+
+		void PublishBatch()
+		{
+			if (g_passBatch.jobs.empty() && g_passBatch.mounts.empty())
+				return;
+			StreamLog("stream: publishing batch, %d in-place job(s), %d mount(s)",
+			    (int)g_passBatch.jobs.size(), (int)g_passBatch.mounts.size());
+			std::lock_guard<std::mutex> lock(g_batchMutex);
+			g_batchQueue.push_back(std::move(g_passBatch));
+			g_passBatch = PassBatch();
+		}
 
 		std::mutex g_eventMutex;
 		std::deque<std::function<void()>> g_eventQueue;
@@ -661,8 +663,7 @@ namespace Streaming
 				return;
 			}
 			StreamLog("stream: queued mount %s", p.c_str());
-			std::lock_guard<std::mutex> lock(g_mountMutex);
-			g_mountQueue.push_back(MountRequest{ std::move(p) });
+			g_passBatch.mounts.push_back(MountRequest{ std::move(p) });
 		}
 
 		int __cdecl RefreshUnitModelCb(uint32_t guidLow, uint32_t guidHigh, void*)
@@ -687,7 +688,7 @@ namespace Streaming
 			StreamLog("stream: rebuilt world models after art mount");
 		}
 
-		void PlaceFile(const std::string& baseUrl, const ManifestFile& mf)
+		void PlaceFile(const std::string& baseUrl, const ManifestFile& mf, const ManifestArchive* arc)
 		{
 			std::wstring local = TargetPath(mf);
 			std::error_code ec;
@@ -711,8 +712,10 @@ namespace Streaming
 				url.pop_back();
 			url += "/" + UrlEncodePath(mf.path) + "?v=" + mf.sha256;
 
+			std::string got;
 			DownloadOptions opt;
 			opt.resumeFrom = resume;
+			opt.sha256Out = &got;
 			opt.bytesPerSecond = []
 			{
 				return sLauncherSettings.MaxDownloadBytesPerSecond();
@@ -727,7 +730,8 @@ namespace Streaming
 				return;
 			}
 
-			std::string got = Sha256File(part);
+			if (got.empty())
+				got = Sha256File(part);
 			if (_stricmp(got.c_str(), mf.sha256.c_str()) != 0)
 			{
 				fs::remove(part, ec);
@@ -750,7 +754,7 @@ namespace Streaming
 				}
 				// SHA-256 already matched above, so the file is the manifest's file and we can
 				// record its expected digest without reading it back.
-				RememberLocal(local, ExpectedDigest(mf));
+				RememberPlaced(local, mf, arc);
 				if (isMpq)
 					EnqueueMount(local, mf.sha256);
 				return;
@@ -759,7 +763,7 @@ namespace Streaming
 			// Exists: swap now if unlocked, else stage a hash-named copy, mount it, swap later.
 			if (MoveFileExW(part.c_str(), local.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
 			{
-				RememberLocal(local, ExpectedDigest(mf));
+				RememberPlaced(local, mf, arc);
 				if (isMpq)
 					EnqueueMount(local, mf.sha256);
 				SweepStagedSiblings(local, L"");
@@ -781,20 +785,21 @@ namespace Streaming
 			}
 		}
 
-		void SwapOrStage(const std::wstring& np, const std::wstring& local, bool isMpq,
-		    const std::string& sha, const std::string& expected)
+		void SwapOrStage(const std::wstring& np, const std::wstring& local, const ManifestFile& mf,
+		    const ManifestArchive* arc)
 		{
+			const bool isMpq = IsMpq(mf.path);
 			if (MoveFileExW(np.c_str(), local.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
 			{
-				RememberLocal(local, expected);
+				RememberPlaced(local, mf, arc);
 				if (isMpq)
-					EnqueueMount(local, sha);
+					EnqueueMount(local, mf.sha256);
 				SweepStagedSiblings(local, L"");
 			}
 			else
 			{
 				if (isMpq)
-					EnqueueMount(np, sha);
+					EnqueueMount(np, mf.sha256);
 				RecordPending(np, local, !isMpq);
 				SweepStagedSiblings(local, np);
 			}
@@ -830,6 +835,432 @@ namespace Streaming
 			StreamLog("stream: hd on, restored %s", NarrowAcp(local).c_str());
 			restored = true;
 			return true;
+		}
+
+		fs::path BlobCacheDir()
+		{
+			return fs::path(g_installDir) / "Cache" / "blobs";
+		}
+
+		std::wstring BlobPath(const std::string& sha)
+		{
+			return (BlobCacheDir() / Widen(sha)).wstring();
+		}
+
+		bool ReadBinaryFile(const std::wstring& path, std::string& out)
+		{
+			std::ifstream f(path, std::ios::binary | std::ios::ate);
+			if (!f)
+				return false;
+			std::streamsize size = f.tellg();
+			if (size < 0)
+				return false;
+			out.resize((size_t)size);
+			f.seekg(0, std::ios::beg);
+			return size == 0 || (bool)f.read(out.data(), size);
+		}
+
+		bool WriteBinaryFileAtomic(const std::wstring& path, const std::string& data)
+		{
+			std::wstring tmp = path + L".tmp";
+			{
+				std::ofstream f(tmp, std::ios::trunc | std::ios::binary);
+				if (!f || !f.write(data.data(), (std::streamsize)data.size()))
+					return false;
+			}
+			return MoveFileExW(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+		}
+
+		void MarkPlaced(const std::wstring& absPath)
+		{
+			{
+				std::lock_guard<std::mutex> lock(g_plannedMutex);
+				g_plannedUpdates.erase(LowerPath(absPath));
+			}
+			++g_updateGeneration;
+		}
+
+		const ManifestArchive* ArchiveFor(const Manifest& man, const ManifestFile& mf)
+		{
+			for (const ManifestArchive& a : man.archives)
+				if (_stricmp(a.path.c_str(), mf.path.c_str()) == 0 && ArchiveManifest::IsContentId(a.contentId))
+					return &a;
+			return nullptr;
+		}
+
+		std::string JoinUrl(const std::string& baseUrl, const std::string& rel)
+		{
+			std::string url = baseUrl;
+			if (!url.empty() && url.back() == '/')
+				url.pop_back();
+			return url + "/" + rel;
+		}
+
+		std::mutex g_failureMutex;
+		std::map<std::wstring, int> g_archiveFailures; // consecutive in-place failures per archive
+		std::map<std::wstring, std::string> g_inPlaceApplied;
+		constexpr int kInPlaceGiveUp = 3;
+
+		int InPlaceFailures(const std::wstring& path)
+		{
+			std::lock_guard<std::mutex> lock(g_failureMutex);
+			auto it = g_archiveFailures.find(LowerPath(path));
+			return it == g_archiveFailures.end() ? 0 : it->second;
+		}
+
+		void NoteInPlaceResult(const std::wstring& path, bool ok)
+		{
+			std::lock_guard<std::mutex> lock(g_failureMutex);
+			if (ok)
+				g_archiveFailures.erase(LowerPath(path));
+			else
+				++g_archiveFailures[LowerPath(path)];
+		}
+
+		void ExpectInPlace(const std::wstring& path, const std::string& contentId)
+		{
+			std::lock_guard<std::mutex> lock(g_failureMutex);
+			g_inPlaceApplied[LowerPath(path)] = contentId;
+		}
+
+		void SettleInPlace(const std::wstring& path, const std::string& localId, const std::string& relPath)
+		{
+			std::string expected;
+			{
+				std::lock_guard<std::mutex> lock(g_failureMutex);
+				auto it = g_inPlaceApplied.find(LowerPath(path));
+				if (it == g_inPlaceApplied.end())
+					return;
+				expected = std::move(it->second);
+				g_inPlaceApplied.erase(it);
+			}
+			const bool ok = (expected == localId);
+			if (!ok)
+				StreamLog("stream: %s was patched in place but reads back as %.12s, not %.12s", relPath.c_str(),
+				    localId.c_str(), expected.c_str());
+			NoteInPlaceResult(path, ok);
+		}
+
+		void ForgetInPlace(const std::wstring& path)
+		{
+			std::lock_guard<std::mutex> lock(g_failureMutex);
+			g_inPlaceApplied.erase(LowerPath(path));
+			g_archiveFailures.erase(LowerPath(path));
+		}
+
+		enum class ArchivePlan
+		{
+			Current,
+			InPlace,
+			WholeFile,
+			Skip
+		};
+
+		// Works out how to bring a manifest-carrying archive up to date. The whole-file path is
+		// only taken for reasons that will not go away on their own: no local manifest to diff
+		// against, files that need removing (the client cannot delete), an archive that has
+		// outgrown its published size because the client only ever appends, or repeated failures
+		// to write. Anything transient just skips this pass.
+		constexpr long long kBloatFloor = 64LL << 20;
+
+		ArchivePlan PlanArchive(const std::string& baseUrl, const ManifestFile& mf, const ManifestArchive& arc,
+		    const std::wstring& local, ArchivePatchJob& job)
+		{
+			if (!mf.quick.empty() && FileSize(local) == mf.size && LocalMatches(local, mf.quick))
+			{
+				LocalDigests::Remember(local, LocalDigests::Kind::ContentId, arc.contentId);
+				ForgetInPlace(local);
+				return ArchivePlan::Current;
+			}
+
+			std::string localId;
+			if (!LocalDigests::Get(local, LocalDigests::Kind::ContentId, localId))
+			{
+				StreamLog("stream: %s unreadable, retrying next pass", mf.path.c_str());
+				return ArchivePlan::Skip;
+			}
+			SettleInPlace(local, localId, mf.path);
+			if (localId.empty())
+			{
+				StreamLog("stream: %s has no (hotmanifest), whole-file update", mf.path.c_str());
+				return ArchivePlan::WholeFile;
+			}
+			if (localId == arc.contentId)
+				return ArchivePlan::Current;
+
+			if (InPlaceFailures(local) >= kInPlaceGiveUp)
+			{
+				StreamLog("stream: %s failed in place %d times, whole-file update", mf.path.c_str(), kInPlaceGiveUp);
+				return ArchivePlan::WholeFile;
+			}
+
+			std::string localBytes;
+			std::string err;
+			bool unreadable = false;
+			if (!MpqFile::ReadFile(local, ArchiveManifest::kFileName, localBytes, &err, &unreadable))
+			{
+				if (unreadable)
+				{
+					StreamLog("stream: %s unreadable (%s), retrying next pass", mf.path.c_str(), err.c_str());
+					return ArchivePlan::Skip;
+				}
+				StreamLog("stream: %s manifest unreadable (%s), whole-file update", mf.path.c_str(), err.c_str());
+				return ArchivePlan::WholeFile;
+			}
+			if (ArchiveManifest::ContentIdOf(localBytes) == arc.contentId)
+			{
+				LocalDigests::Remember(local, LocalDigests::Kind::ContentId, arc.contentId);
+				return ArchivePlan::Current;
+			}
+			std::vector<ArchiveEntry> localEntries;
+			if (!ArchiveManifest::Parse(localBytes, localEntries, &err))
+			{
+				StreamLog("stream: %s manifest corrupt (%s), whole-file update", mf.path.c_str(), err.c_str());
+				return ArchivePlan::WholeFile;
+			}
+
+			std::string targetBytes;
+			std::wstring indexUrl = Widen(JoinUrl(baseUrl, BlobContainer::RelativeIndexPath(arc.contentId)));
+			if (!HttpGetString(indexUrl, targetBytes))
+			{
+				StreamLog("stream: %s index fetch failed, retrying next pass", mf.path.c_str());
+				return ArchivePlan::Skip;
+			}
+			if (ArchiveManifest::ContentIdOf(targetBytes) != arc.contentId)
+			{
+				StreamLog("stream: %s index does not hash to its contentId, retrying next pass", mf.path.c_str());
+				return ArchivePlan::Skip;
+			}
+			std::vector<ArchiveEntry> targetEntries;
+			if (!ArchiveManifest::Parse(targetBytes, targetEntries, &err))
+			{
+				StreamLog("stream: %s index corrupt (%s), retrying next pass", mf.path.c_str(), err.c_str());
+				return ArchivePlan::Skip;
+			}
+
+			ArchiveDiff diff = ArchiveManifest::Diff(localEntries, targetEntries);
+			if (!diff.removed.empty())
+			{
+				StreamLog("stream: %s drops %d file(s), whole-file update", mf.path.c_str(), (int)diff.removed.size());
+				return ArchivePlan::WholeFile;
+			}
+			long long targetRaw = 0;
+			for (const ArchiveEntry& e : targetEntries)
+				targetRaw += e.size;
+			const long long onDisk = FileSize(local);
+			const long long growth = targetRaw > 0
+			                             ? (long long)((double)diff.changedBytes * (double)mf.size / (double)targetRaw)
+			                             : diff.changedBytes;
+			const long long allowed = mf.size + std::max(kBloatFloor, mf.size / 4);
+			if (onDisk + growth > allowed)
+			{
+				StreamLog("stream: %s would grow to %lld MB against %lld MB published, whole-file update to compact",
+				    mf.path.c_str(), (onDisk + growth) >> 20, mf.size >> 20);
+				return ArchivePlan::WholeFile;
+			}
+
+			job = ArchivePatchJob();
+			job.archivePath = local;
+			job.relPath = mf.path;
+			job.targetManifest = std::move(targetBytes);
+			job.contentId = arc.contentId;
+			for (ArchiveEntry& e : diff.changed)
+			{
+				ArchiveWrite w;
+				w.name = std::move(e.name);
+				w.size = e.size;
+				w.sha256 = e.sha256;
+				w.blobPath = BlobPath(w.sha256);
+				job.writes.push_back(std::move(w));
+			}
+			StreamLog("stream: %s -> %.12s in place, %d file(s), %lld bytes", mf.path.c_str(),
+			    arc.contentId.c_str(), (int)job.writes.size(), diff.changedBytes);
+			return ArchivePlan::InPlace;
+		}
+
+		// Leaves the verified raw bytes of one file at Cache/blobs/<sha>, downloading unless a
+		// valid copy is already there.
+		bool FetchBlob(const std::string& baseUrl, const ArchiveWrite& w)
+		{
+			std::string existing;
+			if (FileSize(w.blobPath) == w.size && ReadBinaryFile(w.blobPath, existing) &&
+			    Sha256Hex(existing.data(), existing.size()) == w.sha256)
+				return true;
+
+			std::error_code ec;
+			fs::create_directories(BlobCacheDir(), ec);
+			std::wstring part = w.blobPath + L".part";
+			fs::remove(part, ec);
+
+			DownloadOptions opt;
+			opt.bytesPerSecond = []
+			{
+				return sLauncherSettings.MaxDownloadBytesPerSecond();
+			};
+			const long long rawSize = w.size;
+			opt.onBytes = [rawSize](long long written)
+			{
+				g_doneBytes = g_baseBytes.load() + std::min(written, rawSize);
+			};
+			std::wstring url = Widen(JoinUrl(baseUrl, BlobContainer::RelativeBlobPath(w.sha256)));
+			if (!HttpDownloadFile(url, part, opt))
+			{
+				fs::remove(part, ec);
+				StreamLog("stream: blob download failed %s (%.12s)", w.name.c_str(), w.sha256.c_str());
+				return false;
+			}
+
+			std::string container;
+			std::string raw;
+			std::string err;
+			bool ok = ReadBinaryFile(part, container) && BlobContainer::Unpack(container, raw, &err);
+			fs::remove(part, ec);
+			if (!ok)
+			{
+				StreamLog("stream: blob unpack failed %s: %s", w.name.c_str(), err.c_str());
+				return false;
+			}
+			if ((long long)raw.size() != w.size || Sha256Hex(raw.data(), raw.size()) != w.sha256)
+			{
+				StreamLog("stream: blob hash mismatch %s", w.name.c_str());
+				return false;
+			}
+			if (!WriteBinaryFileAtomic(w.blobPath, raw))
+			{
+				StreamLog("stream: cannot write blob cache %s", w.name.c_str());
+				return false;
+			}
+			return true;
+		}
+
+		bool FetchJobBlobs(const std::string& baseUrl, const ArchivePatchJob& job)
+		{
+			for (const ArchiveWrite& w : job.writes)
+			{
+				{
+					std::lock_guard<std::mutex> lock(g_statusMutex);
+					g_currentFile = job.relPath + " " + w.name;
+				}
+				if (!FetchBlob(baseUrl, w))
+					return false;
+				g_baseBytes = g_baseBytes.load() + w.size;
+				g_doneBytes = g_baseBytes.load();
+			}
+			return true;
+		}
+
+		// Blobs left behind by a pass that never got applied. Whatever the current plan still
+		// wants is kept, the rest is dead weight.
+		void SweepBlobCache(const std::set<std::string>& wanted)
+		{
+			std::error_code ec;
+			for (const fs::directory_entry& e : fs::directory_iterator(BlobCacheDir(), ec))
+			{
+				if (!e.is_regular_file(ec))
+					continue;
+				std::string name = NarrowAcp(e.path().filename().wstring());
+				if (wanted.find(name) == wanted.end())
+					fs::remove(e.path(), ec);
+			}
+		}
+
+		struct BatchProgress
+		{
+			size_t nextJob = 0;
+			size_t nextMount = 0;
+			std::set<std::string> seen;
+			std::vector<std::string> names;
+			bool anyApplied = false;
+		};
+		BatchProgress g_batchProgress; // main thread only
+
+		void AddRefreshName(BatchProgress& bp, const std::string& name)
+		{
+			if (bp.seen.insert(Text::LowerAscii(name)).second)
+				bp.names.push_back(name);
+		}
+
+		// The one refresh a batch gets: every changed name is re-read through the client's normal
+		// lookup, so whichever archive now wins for it is what lands in memory.
+		void FinishBatch(BatchProgress& bp)
+		{
+			if (!bp.anyApplied)
+				return;
+			ClientData::Streaming::RebuildHash();
+			DbcFromMpq::RefreshResult r = DbcFromMpq::RefreshNames(bp.names);
+			if (r.spellDataChanged && ClientData::ObjectManager::GetActivePlayerObject())
+				EnqueueEvent([]
+				{
+					ClientData::SpellBook::Refresh();
+				});
+			// Streamed achievement rows land in the DBCs but not in CGAchievementInfo's index.
+			if (r.achievementDataChanged)
+				ClientData::Achievements::RequestRebuild();
+			if (r.interfaceFiles)
+				g_uiRefreshNeeded = true;
+			if (r.artFiles)
+				RefreshLoadedModels();
+			StreamLog("stream: batch applied, refreshed %d name(s)", (int)bp.names.size());
+		}
+
+		// One item of the front batch per frame, then a single refresh once it is drained.
+		void ProcessBatch()
+		{
+			PassBatch* batch = nullptr;
+			{
+				std::lock_guard<std::mutex> lock(g_batchMutex);
+				if (g_batchQueue.empty())
+					return;
+				batch = &g_batchQueue.front();
+			}
+			BatchProgress& bp = g_batchProgress;
+
+			if (bp.nextJob < batch->jobs.size())
+			{
+				const ArchivePatchJob& job = batch->jobs[bp.nextJob++];
+				unsigned long long t0 = GetTickCount64();
+				ArchivePatchResult r = ArchivePatcher::Apply(job);
+				StreamLog("stream: in-place %s %s: %d/%d file(s) written in %llu ms%s%s",
+				    job.relPath.c_str(), r.ok ? "OK" : "FAILED", (int)r.writtenNames.size(),
+				    (int)job.writes.size(), GetTickCount64() - t0, r.error.empty() ? "" : ", ",
+				    r.error.c_str());
+				for (const std::string& n : r.writtenNames)
+					AddRefreshName(bp, n);
+				if (!r.writtenNames.empty())
+					bp.anyApplied = true;
+				if (r.ok)
+					ExpectInPlace(job.archivePath, job.contentId);
+				else
+					NoteInPlaceResult(job.archivePath, false);
+				MarkPlaced(job.archivePath);
+				std::lock_guard<std::mutex> lock(g_batchMutex);
+				g_frontJobsDone = bp.nextJob;
+				return;
+			}
+
+			if (bp.nextMount < batch->mounts.size())
+			{
+				const MountRequest& req = batch->mounts[bp.nextMount++];
+				int priority = g_nextMountPriority.fetch_add(1);
+				void* hMpq = nullptr;
+				bool ok = ClientData::Streaming::MountArchive(req.path.c_str(), priority, &hMpq);
+				StreamLog("stream: mount %s (prio %d) -> %s", ok ? "OK" : "FAILED", priority, req.path.c_str());
+				if (ok && hMpq)
+				{
+					std::vector<std::string> names;
+					DbcFromMpq::CollectArchiveNames(hMpq, names);
+					for (const std::string& n : names)
+						AddRefreshName(bp, n);
+					bp.anyApplied = true;
+				}
+				return;
+			}
+
+			FinishBatch(bp);
+			bp = BatchProgress();
+			std::lock_guard<std::mutex> lock(g_batchMutex);
+			g_frontJobsDone = 0;
+			g_batchQueue.pop_front();
 		}
 
 		struct ActiveScope
@@ -943,13 +1374,29 @@ namespace Streaming
 				std::error_code ec;
 				fs::create_directories(PendingFile().parent_path(), ec);
 				std::ofstream(PendingFile(), std::ios::trunc | std::ios::binary);
-				std::atexit(&ApplyPending); // swap staged files in at clean exit, once handles are freed
+				std::atexit(&SwapOnClose); // swap staged files in at clean exit, once handles are freed
 			}
 
-			LoadLocalHashes();
+			// Whatever this pass queues for the main thread goes out as one batch when the pass
+			// ends, however it ends.
+			struct BatchScope
+			{
+				~BatchScope()
+				{
+					PublishBatch();
+				}
+			} batchScope;
 
-			std::vector<const ManifestFile*> plan;
+			struct PlannedItem
+			{
+				const ManifestFile* file;
+				bool inPlace;
+				ArchivePatchJob job;
+				long long bytes;
+			};
+			std::vector<PlannedItem> plan;
 			long long total = 0;
+			std::set<std::string> wantedBlobs;
 			for (const ManifestFile& mf : man.files)
 			{
 #ifdef AUTO_UPDATER_IGNORES_DLL
@@ -967,6 +1414,36 @@ namespace Streaming
 
 				std::wstring np = StagedPath(local, mf.sha256);
 
+				// An archive that describes itself is judged by its contents, not its bytes, and
+				// is brought up to date file by file where that is possible.
+				const ManifestArchive* arc = IsMpq(mf.path) ? ArchiveFor(man, mf) : nullptr;
+				if (arc && FileSize(local) >= 0 && FileSize(np) != mf.size)
+				{
+					PlannedItem item{ &mf, true, ArchivePatchJob(), 0 };
+					ArchivePlan how = PlanArchive(baseUrl, mf, *arc, local, item.job);
+					if (how == ArchivePlan::Current)
+					{
+						// Restored from .disabled, so the client never loaded it at startup.
+						if (restored)
+							EnqueueMount(local, arc->contentId);
+						SweepStagedSiblings(local, L"");
+						continue;
+					}
+					if (how == ArchivePlan::Skip)
+						continue;
+					if (how == ArchivePlan::InPlace)
+					{
+						for (const ArchiveWrite& w : item.job.writes)
+						{
+							item.bytes += w.size;
+							wantedBlobs.insert(w.sha256);
+						}
+						total += item.bytes;
+						plan.push_back(std::move(item));
+						continue;
+					}
+				}
+
 				if (FileSize(local) == mf.size && LocalMatches(local, ExpectedDigest(mf)))
 				{
 					// Restored from .disabled, so the client never loaded it at startup.
@@ -977,20 +1454,31 @@ namespace Streaming
 				}
 				if (FileSize(np) == mf.size)
 				{
-					SwapOrStage(np, local, IsMpq(mf.path), mf.sha256, ExpectedDigest(mf));
+					SwapOrStage(np, local, mf, arc);
 					continue;
 				}
-				plan.push_back(&mf);
+				plan.push_back(PlannedItem{ &mf, false, ArchivePatchJob(), mf.size });
 				total += mf.size;
 			}
-			SaveLocalHashes();
+			LocalDigests::Save();
+			SweepBlobCache(wantedBlobs);
 
 			// Publish what this pass is going to replace, so the sanity check can leave those files
-			// alone instead of reporting a stale copy we already know about.
+			// alone instead of reporting a stale copy we already know about. In-place jobs still
+			// waiting on the main thread from an earlier pass stay listed until they land.
 			{
 				std::set<std::wstring> planned;
-				for (const ManifestFile* mf : plan)
-					planned.insert(LowerPath(TargetPath(*mf)));
+				for (const PlannedItem& item : plan)
+					planned.insert(LowerPath(TargetPath(*item.file)));
+				{
+					std::lock_guard<std::mutex> lock(g_batchMutex);
+					for (size_t b = 0; b < g_batchQueue.size(); ++b)
+					{
+						const PassBatch& batch = g_batchQueue[b];
+						for (size_t j = (b == 0) ? g_frontJobsDone : 0; j < batch.jobs.size(); ++j)
+							planned.insert(LowerPath(batch.jobs[j].archivePath));
+					}
+				}
 
 				std::lock_guard<std::mutex> lock(g_plannedMutex);
 				if (planned != g_plannedUpdates)
@@ -1016,31 +1504,43 @@ namespace Streaming
 			g_totalBytes = g_totalBytes.load() + total;
 			g_baseBytes = g_doneBytes.load();
 
-			StreamLog("stream: downloading %d file(s)", (int)plan.size());
+			StreamLog("stream: downloading %d file(s), %lld bytes", (int)plan.size(), total);
 			g_active = true;
 			ActiveScope activeScope;
-			for (const ManifestFile* mf : plan)
+			for (PlannedItem& item : plan)
 			{
+				const ManifestFile& mf = *item.file;
 				{
 					std::lock_guard<std::mutex> lock(g_statusMutex);
-					g_currentFile = mf->path;
+					g_currentFile = mf.path;
 				}
-				PlaceFile(baseUrl, *mf);
+				if (item.inPlace)
 				{
+					// Applied by the main thread once the whole batch is published, which is also
+					// when the file stops counting as pending.
+					if (FetchJobBlobs(baseUrl, item.job))
+						g_passBatch.jobs.push_back(std::move(item.job));
+					else
+					{
+						StreamLog("stream: %s in-place download incomplete, retrying next pass", mf.path.c_str());
+						MarkPlaced(TargetPath(mf));
+					}
+				}
+				else
+				{
+					PlaceFile(baseUrl, mf, ArchiveFor(man, mf));
 					// Placed, so it is either current on disk or staged, and staged files are
 					// already covered by the pending-move list.
-					std::lock_guard<std::mutex> lock(g_plannedMutex);
-					g_plannedUpdates.erase(LowerPath(TargetPath(*mf)));
+					MarkPlaced(TargetPath(mf));
+					g_baseBytes = g_baseBytes.load() + mf.size;
 				}
-				++g_updateGeneration;
-				g_baseBytes = g_baseBytes.load() + mf->size;
 				g_doneBytes = g_baseBytes.load();
 				g_filesDone = g_filesDone.load() + 1;
 				g_lastProgressMs = GetTickCount64();
-				StreamLog("stream: finished %d/%d %s", g_filesDone.load(), g_filesTotal.load(), mf->path.c_str());
+				StreamLog("stream: finished %d/%d %s", g_filesDone.load(), g_filesTotal.load(), mf.path.c_str());
 			}
 
-			SaveLocalHashes();
+			LocalDigests::Save();
 			StreamLog("stream: background download pass complete");
 		}
 	}
@@ -1117,6 +1617,7 @@ namespace Streaming
 			return;
 		std::thread([]
 		{
+			SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
 			Run();
 			g_running = false;
 		}).detach();
@@ -1198,42 +1699,9 @@ namespace Streaming
 			});
 		}
 
-		// Do the main-thread mount work, queuing any resulting Lua events rather than firing them.
-		std::vector<MountRequest> batch;
-		{
-			std::lock_guard<std::mutex> lock(g_mountMutex);
-			batch.swap(g_mountQueue);
-		}
-		bool artMounted = false;
-		for (const MountRequest& req : batch)
-		{
-			const char* path = req.path.c_str();
-			int priority = g_nextMountPriority.fetch_add(1);
-			void* hMpq = nullptr;
-			bool ok = ClientData::Streaming::MountArchive(path, priority, &hMpq);
-			StreamLog("stream: mount %s (prio %d) -> %s", ok ? "OK" : "FAILED", priority, path);
-			if (ok && hMpq)
-			{
-				ClientData::Streaming::RebuildHash();
-				DbcFromMpq::RefreshResult r = DbcFromMpq::RefreshFromArchive(hMpq);
-
-				if (r.spellDataChanged && ClientData::ObjectManager::GetActivePlayerObject())
-					EnqueueEvent([]
-					{
-						ClientData::SpellBook::Refresh();
-					});
-				// Streamed achievement rows land in the DBCs but not in CGAchievementInfo's index.
-				if (r.achievementDataChanged)
-					ClientData::Achievements::RequestRebuild();
-				if (r.interfaceFiles)
-					g_uiRefreshNeeded = true;
-				if (r.artFiles)
-					artMounted = true;
-			}
-		}
-
-		if (artMounted)
-			RefreshLoadedModels();
+		// Main-thread archive work: one batch item per frame, then a single refresh. Any Lua
+		// events it produces are queued rather than fired inline.
+		ProcessBatch();
 
 		if (ClientData::Achievements::ConsumeRebuildRequest() &&
 		    ClientData::ObjectManager::GetActivePlayerObject())
@@ -1254,4 +1722,10 @@ namespace Streaming
 		}
 		event();
 	}
+}
+
+CLIENT_DETOUR(EventPostCloseEx, 0x0047D290, __cdecl, int, (unsigned int context))
+{
+	::Streaming::SwapOnClose();
+	return EventPostCloseEx(context);
 }

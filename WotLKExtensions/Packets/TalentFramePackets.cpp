@@ -146,6 +146,42 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARNT_UPDATE(void*, uint32_
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_LEARNT_UPDATE", "%u", freePoints);
 }
 
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LOADOUTS(void*, uint32_t, uint32_t, CDataStore* a3)
+{
+	Packet r(a3);
+	TalentFramePackets& self = Instance();
+	self.m_activeLoadout = r.GetUInt32();
+	self.m_maxLoadouts = r.GetUInt32();
+
+	uint32_t count = r.GetUInt32();
+	if (count > 256)
+		count = 256;
+
+	self.m_loadouts.clear();
+	self.m_loadouts.reserve(count);
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		TalentLoadoutInfo info;
+		info.id = r.GetUInt32();
+		char name[128] = {};
+		r.GetString(name, sizeof(name));
+		info.name = name;
+		info.nodeCount = r.GetUInt32();
+		self.m_loadouts.push_back(std::move(info));
+	}
+
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_LOADOUTS", "%u", self.m_activeLoadout);
+}
+
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LOADOUT_RESULT(void*, uint32_t, uint32_t, CDataStore* a3)
+{
+	Packet r(a3);
+	uint8_t op = r.GetUInt8();
+	uint8_t result = r.GetUInt8();
+	uint32_t loadoutId = r.GetUInt32();
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_LOADOUT_RESULT", "%u%u%u", (uint32_t)op, (uint32_t)result, loadoutId);
+}
+
 int TalentFramePackets::GetCustomTalentStorage(lua_State* L)
 {
 	auto const& nodes = Instance().m_nodes;
@@ -251,6 +287,48 @@ int TalentFramePackets::GetCachedInspectTalentLevel(lua_State* L)
 	return 1;
 }
 
+int TalentFramePackets::GetCachedTalentLoadouts(lua_State* L)
+{
+	auto const& loadouts = Instance().m_loadouts;
+
+	FrameScript::CreateTable(L, (int)loadouts.size(), 0);
+	int tbl = FrameScript::GetTop(L);
+
+	for (int i = 0; i < (int)loadouts.size(); ++i)
+	{
+		TalentLoadoutInfo const& info = loadouts[i];
+
+		FrameScript::CreateTable(L, 0, 3);
+		int entry = FrameScript::GetTop(L);
+
+		FrameScript::PushNumber(L, info.id);
+		FrameScript::SetField(L, entry, "id");
+
+		FrameScript::PushString(L, info.name.c_str());
+		FrameScript::SetField(L, entry, "name");
+
+		FrameScript::PushNumber(L, info.nodeCount);
+		FrameScript::SetField(L, entry, "count");
+
+		FrameScript::RawSetI(L, tbl, i + 1);
+	}
+
+	FrameScript::SetTop(L, tbl);
+	return 1;
+}
+
+int TalentFramePackets::GetActiveTalentLoadout(lua_State* L)
+{
+	FrameScript::PushNumber(L, Instance().m_activeLoadout);
+	return 1;
+}
+
+int TalentFramePackets::GetMaxTalentLoadouts(lua_State* L)
+{
+	FrameScript::PushNumber(L, Instance().m_maxLoadouts);
+	return 1;
+}
+
 int TalentFramePackets::RequestTalentCache(lua_State*)
 {
 	Send(CMSG_CUSTOM_TALENT_CACHE_REQUEST);
@@ -297,9 +375,42 @@ int TalentFramePackets::InspectTalents(lua_State* L)
 	return 0;
 }
 
-int TalentFramePackets::SwitchTalentLoadout(lua_State*)
+int TalentFramePackets::SwitchTalentLoadout(lua_State* L)
 {
-	Send(CMSG_CUSTOM_TALENT_LOADOUT_SWITCH);
+	SendU32(CMSG_CUSTOM_TALENT_LOADOUT_SWITCH, (uint32_t)FrameScript::GetNumber(L, 1));
+	return 0;
+}
+
+int TalentFramePackets::CreateTalentLoadout(lua_State* L)
+{
+	char* name = FrameScript::ToLString(L, 1, false);
+	if (!name || name[0] == '\0')
+		return 0;
+
+	Packet(CMSG_CUSTOM_TALENT_LOADOUT_CREATE).PutString(name).Send();
+	return 0;
+}
+
+int TalentFramePackets::DeleteTalentLoadout(lua_State* L)
+{
+	SendU32(CMSG_CUSTOM_TALENT_LOADOUT_DELETE, (uint32_t)FrameScript::GetNumber(L, 1));
+	return 0;
+}
+
+int TalentFramePackets::RenameTalentLoadout(lua_State* L)
+{
+	uint32_t loadoutId = (uint32_t)FrameScript::GetNumber(L, 1);
+	char* name = FrameScript::ToLString(L, 2, false);
+	if (!name || name[0] == '\0')
+		return 0;
+
+	Packet(CMSG_CUSTOM_TALENT_LOADOUT_RENAME).PutUInt32(loadoutId).PutString(name).Send();
+	return 0;
+}
+
+int TalentFramePackets::RequestTalentLoadouts(lua_State*)
+{
+	Send(CMSG_CUSTOM_TALENT_LOADOUTS_REQUEST);
 	return 0;
 }
 
@@ -387,6 +498,8 @@ void TalentFramePackets::Apply()
 	sCustomPacket.RegisterHandler(SMSG_CUSTOM_TALENT_NEW, &Handler_SMSG_CUSTOM_TALENT_NEW);
 	sCustomPacket.RegisterHandler(SMSG_CUSTOM_TALENT_LEARNT_UPDATE, &Handler_SMSG_CUSTOM_TALENT_LEARNT_UPDATE);
 	sCustomPacket.RegisterHandler(SMSG_CUSTOM_TALENT_ITEM_GRANTED_UPDATE, &Handler_SMSG_CUSTOM_TALENT_ITEM_GRANTED_UPDATE);
+	sCustomPacket.RegisterHandler(SMSG_CUSTOM_TALENT_LOADOUTS, &Handler_SMSG_CUSTOM_TALENT_LOADOUTS);
+	sCustomPacket.RegisterHandler(SMSG_CUSTOM_TALENT_LOADOUT_RESULT, &Handler_SMSG_CUSTOM_TALENT_LOADOUT_RESULT);
 
 	sLua.RegisterFunction("GetCustomTalentStorage", &GetCustomTalentStorage, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetTalentTreeVersion", &GetTalentTreeVersion, LuaFunctionState::FRAME);
@@ -397,6 +510,9 @@ void TalentFramePackets::Apply()
 	sLua.RegisterFunction("GetCachedInspectLearntTalents", &GetCachedInspectLearntTalents, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetCachedInspectFreePoints", &GetCachedInspectFreePoints, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetCachedInspectTalentLevel", &GetCachedInspectTalentLevel, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetCachedTalentLoadouts", &GetCachedTalentLoadouts, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetActiveTalentLoadout", &GetActiveTalentLoadout, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetMaxTalentLoadouts", &GetMaxTalentLoadouts, LuaFunctionState::FRAME);
 
 	sLua.RegisterFunction("CustomRequestTalentCache", &RequestTalentCache, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("CustomRequestTalentSmallCache", &RequestTalentSmallCache, LuaFunctionState::FRAME);
@@ -406,6 +522,10 @@ void TalentFramePackets::Apply()
 	sLua.RegisterFunction("CustomResetTalents", &ResetTalents, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("CustomInspectTalents", &InspectTalents, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("CustomSwitchTalentLoadout", &SwitchTalentLoadout, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("CustomCreateTalentLoadout", &CreateTalentLoadout, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("CustomDeleteTalentLoadout", &DeleteTalentLoadout, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("CustomRenameTalentLoadout", &RenameTalentLoadout, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("CustomRequestTalentLoadouts", &RequestTalentLoadouts, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("CustomImportTalentBuild", &ImportTalentBuild, LuaFunctionState::FRAME);
 
 	sLua.RegisterFunction("TalentEditorSetLink", &TalentEditorSetLink, LuaFunctionState::FRAME);

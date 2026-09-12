@@ -190,4 +190,41 @@ namespace Streaming
 		h.Update(data, size);
 		return h.FinishRaw(out);
 	}
+
+	std::string Sha256Hex(const void* data, size_t size)
+	{
+		Sha256Hasher h;
+		if (!h.Open())
+			return "";
+		h.Update(data, size);
+		return h.Finish();
+	}
+
+	struct Sha256Stream::Impl
+	{
+		Sha256Hasher hasher;
+		bool ok = false;
+	};
+
+	Sha256Stream::Sha256Stream()
+	    : m_impl(std::make_unique<Impl>())
+	{
+		m_impl->ok = m_impl->hasher.Open();
+	}
+
+	Sha256Stream::~Sha256Stream() = default;
+
+	void Sha256Stream::Update(const void* data, size_t size)
+	{
+		if (m_impl->ok)
+			m_impl->hasher.Update(data, size);
+	}
+
+	std::string Sha256Stream::Finish()
+	{
+		if (!m_impl->ok)
+			return "";
+		m_impl->ok = false;
+		return m_impl->hasher.Finish();
+	}
 }

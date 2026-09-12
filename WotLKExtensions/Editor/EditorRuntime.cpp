@@ -15,6 +15,7 @@
 #include <Input/ActionRepeat.h>
 
 #include <Character/MovementForce.h>
+#include <Packets/CraftingPackets.h>
 #include <SharedDefines.h>
 
 #ifdef ENABLE_MAP_EDITOR
@@ -353,6 +354,7 @@ namespace
 		// Piggyback
 		sActionRepeat.OnUpdate();
 		sMovementForce.Tick();
+		sCraftingPackets.Tick();
 		return result;
 	}
 

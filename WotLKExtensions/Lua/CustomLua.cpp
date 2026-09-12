@@ -12,6 +12,8 @@
 #include <Editor/MouseFunctions.h>
 #include <Editor/EditorRuntime.h>
 #include <Packets/UnitLevelCache.h>
+#include <Packets/UnitHealthPrediction.h>
+#include <Packets/CraftingPackets.h>
 #include <UnitDetours.h>
 
 CustomLua& CustomLua::Instance()
@@ -1153,6 +1155,8 @@ void CustomLua::RegisterBuiltinFunctions()
 	RegisterFunction("OpenUrl", &OpenUrl, LuaFunctionState::ALL);
 	RegisterFunction("GetDllVersion", &GetDllVersion, LuaFunctionState::ALL);
 	sPlayer.RegisterCustomLuaFunctions();
+	sUnitHealthPrediction.RegisterLuaFunctions();
+	sCraftingPackets.RegisterLuaFunctions();
 
 	RegisterFunction("GetMouseWorldPosition", &GetMouseWorldPosition, LuaFunctionState::FRAME);
 	RegisterFunction("GetLastMouseoverGUID", &GetLastMouseoverGUID, LuaFunctionState::FRAME);

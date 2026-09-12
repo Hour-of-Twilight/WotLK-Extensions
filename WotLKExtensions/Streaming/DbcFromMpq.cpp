@@ -1,5 +1,7 @@
 #include "DbcFromMpq.h"
 
+#include "ArchiveManifest.h"
+
 #include <DBCPatch.h>
 #include <ClientData/Streaming.h>
 #include <CDBCMgr.h>
@@ -89,11 +91,11 @@ namespace DbcFromMpq
 #pragma pack(pop)
 
 		// customName: set for a CDBC, and is the key it registered itself under.
-		void ApplyDbc(void* hMpq, const char* mpqPath, const char* stem, size_t stemLen,
+		void ApplyDbc(const char* mpqPath, const char* stem, size_t stemLen,
 		    const std::string* customName = nullptr)
 		{
 			std::vector<uint8_t> data;
-			if (!ClientData::Streaming::ReadWholeFile(hMpq, mpqPath, data))
+			if (!ClientData::Streaming::ReadWholeFile(nullptr, mpqPath, data))
 				return;
 			if (data.size() < sizeof(WdbcHeader))
 				return;
@@ -171,12 +173,8 @@ namespace DbcFromMpq
 				    name.c_str(), h.recordCount);
 		}
 
-		void EnumerateListfile(void* hMpq, RefreshResult& result, bool& customSeen)
+		void RefreshName(const char* p, size_t len, RefreshResult& result, bool& customSeen)
 		{
-			std::vector<uint8_t> lf;
-			if (!ClientData::Streaming::ReadWholeFile(hMpq, "(listfile)", lf))
-				return; // shipped MPQs always have a listfile
-
 			static const char kPrefix[] = "dbfilesclient\\"; // matched case-insensitively
 			static const char kExt[] = ".dbc";
 			static const char kInterface[] = "interface";
@@ -185,55 +183,58 @@ namespace DbcFromMpq
 			const size_t extLen = sizeof(kExt) - 1;
 			const size_t ifaceLen = sizeof(kInterface) - 1;
 
-			const char* p = reinterpret_cast<const char*>(lf.data());
-			const char* end = p + lf.size();
+			if (!result.interfaceFiles && icontains(p, len, kInterface, ifaceLen))
+				result.interfaceFiles = true;
+
+			// UI art rides on the reload prompt, so only world art counts here.
+			if (!result.artFiles && !(len >= ifaceLen && iequal_n(p, kInterface, ifaceLen)))
+				for (const char* ext : kArtExts)
+				{
+					size_t el = std::strlen(ext);
+					if (len > el && iequal_n(p + len - el, ext, el))
+					{
+						result.artFiles = true;
+						break;
+					}
+				}
+
+			if (len > prefLen + extLen &&
+			    iequal_n(p, kPrefix, prefLen) &&
+			    iequal_n(p + len - extLen, kExt, extLen))
+			{
+				size_t stemEnd = len - extLen;
+				size_t stemStart = stemEnd;
+				while (stemStart > 0 && p[stemStart - 1] != '\\' && p[stemStart - 1] != '/')
+					--stemStart;
+				const char* stem = p + stemStart;
+				size_t stemLen = stemEnd - stemStart;
+				if (stemLen >= 5 && iequal_n(stem, "spell", 5))
+					result.spellDataChanged = true;
+				// achievement, achievement_Category and achievement_Criteria all feed the index.
+				if (stemLen >= 11 && iequal_n(stem, "achievement", 11))
+					result.achievementDataChanged = true;
+				const std::string* customName = FindCustomDbc(stem, stemLen);
+				if (customName && !GlobalCDBCMap.hasRowWriter(*customName))
+					customSeen = true; // no row writer, so a full CDBCMgr::Load re-reads it
+				else
+				{
+					std::string path(p, len);
+					ApplyDbc(path.c_str(), stem, stemLen, customName);
+				}
+			}
+		}
+
+		void SplitLines(const std::vector<uint8_t>& text, std::vector<std::string>& out)
+		{
+			const char* p = reinterpret_cast<const char*>(text.data());
+			const char* end = p + text.size();
 			while (p < end)
 			{
 				const char* nl = p;
 				while (nl < end && *nl != '\r' && *nl != '\n')
 					++nl;
-				size_t len = static_cast<size_t>(nl - p);
-
-				if (!result.interfaceFiles && icontains(p, len, kInterface, ifaceLen))
-					result.interfaceFiles = true;
-
-				// UI art rides on the reload prompt, so only world art counts here.
-				if (!result.artFiles && !(len >= ifaceLen && iequal_n(p, kInterface, ifaceLen)))
-					for (const char* ext : kArtExts)
-					{
-						size_t el = std::strlen(ext);
-						if (len > el && iequal_n(p + len - el, ext, el))
-						{
-							result.artFiles = true;
-							break;
-						}
-					}
-
-				if (len > prefLen + extLen &&
-				    iequal_n(p, kPrefix, prefLen) &&
-				    iequal_n(p + len - extLen, kExt, extLen))
-				{
-					size_t stemEnd = len - extLen;
-					size_t stemStart = stemEnd;
-					while (stemStart > 0 && p[stemStart - 1] != '\\' && p[stemStart - 1] != '/')
-						--stemStart;
-					const char* stem = p + stemStart;
-					size_t stemLen = stemEnd - stemStart;
-					if (stemLen >= 5 && iequal_n(stem, "spell", 5))
-						result.spellDataChanged = true;
-					// achievement, achievement_Category and achievement_Criteria all feed the index.
-					if (stemLen >= 11 && iequal_n(stem, "achievement", 11))
-						result.achievementDataChanged = true;
-					const std::string* customName = FindCustomDbc(stem, stemLen);
-					if (customName && !GlobalCDBCMap.hasRowWriter(*customName))
-						customSeen = true; // no row writer, so a full CDBCMgr::Load re-reads it
-					else
-					{
-						std::string path(p, len);
-						ApplyDbc(hMpq, path.c_str(), stem, stemLen, customName);
-					}
-				}
-
+				if (nl > p)
+					out.emplace_back(p, nl);
 				p = nl;
 				while (p < end && (*p == '\r' || *p == '\n'))
 					++p;
@@ -241,12 +242,30 @@ namespace DbcFromMpq
 		}
 	}
 
-	RefreshResult RefreshFromArchive(void* hMpq)
+	void CollectArchiveNames(void* hMpq, std::vector<std::string>& out)
 	{
-		LOG_DEBUG << "DbcFromMpq: refresh pass start";
+		std::vector<uint8_t> bytes;
+		if (ClientData::Streaming::ReadWholeFile(hMpq, Streaming::ArchiveManifest::kFileName, bytes))
+		{
+			std::vector<Streaming::ArchiveEntry> entries;
+			if (Streaming::ArchiveManifest::Parse(std::string(bytes.begin(), bytes.end()), entries))
+			{
+				for (Streaming::ArchiveEntry& e : entries)
+					out.push_back(std::move(e.name));
+				return;
+			}
+		}
+		if (ClientData::Streaming::ReadWholeFile(hMpq, "(listfile)", bytes))
+			SplitLines(bytes, out);
+	}
+
+	RefreshResult RefreshNames(const std::vector<std::string>& names)
+	{
+		LOG_DEBUG << "DbcFromMpq: refresh pass start (" << names.size() << " names)";
 		RefreshResult result;
 		bool customSeen = false;
-		EnumerateListfile(hMpq, result, customSeen);
+		for (const std::string& name : names)
+			RefreshName(name.data(), name.size(), result, customSeen);
 		if (customSeen)
 			CDBCMgr::Load();
 		LOG_DEBUG << "DbcFromMpq: refresh pass done (customSeen=" << (int)customSeen

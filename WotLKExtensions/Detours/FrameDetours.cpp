@@ -5,11 +5,13 @@
 #include "XMLExtensions.h"
 #include "MultiCastBarDetours.h"
 #include "Streaming/BackgroundDownloader.h"
+#include "Tools/MPQScanner.h"
 
 CLIENT_DETOUR(CGlueMgr__Idle, 0x004DAB40, __cdecl, int, (void))
 {
 	int r = CGlueMgr__Idle();
 	sBackgroundDownloader.PumpMainThread();
+	sMpqScanner.Pump();
 	return r;
 }
 

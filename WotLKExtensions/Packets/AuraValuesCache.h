@@ -26,6 +26,8 @@ public:
 	bool GetActiveAbsorb(uint32_t spellId, const SpellRow* spell, int32_t& out);
 	bool GetActiveStacks(uint32_t spellId, int32_t& out);
 
+	bool GetSlotValues(uint64_t guid, uint8_t slot, uint32_t spellId, Values& out);
+
 	void ClearUnit(uint64_t guid);
 	void ClearAll();
 	void PruneIfLarge();
@@ -49,6 +51,7 @@ private:
 		Values values;
 		uint32_t lastRequestMs = 0;
 		uint32_t receivedMs = 0;
+		uint8_t unansweredRequests = 0;
 		bool haveData = false;
 	};
 

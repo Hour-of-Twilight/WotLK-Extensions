@@ -5,6 +5,7 @@
 #include <ClientData/ClientFunctions.h>
 #include <Detours/ClientDetours.h>
 #include <Lua/XMLExtensions.h>
+#include <Packets/UnitHealthPrediction.h>
 #include <Util.h>
 
 #include <Windows.h>
@@ -14,6 +15,7 @@ using ClientData::Aura::TooltipCall;
 
 static constexpr uint32_t kRequestIntervalMs = 1000;
 static constexpr uint32_t kStaleAfterMs = 3000;
+static constexpr uint32_t kMaxBackoffShift = 5;
 
 static constexpr size_t kPruneUnitThreshold = 256;
 static constexpr uint32_t kPruneAgeMs = 60000;
@@ -194,6 +196,31 @@ bool AuraValuesCache::GetActiveAbsorb(uint32_t spellId, const SpellRow* spell, i
 	return false;
 }
 
+bool AuraValuesCache::GetSlotValues(uint64_t guid, uint8_t slot, uint32_t spellId, Values& out)
+{
+	if (!guid || slot >= ClientData::Aura::MaxAuraSlots)
+		return false;
+
+	Entry& entry = EntryFor(guid, slot);
+	if (entry.haveData && entry.values.spellId == spellId)
+	{
+		out = entry.values;
+		return true;
+	}
+
+	uint32_t shift = entry.unansweredRequests < kMaxBackoffShift ? entry.unansweredRequests : kMaxBackoffShift;
+	uint32_t now = GetTickCount();
+	if ((now - entry.lastRequestMs) >= (kRequestIntervalMs << shift))
+	{
+		entry.lastRequestMs = now;
+		if (entry.unansweredRequests < 0xFF)
+			++entry.unansweredRequests;
+		Packet(CMSG_AURA_VALUES_REQUEST).PutUInt64(guid).PutUInt8(slot).Send();
+	}
+
+	return false;
+}
+
 bool AuraValuesCache::GetActiveStacks(uint32_t spellId, int32_t& out)
 {
 	const Values* values = ResolveActive(spellId);
@@ -231,7 +258,10 @@ void AuraValuesCache::Handler_SMSG_AURA_VALUES(void*, uint32_t, uint32_t, CDataS
 	Entry& entry = sAuraValuesCache.EntryFor(guid, slot);
 	entry.values = values;
 	entry.receivedMs = GetTickCount();
+	entry.unansweredRequests = 0;
 	entry.haveData = true;
+
+	sUnitHealthPrediction.OnAuraValuesReceived(guid, spellId);
 
 	TooltipCall& displayed = sAuraValuesCache.m_displayed;
 	if (!displayed.valid || displayed.unitGuid != guid || displayed.slot != slot || displayed.spellId != spellId)

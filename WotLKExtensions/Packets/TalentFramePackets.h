@@ -1,11 +1,19 @@
 #pragma once
 
 #include <SharedDefines.h>
+#include <string>
 #include <vector>
 #include <unordered_map>
 
 struct lua_State;
 class Packet;
+
+struct TalentLoadoutInfo
+{
+	uint32_t id = 0;
+	std::string name;
+	uint32_t nodeCount = 0;
+};
 
 struct NodeInfo
 {
@@ -47,6 +55,8 @@ private:
 	static void Handler_SMSG_CUSTOM_TALENT_INSPECT_RESPONSE(void*, uint32_t, uint32_t, CDataStore* a3);
 	static void Handler_SMSG_CUSTOM_TALENT_NEW(void*, uint32_t, uint32_t, CDataStore* a3);
 	static void Handler_SMSG_CUSTOM_TALENT_LEARNT_UPDATE(void*, uint32_t, uint32_t, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_LOADOUTS(void*, uint32_t, uint32_t, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_LOADOUT_RESULT(void*, uint32_t, uint32_t, CDataStore* a3);
 
 	static int GetCustomTalentStorage(lua_State* L);
 	static int GetTalentTreeVersion(lua_State* L);
@@ -57,6 +67,9 @@ private:
 	static int GetCachedInspectLearntTalents(lua_State* L);
 	static int GetCachedInspectFreePoints(lua_State* L);
 	static int GetCachedInspectTalentLevel(lua_State* L);
+	static int GetCachedTalentLoadouts(lua_State* L);
+	static int GetActiveTalentLoadout(lua_State* L);
+	static int GetMaxTalentLoadouts(lua_State* L);
 
 	static int RequestTalentCache(lua_State* L);
 	static int RequestTalentSmallCache(lua_State* L);
@@ -66,6 +79,10 @@ private:
 	static int ResetTalents(lua_State* L);
 	static int InspectTalents(lua_State* L);
 	static int SwitchTalentLoadout(lua_State* L);
+	static int CreateTalentLoadout(lua_State* L);
+	static int DeleteTalentLoadout(lua_State* L);
+	static int RenameTalentLoadout(lua_State* L);
+	static int RequestTalentLoadouts(lua_State* L);
 	static int ImportTalentBuild(lua_State* L);
 
 	static int TalentEditorSetLink(lua_State* L);
@@ -83,6 +100,9 @@ private:
 	std::vector<uint32_t> m_inspectLearntTalents;
 	uint32_t m_inspectFreePoints = 0;
 	uint32_t m_inspectTalentLevel = 0;
+	std::vector<TalentLoadoutInfo> m_loadouts;
+	uint32_t m_activeLoadout = 0;
+	uint32_t m_maxLoadouts = 0;
 };
 
 #define sTalentFramePackets TalentFramePackets::Instance()

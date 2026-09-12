@@ -14,6 +14,7 @@
 #include <Spells/SpellDescriptionVars.h>
 #include <Config/LauncherSettings.h>
 #include <Config/LauncherSettingsLua.h>
+#include <Streaming/ArchiveRegistry.h>
 #include <FeatureCvars.h>
 #include <Logger.h>
 #include <Macros.h>
@@ -25,7 +26,6 @@ void Main::OnAttach()
 	sLauncherSettings.Load();
 	Init();
 	MSDFBootstrap::initialize();
-	sMpqScanner.Start();
 	// Apply patches
 	Misc::ApplyPatches();
 	sPlayer.ApplyPatches();
@@ -45,6 +45,7 @@ void Main::OnAttach()
 
 	LauncherSettingsLua::Apply();
 	FeatureCvars::Apply();
+	sMpqScanner.Start();
 }
 
 void Main::Init()
@@ -92,6 +93,7 @@ bool __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach((PVOID*)&ConsoleDeviceInitialize, ConsoleDeviceInitializeBootstrap);
+		sArchiveRegistry.Install();
 		DetourTransactionCommit();
 	}
 	return true;

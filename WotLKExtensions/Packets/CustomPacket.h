@@ -30,6 +30,7 @@ private:
 	CustomPacket() : customData{ 0 } {}
 
 	CustomNetClient customData;
+	bool m_sanityCheckQueued = false;
 
 	struct StoredHandler
 	{

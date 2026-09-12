@@ -1,22 +1,24 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <map>
 #include <mutex>
 #include <atomic>
+#include <functional>
 
 struct lua_State;
 
 struct MpqInfo
 {
 	std::string filename_lower;
-	std::string digest;    // "q1:<hex>" sampled digest, empty when the file could not be read
+	std::string digest;    // contentId of its (hotmanifest), else "q1:<hex>" sampled digest, empty when unreadable
 	bool updating = false; // the downloader is replacing this one, so its digest proves nothing
 };
 
 class MpqScanner
 {
 public:
+	using Callback = std::function<void(const std::vector<MpqInfo>&)>;
+
 	static MpqScanner& GetInstance()
 	{
 		static MpqScanner instance;
@@ -37,28 +39,26 @@ public:
 	// think about ordering against the background pass.
 	std::vector<MpqInfo> GetResults();
 
+	void ScanAsync(Callback onDone);
+	void Pump();
+
 	static int GetMpqList(lua_State* L);
 
 private:
 	MpqScanner() = default;
 
-	// Size and mtime of the file the digest was taken from, so a rescan only pays for the archives
-	// the downloader actually replaced.
-	struct CachedDigest
-	{
-		long long size;
-		long long mtime;
-		std::string digest;
-	};
-
 	void Rescan();
-	std::string DigestOf(const std::wstring& path);
 
 	std::mutex mutex;
 	std::vector<MpqInfo> results;
-	std::map<std::wstring, CachedDigest> digests;
 	std::atomic<bool> done{ false };
 	unsigned scannedGeneration = 0;
+
+	std::mutex asyncMutex;
+	std::vector<Callback> waiting;
+	std::vector<MpqInfo> asyncResults;
+	bool asyncReady = false;
+	bool asyncRunning = false;
 };
 
 #define sMpqScanner MpqScanner::GetInstance()

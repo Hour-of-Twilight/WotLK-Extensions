@@ -104,85 +104,117 @@ namespace Streaming
 		}
 	}
 
+	namespace
+	{
+		// Walks the flat objects of the array under `arrayKey`, handing each key and the index
+		// of its value to `onValue`, which returns true when it consumed the value. Returns
+		// false when the array is missing.
+		template <typename OnObject, typename OnValue>
+		bool ParseObjectArray(const std::string& json, const char* arrayKey, OnObject onObject, OnValue onValue)
+		{
+			std::string needle = std::string("\"") + arrayKey + "\"";
+			size_t f = json.find(needle);
+			if (f == std::string::npos)
+				return false;
+			size_t i = json.find('[', f);
+			if (i == std::string::npos)
+				return false;
+			++i;
+
+			while (true)
+			{
+				SkipWs(json, i);
+				if (i >= json.size() || json[i] == ']')
+					break;
+				if (json[i] != '{')
+				{
+					++i;
+					continue;
+				}
+
+				onObject();
+				for (; i < json.size(); ++i)
+				{
+					char c = json[i];
+					if (c == '"')
+					{
+						size_t ks = i;
+						std::string key;
+						if (!ParseStr(json, ks, key))
+							return false;
+						size_t after = ks;
+						SkipWs(json, after);
+						if (after < json.size() && json[after] == ':')
+						{
+							size_t v = after + 1;
+							SkipWs(json, v);
+							if (onValue(key, v))
+								i = v - 1;
+							else
+								i = ks - 1; // unknown key: skip its name, let the loop continue
+						}
+						else
+							i = ks - 1;
+					}
+					else if (c == '}')
+						break;
+				}
+				if (i < json.size())
+					++i;
+			}
+			return true;
+		}
+	}
+
 	bool ParseManifest(const std::string& json, Manifest& out)
 	{
 		FindString(json, "baseUrl", out.baseUrl);
 
-		size_t f = json.find("\"files\"");
-		if (f == std::string::npos)
-			return false;
-		size_t i = json.find('[', f);
-		if (i == std::string::npos)
-			return false;
-		++i;
-
-		while (true)
+		ManifestFile mf;
+		auto flushFile = [&]
 		{
-			SkipWs(json, i);
-			if (i >= json.size() || json[i] == ']')
-				break;
-			if (json[i] != '{')
-			{
-				++i;
-				continue;
-			}
-
-			ManifestFile mf;
-			int depth = 0;
-			for (; i < json.size(); ++i)
-			{
-				char c = json[i];
-				if (c == '"')
-				{
-					size_t ks = i;
-					std::string key;
-					if (!ParseStr(json, ks, key))
-						return false;
-					size_t after = ks;
-					SkipWs(json, after);
-					if (after < json.size() && json[after] == ':')
-					{
-						size_t v = after + 1;
-						SkipWs(json, v);
-						if (key == "path")
-						{
-							ParseStr(json, v, mf.path);
-							i = v - 1;
-						}
-						else if (key == "sha256")
-						{
-							ParseStr(json, v, mf.sha256);
-							i = v - 1;
-						}
-						else if (key == "quick")
-						{
-							ParseStr(json, v, mf.quick);
-							i = v - 1;
-						}
-						else if (key == "size")
-						{
-							mf.size = std::strtoll(json.c_str() + v, nullptr, 10);
-							i = v - 1;
-						}
-						else if (key == "hd")
-						{
-							mf.hd = (json.compare(v, 4, "true") == 0);
-							i = v - 1;
-						}
-						else
-							i = ks - 1; // unknown key: skip its name, let the loop continue
-					}
-					else
-						i = ks - 1;
-				}
-				else if (c == '}')
-					break;
-			}
 			if (!mf.path.empty())
 				out.files.push_back(std::move(mf));
-			if (i < json.size())
-				++i;
-		}
+			mf = ManifestFile();
+		};
+		bool ok = ParseObjectArray(json, "files", flushFile, [&](const std::string& key, size_t& v)
+		{
+			if (key == "path")
+				ParseStr(json, v, mf.path);
+			else if (key == "sha256")
+				ParseStr(json, v, mf.sha256);
+			else if (key == "quick")
+				ParseStr(json, v, mf.quick);
+			else if (key == "size")
+				mf.size = std::strtoll(json.c_str() + v, nullptr, 10);
+			else if (key == "hd")
+				mf.hd = (json.compare(v, 4, "true") == 0);
+			else
+				return false;
+			return true;
+		});
+		flushFile();
+		if (!ok)
+			return false;
+
+		ManifestArchive ma;
+		auto flushArchive = [&]
+		{
+			if (!ma.path.empty() && !ma.contentId.empty())
+				out.archives.push_back(std::move(ma));
+			ma = ManifestArchive();
+		};
+		ParseObjectArray(json, "archives", flushArchive, [&](const std::string& key, size_t& v)
+		{
+			if (key == "path")
+				ParseStr(json, v, ma.path);
+			else if (key == "contentId")
+				ParseStr(json, v, ma.contentId);
+			else
+				return false;
+			return true;
+		});
+		flushArchive();
 		return true;
 	}
 

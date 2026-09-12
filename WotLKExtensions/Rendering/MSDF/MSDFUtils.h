@@ -87,7 +87,7 @@ private:
                 locked = true;
                 return true;
             }
-            if (timeoutMs == 0) break;
+            if (timeoutMs == 0 || GetLastError() != ERROR_LOCK_VIOLATION) break;
             Sleep(10);
         } while ((GetTickCount64() - start) < timeoutMs);
         CloseHandle(hFile);

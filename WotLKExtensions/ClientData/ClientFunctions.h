@@ -41,6 +41,13 @@ namespace CGGameUI
 	CLIENT_FUNCTION(GetCursorItem, 0x00513660, __cdecl, uint64_t, ())
 	CLIENT_FUNCTION(ClearCursor, 0x00519280, __cdecl, void, (int arg0, int arg4))
 	CLIENT_FUNCTION(IsAutoLooting, 0x00513700, __cdecl, bool, ())
+	CLIENT_FUNCTION(LockItem, 0x00513740, __cdecl, int, (uint64_t guid))
+	CLIENT_FUNCTION(UnlockItem, 0x00513770, __cdecl, int, (uint64_t guid))
+}
+
+namespace CGContainerInfo
+{
+	CLIENT_FUNCTION(GetContainer, 0x005D6F20, __cdecl, uint64_t, (int index))
 }
 
 namespace CGTooltip
@@ -155,6 +162,7 @@ namespace CGGuildInfo_C
 CLIENT_FUNCTION(CGGuildInfo__GuildNameCallback, 0x006D1C70, __cdecl, void, (void*))
 CLIENT_FUNCTION(Script_GetGUIDFromToken, 0x0060ABF0, __cdecl, void, (const char* token, uint64_t* outGuid, char unused))
 CLIENT_FUNCTION(Script_GetTokenFromGUID, 0x0060B102, __cdecl, const char*, (uint64_t guid))
+CLIENT_FUNCTION(Script_GetTokensFromGUID, 0x0060BB70, __cdecl, const char**, (const uint64_t* guid, int* outCount))
 
 namespace CNetClient
 {

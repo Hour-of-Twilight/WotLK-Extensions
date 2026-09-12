@@ -101,6 +101,7 @@ bool MSDFCache::StoreGlyph(GlyphMetricsToStore&& metrics) {
 }
 
 bool MSDFCache::LoadManifest() {
+    m_manifestLoaded = true;
     ScopedFileLock lock;
     if (!lock.AcquireShared(m_cacheManifestLockPath, 10000)) {
         return false;
@@ -111,7 +112,6 @@ bool MSDFCache::LoadManifest() {
     bool journalExists = std::filesystem::exists(m_cacheManifestJournalPath, ec);
 
     if (!pathExists && !journalExists) {
-        m_manifestLoaded = true;
         return true;
     }
 
@@ -123,14 +123,12 @@ bool MSDFCache::LoadManifest() {
         }
         if (!LoadManifestFromFile(m_cacheManifestPath, m_manifest)) {
             m_manifest.clear();
-            return false;
         }
     }
 
     size_t applied = 0;
     LoadManifestJournal(m_cacheManifestJournalPath, m_manifest, applied);
 
-    m_manifestLoaded = true;
     return true;
 }
 
@@ -207,7 +205,6 @@ bool MSDFCache::AppendManifestJournal(const std::vector<ManifestEntry>& entries)
     DWORD written = 0;
     bool ok = ::WriteFile(file, buffer.data(), totalBytes, &written, nullptr) && (written == totalBytes);
     if (ok) {
-        FlushFileBuffers(file);
         file.successful = true;
     }
 
@@ -247,7 +244,6 @@ bool MSDFCache::SaveManifest(bool isLocked) {
             return false;
         }
     }
-    FlushFileBuffers(file.handle);
     file.Close();
 
     if (MoveFileExW(tmpManifest.c_str(), m_cacheManifestPath.c_str(), MOVEFILE_REPLACE_EXISTING)) {
@@ -448,7 +444,6 @@ bool MSDFCache::WriteBlockFile(uint32_t blockId, std::vector<GlyphMetricsToStore
             static_cast<DWORD>(payloadBuffer.size()), &written, nullptr)) {
             return false;
         }
-        FlushFileBuffers(tmpFile.handle);
     }
 
     if (!MoveFileExW(tmpPath.c_str(), blockPath.c_str(), MOVEFILE_REPLACE_EXISTING)) {

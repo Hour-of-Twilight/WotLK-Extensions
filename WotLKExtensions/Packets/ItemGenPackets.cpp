@@ -53,6 +53,75 @@ void ItemGenPackets::Handler_SMSG_ITEMGEN_STAT_GROUPS(void*, uint32_t, uint32_t,
 	FrameXMLExtensions::SignalEvent("HOT_STAT_GROUPS", "");
 }
 
+void ItemGenPackets::Handler_SMSG_ITEMGEN_LEGENDARIES(void*, uint32_t, uint32_t, CDataStore* pkt)
+{
+	Packet r(pkt);
+	char buffer[256];
+
+	ItemGenPackets& self = Instance();
+	self.m_legendaries.clear();
+
+	uint32_t count = r.GetUInt32();
+	self.m_legendaries.reserve(count);
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		LegendaryEntry entry;
+		entry.id = r.GetUInt32();
+		r.GetString(buffer, sizeof(buffer));
+		entry.name = buffer;
+		r.GetString(buffer, sizeof(buffer));
+		entry.nameOverride = buffer;
+		entry.flags = r.GetUInt32();
+		entry.minItemLevel = r.GetInt32();
+		entry.maxItemLevel = r.GetInt32();
+		entry.itemClass = r.GetInt32();
+		entry.itemSubClass = r.GetInt32();
+		entry.inventoryType = r.GetInt32();
+		entry.statGroup = r.GetInt32();
+		entry.statGroupMask = r.GetUInt32();
+		entry.statGroupOverride = r.GetInt32();
+		entry.uniqueId = r.GetUInt32();
+		self.m_legendaries.push_back(entry);
+	}
+
+	self.m_hasLegendaries = true;
+	FrameXMLExtensions::SignalEvent("HOT_LEGENDARIES", "");
+}
+
+void ItemGenPackets::Handler_SMSG_ITEMGEN_UNIQUES(void*, uint32_t, uint32_t, CDataStore* pkt)
+{
+	Packet r(pkt);
+	char buffer[1024];
+
+	ItemGenPackets& self = Instance();
+	self.m_uniques.clear();
+
+	uint32_t count = r.GetUInt32();
+	self.m_uniques.reserve(count);
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		UniqueEntry entry;
+		entry.id = r.GetUInt32();
+		r.GetString(buffer, sizeof(buffer));
+		entry.name = buffer;
+		r.GetString(buffer, sizeof(buffer));
+		entry.description = buffer;
+		entry.quality = r.GetUInt32();
+		entry.itemClass = r.GetUInt32();
+		entry.subClass = r.GetUInt32();
+		entry.inventoryType = r.GetUInt32();
+		entry.statGroup = r.GetInt32();
+		entry.flags = r.GetUInt32();
+		entry.itemLevelMin = r.GetUInt32();
+		entry.itemLevelMax = r.GetUInt32();
+		entry.spawnable = r.GetUInt8() != 0;
+		self.m_uniques.push_back(entry);
+	}
+
+	self.m_hasUniques = true;
+	FrameXMLExtensions::SignalEvent("HOT_UNIQUE_ITEMS", "");
+}
+
 int ItemGenPackets::RequestStatGroups(lua_State*)
 {
 	Packet(CMSG_ITEMGEN_STAT_GROUPS_REQUEST).Send();
@@ -111,13 +180,100 @@ int ItemGenPackets::GetStatGroupMaskInfo(lua_State* L)
 	return 2;
 }
 
+int ItemGenPackets::RequestLegendaries(lua_State*)
+{
+	Packet(CMSG_ITEMGEN_LEGENDARIES_REQUEST).Send();
+	return 0;
+}
+
+int ItemGenPackets::GetLegendaryCount(lua_State* L)
+{
+	ItemGenPackets& self = Instance();
+	FrameScript::PushNumber(L, self.m_hasLegendaries ? self.m_legendaries.size() : 0);
+	return 1;
+}
+
+int ItemGenPackets::GetLegendaryInfo(lua_State* L)
+{
+	ItemGenPackets& self = Instance();
+	uint32_t index = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	if (!self.m_hasLegendaries || index < 1 || index > self.m_legendaries.size())
+	{
+		FrameScript::PushNil(L);
+		return 1;
+	}
+
+	LegendaryEntry const& entry = self.m_legendaries[index - 1];
+	FrameScript::PushNumber(L, entry.id);
+	FrameScript::PushString(L, entry.name.c_str());
+	FrameScript::PushString(L, entry.nameOverride.c_str());
+	FrameScript::PushNumber(L, entry.flags);
+	FrameScript::PushNumber(L, entry.minItemLevel);
+	FrameScript::PushNumber(L, entry.maxItemLevel);
+	FrameScript::PushNumber(L, entry.itemClass);
+	FrameScript::PushNumber(L, entry.itemSubClass);
+	FrameScript::PushNumber(L, entry.inventoryType);
+	FrameScript::PushNumber(L, entry.statGroup);
+	FrameScript::PushNumber(L, entry.statGroupMask);
+	FrameScript::PushNumber(L, entry.statGroupOverride);
+	FrameScript::PushNumber(L, entry.uniqueId);
+	return 13;
+}
+
+int ItemGenPackets::RequestUniqueItems(lua_State*)
+{
+	Packet(CMSG_ITEMGEN_UNIQUES_REQUEST).Send();
+	return 0;
+}
+
+int ItemGenPackets::GetUniqueItemCount(lua_State* L)
+{
+	ItemGenPackets& self = Instance();
+	FrameScript::PushNumber(L, self.m_hasUniques ? self.m_uniques.size() : 0);
+	return 1;
+}
+
+int ItemGenPackets::GetUniqueItemInfo(lua_State* L)
+{
+	ItemGenPackets& self = Instance();
+	uint32_t index = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	if (!self.m_hasUniques || index < 1 || index > self.m_uniques.size())
+	{
+		FrameScript::PushNil(L);
+		return 1;
+	}
+
+	UniqueEntry const& entry = self.m_uniques[index - 1];
+	FrameScript::PushNumber(L, entry.id);
+	FrameScript::PushString(L, entry.name.c_str());
+	FrameScript::PushString(L, entry.description.c_str());
+	FrameScript::PushNumber(L, entry.quality);
+	FrameScript::PushNumber(L, entry.itemClass);
+	FrameScript::PushNumber(L, entry.subClass);
+	FrameScript::PushNumber(L, entry.inventoryType);
+	FrameScript::PushNumber(L, entry.statGroup);
+	FrameScript::PushNumber(L, entry.flags);
+	FrameScript::PushNumber(L, entry.itemLevelMin);
+	FrameScript::PushNumber(L, entry.itemLevelMax);
+	FrameScript::PushBoolean(L, entry.spawnable ? 1 : 0);
+	return 12;
+}
+
 void ItemGenPackets::Apply()
 {
 	sCustomPacket.RegisterHandler(SMSG_ITEMGEN_STAT_GROUPS, &Handler_SMSG_ITEMGEN_STAT_GROUPS);
+	sCustomPacket.RegisterHandler(SMSG_ITEMGEN_LEGENDARIES, &Handler_SMSG_ITEMGEN_LEGENDARIES);
+	sCustomPacket.RegisterHandler(SMSG_ITEMGEN_UNIQUES, &Handler_SMSG_ITEMGEN_UNIQUES);
 
 	sLua.RegisterFunction("RequestStatGroups", &RequestStatGroups, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetStatGroupCount", &GetStatGroupCount, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetStatGroupInfo", &GetStatGroupInfo, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetStatGroupMaskCount", &GetStatGroupMaskCount, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetStatGroupMaskInfo", &GetStatGroupMaskInfo, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("RequestLegendaries", &RequestLegendaries, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetLegendaryCount", &GetLegendaryCount, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetLegendaryInfo", &GetLegendaryInfo, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("RequestUniqueItems", &RequestUniqueItems, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetUniqueItemCount", &GetUniqueItemCount, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetUniqueItemInfo", &GetUniqueItemInfo, LuaFunctionState::FRAME);
 }
