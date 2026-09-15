@@ -18,5 +18,6 @@ public:
 
 private:
 	static void PatchHeroicQualityTooltipLabel();
+	static void PatchOnSocketSpellTriggerLabel();
 	static void PatchTooltipLabelPush(uint32_t pushSite, void* stub);
 };

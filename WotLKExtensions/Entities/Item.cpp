@@ -1,6 +1,7 @@
 #include "Item.h"
 #include <Util.h>
 #include <ClientDetours.h>
+#include <ClientData/Enums.h>
 #include <cstring>
 #include "Logger.h"
 
@@ -79,9 +80,28 @@ __declspec(naked) static void CGTooltip__SetItem_HeroicLabel()
 	}
 }
 
+static constexpr uint32_t SET_ITEM_SPELL_TRIGGER_JUMP_TABLE = 0x0062D908;
+static constexpr uint32_t SET_ITEM_SPELL_TRIGGER_DEFAULT_CASE = 0x0062C1F7;
+
+static const char* sOnSocketTriggerKey = "ITEM_SPELL_TRIGGER_ONSOCKET";
+
+__declspec(naked) static void CGTooltip__SetItem_OnSocketTriggerLine()
+{
+	__asm {
+        lea  edx, [ebp - 0x534]
+        push edx
+        push 0
+        push -1
+        push sOnSocketTriggerKey
+        push 0x0062C0BE
+        ret
+	}
+}
+
 void Item::Apply()
 {
 	PatchHeroicQualityTooltipLabel();
+	PatchOnSocketSpellTriggerLabel();
 }
 
 CLIENT_DETOUR(ClientDBInitialize, 0x00634E00, __cdecl, void, (void))
@@ -94,6 +114,19 @@ void Item::PatchHeroicQualityTooltipLabel()
 {
 	PatchTooltipLabelPush(0x00627B45, &CGTooltip__SetItem_HeroicEpicLabel);
 	PatchTooltipLabelPush(0x00627BAC, &CGTooltip__SetItem_HeroicLabel);
+}
+
+void Item::PatchOnSocketSpellTriggerLabel()
+{
+	const uint32_t slot = SET_ITEM_SPELL_TRIGGER_JUMP_TABLE + ITEM_SPELLTRIGGER_ON_SOCKET * sizeof(uint32_t);
+
+	if (*reinterpret_cast<uint32_t*>(slot) != SET_ITEM_SPELL_TRIGGER_DEFAULT_CASE)
+	{
+		LOG_DEBUG << "Unexpected spell trigger jump table entry at " << slot << ", skipping On Socket patch.";
+		return;
+	}
+
+	Util::OverwriteValue<uint32_t>(slot, reinterpret_cast<uint32_t>(&CGTooltip__SetItem_OnSocketTriggerLine));
 }
 
 void Item::PatchTooltipLabelPush(uint32_t pushSite, void* stub)

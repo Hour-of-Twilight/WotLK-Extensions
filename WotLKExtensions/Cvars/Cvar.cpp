@@ -5,6 +5,11 @@
 #include <cstdio>
 #include <cstdlib>
 
+const std::string& Cvar::Effective() const
+{
+	return m_value.empty() ? m_default : m_value;
+}
+
 bool Cvar::AsBool() const
 {
 	return AsInt() != 0;
@@ -12,17 +17,17 @@ bool Cvar::AsBool() const
 
 int Cvar::AsInt() const
 {
-	return std::atoi(m_value.c_str());
+	return std::atoi(Effective().c_str());
 }
 
 float Cvar::AsFloat() const
 {
-	return static_cast<float>(std::atof(m_value.c_str()));
+	return static_cast<float>(std::atof(Effective().c_str()));
 }
 
 const char* Cvar::AsString() const
 {
-	return m_value.c_str();
+	return Effective().c_str();
 }
 
 void Cvar::Set(const char* value)

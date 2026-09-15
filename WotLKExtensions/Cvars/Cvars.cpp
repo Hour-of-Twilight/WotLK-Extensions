@@ -67,7 +67,7 @@ void Cvars::CreateHandle(Cvar& cvar)
 	    /*category*/ 5,
 	    0, 0, 0);
 
-	if (cvar.m_handle && cvar.m_handle->m_stringValue.string)
+	if (cvar.m_handle && cvar.m_handle->m_stringValue.string && cvar.m_handle->m_stringValue.string[0])
 		cvar.m_value = cvar.m_handle->m_stringValue.string;
 
 	if (cvar.m_onChange)

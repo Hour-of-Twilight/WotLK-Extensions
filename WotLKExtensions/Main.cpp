@@ -9,12 +9,14 @@
 #ifdef ENABLE_MAP_EDITOR
 #include <Editor/Map/MapEditorRuntime.h>
 #endif
+#include <Chat/ChatTags.h>
 #include <Character/AnimationFixes.h>
 #include <Spells/AutoRepeatDeadzone.h>
 #include <Spells/SpellDescriptionVars.h>
 #include <Config/LauncherSettings.h>
 #include <Config/LauncherSettingsLua.h>
 #include <Streaming/ArchiveRegistry.h>
+#include <Models/ModernM2.h>
 #include <FeatureCvars.h>
 #include <Logger.h>
 #include <Macros.h>
@@ -35,6 +37,8 @@ void Main::OnAttach()
 #endif
 	FreeCam::Apply();
 	AnimationFixes::Apply();
+	ChatTags::Apply();
+	ModernM2::Apply();
 	ClientDetours::Apply();
 	FrameXMLExtensions::Apply();
 	Spells::Apply();

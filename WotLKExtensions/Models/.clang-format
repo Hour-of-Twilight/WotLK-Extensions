@@ -1,0 +1,4 @@
+# Modern-M2 layer ported from WarcraftXL. Kept in upstream's (space-indented) formatting so the
+# tree stays diffable against wxl, excluded from the repo standard the same way MSDF is.
+DisableFormat: true
+SortIncludes: false

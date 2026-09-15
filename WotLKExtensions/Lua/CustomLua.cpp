@@ -15,6 +15,7 @@
 #include <Packets/UnitHealthPrediction.h>
 #include <Packets/CraftingPackets.h>
 #include <UnitDetours.h>
+#include <ClientData/Enums.h>
 
 CustomLua& CustomLua::Instance()
 {
@@ -130,11 +131,29 @@ int CustomLua::GetMapNameById(lua_State* L)
 
 namespace
 {
-	constexpr int ENCH_EQUIP_SPELL = 3;        // ITEM_ENCHANTMENT_TYPE_EQUIP_SPELL
 	constexpr int AURA_TEMP_LEARN_SPELL = 317; // SPELL_AURA_TEMP_LEARN_SPELL
 
 	typedef ItemCache*(__thiscall* GetItemBlockFn)(void*, uint32_t, void*, void*, void*, int);
 	typedef void*(__thiscall* GetDbRecordFn)(void*, uint32_t);
+
+	uint32_t GemColorFromSubClass(int subClass)
+	{
+		switch (subClass)
+		{
+		case 8:
+			return 126; // Prismatic
+		case 9:
+			return 2; // Red
+		case 10:
+			return 8; // Blue
+		case 11:
+			return 4; // Yellow
+		case 12:
+			return 64; // Green
+		default:
+			return 0;
+		}
+	}
 
 	bool ResolveGemDisplay(uint32_t itemId, uint32_t& outSpellId, uint32_t& outGemColor, const char*& outIcon)
 	{
@@ -150,36 +169,22 @@ namespace
 		if (!item)
 			return false; // not cached yet (a query was queued); caller should retry
 
-		uint32_t gemPropId = static_cast<uint32_t>(item->GemProperties);
-		if (!gemPropId)
-			return false; // not a gem
-
-		void* gp = getRecord(reinterpret_cast<uint8_t*>(0x00AD39A4) + 0x18 /*g_gemPropertiesDB*/, gemPropId);
-		if (!gp)
-			return true;
-		uint32_t enchantId = *reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(gp) + 0x04); // m_enchantID
-		outGemColor = *reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(gp) + 0x10);        // m_type (colour)
-		if (!enchantId)
-			return true;
-
-		void* en = getRecord(reinterpret_cast<uint8_t*>(0x00AD48B0) + 0x18 /*g_spellItemEnchantmentDB*/, enchantId);
-		if (!en)
-			return true;
-		int32_t* effect = reinterpret_cast<int32_t*>(reinterpret_cast<uint8_t*>(en) + 0x08);    // m_effect[3]
-		int32_t* effectArg = reinterpret_cast<int32_t*>(reinterpret_cast<uint8_t*>(en) + 0x2C); // m_effectArg[3]
-		uint32_t equipSpell = 0;
-		for (int i = 0; i < 3; ++i)
-			if (effect[i] == ENCH_EQUIP_SPELL && effectArg[i])
+		uint32_t triggerSpell = 0;
+		for (int i = 0; i < 5; ++i)
+			if (item->SpellTrigger[i] == ITEM_SPELLTRIGGER_ON_SOCKET && item->SpellId[i] > 0)
 			{
-				equipSpell = static_cast<uint32_t>(effectArg[i]);
+				triggerSpell = static_cast<uint32_t>(item->SpellId[i]);
 				break;
 			}
-		if (!equipSpell)
-			return true;
 
-		uint32_t displaySpell = equipSpell;
+		if (!triggerSpell)
+			return false; // not a gem
+
+		outGemColor = GemColorFromSubClass(item->SubClass);
+
+		uint32_t displaySpell = triggerSpell;
 		SpellRow row;
-		if (ClientDB::GetLocalizedRow(g_SpellDB, equipSpell, &row))
+		if (ClientDB::GetLocalizedRow(g_SpellDB, triggerSpell, &row))
 		{
 			for (int i = 0; i < 3; ++i)
 				if (row.m_effectAura[i] == AURA_TEMP_LEARN_SPELL && row.m_effectTriggerSpell[i])

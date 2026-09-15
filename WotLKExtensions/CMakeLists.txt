@@ -137,6 +137,8 @@ target_include_directories(WotLKExtensions PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR}/Impl
 	${CMAKE_CURRENT_SOURCE_DIR}/Cvars
 	${CMAKE_CURRENT_SOURCE_DIR}/Packets
+	${CMAKE_CURRENT_SOURCE_DIR}/Models
+	${CMAKE_CURRENT_SOURCE_DIR}/Rendering/MSDF
 	${CMAKE_CURRENT_SOURCE_DIR}/TalentFrame
 	${MSDF_LIBS_DIR}/freetype-2.14.1/include
 	${MSDF_LIBS_DIR}/msdfgen

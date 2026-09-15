@@ -636,4 +636,6 @@ void MSDF::initialize() {
         "0 = Disabled; 1 = Enabled; 2 = Enabled for unsafe/self-intersecting fonts",
         "1",
         [](Cvar& c) { ApplyMsdfMode(c.AsInt()); });
+
+    LOG_INFO << "MSDF mode: " << s_msdfMode;
 };

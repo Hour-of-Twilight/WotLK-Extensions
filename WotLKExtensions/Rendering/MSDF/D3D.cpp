@@ -156,6 +156,10 @@ namespace D3D {
         std::vector<EndSceneCallback> g_endSceneCallbacks;
         std::vector<DrawPrimitiveCallback> g_drawPrimitiveCallbacks;
         std::vector<DrawIndexedPrimitiveCallback> g_drawIndexedPrimitiveCallbacks;
+        DrawIndexedPrimitiveFilter g_drawIndexedPrimitiveFilter = nullptr;
+        // Detours patches the function bytes, not the vtable slot, so a second device create would
+        // re-attach to an already-detoured target and the hook would end up calling itself.
+        bool g_deviceMethodsHooked = false;
         std::vector<SetTextureCallback> g_setTextureCallbacks;
         std::vector<SetRenderStateCallback> g_setRenderStateCallbacks;
         std::vector<SetVertexShaderCallback> g_setVertexShaderCallbacks;
@@ -188,6 +192,8 @@ namespace D3D {
 
         HRESULT STDMETHODCALLTYPE hkDrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIVETYPE type, INT baseVertexIndex, UINT minVertexIndex, UINT numVertices, UINT startIndex, UINT primCount) {
             for (auto& cb : g_drawIndexedPrimitiveCallbacks) cb(device, type, baseVertexIndex, minVertexIndex, numVertices, startIndex, primCount);
+            if (g_drawIndexedPrimitiveFilter)
+                return g_drawIndexedPrimitiveFilter(oDrawIndexedPrimitive, device, type, baseVertexIndex, minVertexIndex, numVertices, startIndex, primCount);
             return oDrawIndexedPrimitive(device, type, baseVertexIndex, minVertexIndex, numVertices, startIndex, primCount);
         }
 
@@ -236,7 +242,8 @@ namespace D3D {
             if (result) {
                 if (IDirect3DDevice9* device = GetDevice()) {
                     __try {
-                        if (IDirect3DDevice9Vtbl* vtbl = *reinterpret_cast<IDirect3DDevice9Vtbl**>(device)) {
+                        if (IDirect3DDevice9Vtbl* vtbl = g_deviceMethodsHooked ? nullptr : *reinterpret_cast<IDirect3DDevice9Vtbl**>(device)) {
+                            g_deviceMethodsHooked = true;
                             DetourTransactionBegin();
 
                             if (!g_presentCallbacks.empty()) {
@@ -255,7 +262,7 @@ namespace D3D {
                                 oDrawPrimitive = reinterpret_cast<DrawPrimitive_t>(vtbl->DrawPrimitive);
                                 Hooks::Detour(&oDrawPrimitive, hkDrawPrimitive);
                             }
-                            if (!g_drawIndexedPrimitiveCallbacks.empty()) {
+                            if (!g_drawIndexedPrimitiveCallbacks.empty() || g_drawIndexedPrimitiveFilter) {
                                 oDrawIndexedPrimitive = reinterpret_cast<DrawIndexedPrimitive_t>(vtbl->DrawIndexedPrimitive);
                                 Hooks::Detour(&oDrawIndexedPrimitive, hkDrawIndexedPrimitive);
                             }
@@ -360,6 +367,10 @@ namespace D3D {
 
     void RegisterDrawIndexedPrimitiveCallback(const DrawIndexedPrimitiveCallback& callback) {
         if (callback) g_drawIndexedPrimitiveCallbacks.push_back(callback);
+    }
+
+    void SetDrawIndexedPrimitiveFilter(DrawIndexedPrimitiveFilter filter) {
+        g_drawIndexedPrimitiveFilter = filter;
     }
 
     void RegisterSetTextureCallback(const SetTextureCallback& callback) {

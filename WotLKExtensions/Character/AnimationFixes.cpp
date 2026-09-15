@@ -67,6 +67,7 @@ namespace
 	bool IsJumpingUpward(uintptr_t unit);
 	bool CM2ModelHasDirectSequence(void* model, unsigned int animationId);
 	int ResolveExtendedModelAnimationId(uintptr_t unit, int animationId, void* model);
+	int GetMountedAnimationForSituation(int animationId, void* model);
 
 	bool SpellHasAuraType(SpellRow const& row, uint32_t auraType)
 	{
@@ -496,6 +497,97 @@ namespace
 		return -1;
 	}
 
+	struct MountAnimationPair
+	{
+		const char* onFoot;
+		const char* mounted;
+	};
+
+	constexpr MountAnimationPair MOUNT_ANIMATION_PAIRS[] = {
+		{ "SwimIdle", "MountSwimIdle" },
+		{ "Swim", "MountSwimRun" },
+		{ "SwimLeft", "MountSwimLeft" },
+		{ "SwimRight", "MountSwimRight" },
+		{ "SwimBackwards", "MountSwimBackwards" },
+		{ "SwimRun", "MountSwimRun" },
+		{ "SwimWalk", "MountSwimWalk" },
+		{ "SwimWalkBackwards", "MountSwimWalkBackwards" },
+		{ "SwimSprint", "MountSwimSprint" },
+		{ "FlyStand", "MountFlightIdle" },
+		{ "FlyRun", "MountFlightRun" },
+		{ "FlyWalk", "MountFlightWalk" },
+		{ "FlyWalkbackwards", "MountFlightWalkBackwards" },
+		{ "FlyShuffleLeft", "MountFlightLeft" },
+		{ "FlyShuffleRight", "MountFlightRight" },
+		{ "FlyRunLeft", "MountFlightLeft" },
+		{ "FlyRunRight", "MountFlightRight" },
+		{ "FlyRise", "MountFlightStart" },
+		{ "FlyStop", "MountFlightLand" },
+		{ "JumpLandRun", "MountFlightLandRun" },
+	};
+
+	constexpr int MOUNT_ANIMATION_PAIR_COUNT =
+	    static_cast<int>(sizeof(MOUNT_ANIMATION_PAIRS) / sizeof(MOUNT_ANIMATION_PAIRS[0]));
+
+	constexpr int ANIMATION_DATA_SCAN_LIMIT = 4096;
+
+	const char* GetAnimationName(int animationId)
+	{
+		auto* row = reinterpret_cast<AnimationDataRow*>(
+		    ClientDB::GetRow(reinterpret_cast<void*>(ANIMATION_DATA_DB), animationId));
+		return row ? row->name : nullptr;
+	}
+
+	const int* GetMountAnimationIds()
+	{
+		static bool resolved = false;
+		static int ids[MOUNT_ANIMATION_PAIR_COUNT];
+		if (!resolved)
+		{
+			for (int i = 0; i < MOUNT_ANIMATION_PAIR_COUNT; ++i)
+				ids[i] = -1;
+
+			for (int id = 0; id < ANIMATION_DATA_SCAN_LIMIT; ++id)
+			{
+				const char* rowName = GetAnimationName(id);
+				if (!rowName)
+					continue;
+
+				for (int i = 0; i < MOUNT_ANIMATION_PAIR_COUNT; ++i)
+				{
+					if (ids[i] < 0 && _stricmp(rowName, MOUNT_ANIMATION_PAIRS[i].mounted) == 0)
+						ids[i] = id;
+				}
+			}
+
+			resolved = true;
+		}
+
+		return ids;
+	}
+
+	int GetMountedAnimationForSituation(int animationId, void* model)
+	{
+		if (animationId < 0 || animationId >= ANIMATION_CURRENT_OR_NONE || !model)
+			return -1;
+
+		const char* name = GetAnimationName(animationId);
+		if (!name)
+			return -1;
+
+		const int* mountedIds = GetMountAnimationIds();
+		for (int i = 0; i < MOUNT_ANIMATION_PAIR_COUNT; ++i)
+		{
+			if (mountedIds[i] < 0 || _stricmp(name, MOUNT_ANIMATION_PAIRS[i].onFoot) != 0)
+				continue;
+
+			if (CM2ModelHasDirectSequence(model, static_cast<unsigned int>(mountedIds[i])))
+				return mountedIds[i];
+		}
+
+		return -1;
+	}
+
 	uint32_t& UnitSheatheState(uintptr_t unit, uintptr_t offset)
 	{
 		return *reinterpret_cast<uint32_t*>(unit + offset);
@@ -592,6 +684,16 @@ namespace
 			    model);
 			if (extendedAnimationId != -1)
 				return extendedAnimationId;
+		}
+		else
+		{
+			void* animationModel = model;
+			if (!animationModel)
+				animationModel = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(self) + UNIT_MODEL_OFFSET);
+
+			const int mountedAnimationId = GetMountedAnimationForSituation(animationId, animationModel);
+			if (mountedAnimationId != -1)
+				return mountedAnimationId;
 		}
 
 		return CGUnit_C__ResolveModelAnimationId_MonkUnarmed(self, animationId, model);

@@ -16,6 +16,11 @@ namespace D3D {
     using EndSceneCallback = std::function<void(IDirect3DDevice9*)>;
     using DrawPrimitiveCallback = std::function<void(IDirect3DDevice9*, D3DPRIMITIVETYPE, UINT, UINT)>;
     using DrawIndexedPrimitiveCallback = std::function<void(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT)>;
+    using DrawIndexedPrimitive_t = HRESULT(STDMETHODCALLTYPE*)(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
+    // A filter runs in place of the original call and may rewrite its arguments, issue it more than
+    // once, or serve it itself. Exactly one may be installed; observers registered above still run
+    // first. Installing one also arms the vtable swap, the same way a callback does.
+    using DrawIndexedPrimitiveFilter = HRESULT(STDMETHODCALLTYPE*)(DrawIndexedPrimitive_t original, IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
     using SetTextureCallback = std::function<void(IDirect3DDevice9*, DWORD, IDirect3DBaseTexture9*)>;
     using SetRenderStateCallback = std::function<void(IDirect3DDevice9*, D3DRENDERSTATETYPE, DWORD)>;
     using SetVertexShaderCallback = std::function<void(IDirect3DDevice9*, IDirect3DVertexShader9*)>;
@@ -29,7 +34,6 @@ namespace D3D {
     using BeginScene_t = HRESULT(STDMETHODCALLTYPE*)(IDirect3DDevice9*);
     using EndScene_t = HRESULT(STDMETHODCALLTYPE*)(IDirect3DDevice9*);
     using DrawPrimitive_t = HRESULT(STDMETHODCALLTYPE*)(IDirect3DDevice9*, D3DPRIMITIVETYPE, UINT, UINT);
-    using DrawIndexedPrimitive_t = HRESULT(STDMETHODCALLTYPE*)(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
     using SetTexture_t = HRESULT(STDMETHODCALLTYPE*)(IDirect3DDevice9*, DWORD, IDirect3DBaseTexture9*);
     using SetRenderState_t = HRESULT(STDMETHODCALLTYPE*)(IDirect3DDevice9*, D3DRENDERSTATETYPE, DWORD);
     using SetVertexShader_t = HRESULT(STDMETHODCALLTYPE*)(IDirect3DDevice9*, IDirect3DVertexShader9*);
@@ -58,6 +62,7 @@ namespace D3D {
     void RegisterEndSceneCallback(const EndSceneCallback& callback);
     void RegisterDrawPrimitiveCallback(const DrawPrimitiveCallback& callback);
     void RegisterDrawIndexedPrimitiveCallback(const DrawIndexedPrimitiveCallback& callback);
+    void SetDrawIndexedPrimitiveFilter(DrawIndexedPrimitiveFilter filter);
     void RegisterSetTextureCallback(const SetTextureCallback& callback);
     void RegisterSetRenderStateCallback(const SetRenderStateCallback& callback);
     void RegisterSetVertexShaderCallback(const SetVertexShaderCallback& callback);

@@ -36,6 +36,8 @@ public:
 private:
 	friend class Cvars;
 
+	const std::string& Effective() const;
+
 	std::string m_name;
 	std::string m_help;
 	std::string m_default;
