@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SharedDefines.h"
-static constexpr uint32 ADDITIONAL_STATS = 24;
+static constexpr uint32 ADDITIONAL_STATS = 25;
 static constexpr uint32 DEFAULT_MOD_COUNT = 49;
 static constexpr uint32 DEFAULT_MOD_VAL_COUNT = 37;
 static constexpr uint32 MOD_COUNT = DEFAULT_MOD_COUNT + ADDITIONAL_STATS;
@@ -30,7 +30,8 @@ static constexpr const char* customItemModStrings[ADDITIONAL_STATS] = {
 	"ITEM_MOD_ARMOR_PCT",
 	"ITEM_MOD_ADDITONAL_SOCKET",
 	"ITEM_MOD_MOVEMENT_SPEED",
-	"ITEM_MOD_POTION_EFFECT"
+	"ITEM_MOD_POTION_EFFECT",
+	"ITEM_MOD_ALL_PRIMARY_STAT"
 };
 class Misc
 {

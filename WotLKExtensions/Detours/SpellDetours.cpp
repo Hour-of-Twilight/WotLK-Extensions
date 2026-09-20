@@ -3,6 +3,7 @@
 #include <Spell.h>
 #include <Player.h>
 #include "../CDBCMgr/CDBCDefs/SpellClassMaskExtension.h"
+#include <ClientData/ClientFunctions.h>
 
 CLIENT_DETOUR(Spell_C_GetSpellModifiers, 0x007FD970, __cdecl, bool,
     (SpellRow * pSpellRec, uint32_t modOp, int32_t* outFlatMod, int32_t* outPctMod))
@@ -75,6 +76,9 @@ CLIENT_DETOUR(Spell_C_HaveSpellPower, 0x008017E0, __cdecl, bool, (CGUnit * caste
 CLIENT_DETOUR(Spell_C_HaveEquippedSpellItems, 0x008093D0, __cdecl, bool,
     (CGUnit * unit, SpellRow* pSpellRec, int32_t checkInventory, int32_t reportError, void* spellCast))
 {
+	if (pSpellRec && CGUnit_C::IsActivePlayer(unit) && !Spells::MeetsCustomAttributeRequirements(pSpellRec, reportError, spellCast))
+		return false;
+
 	if (pSpellRec)
 	{
 		SpellRow patched = *pSpellRec;

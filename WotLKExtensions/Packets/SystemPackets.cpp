@@ -19,4 +19,8 @@ void SystemPackets::Packet_SMSG_RECEIVE_SECURITY_LEVEL(void* handlerParam, uint3
 		Util::OverwriteBytesAtAddress(AFK_5MIN_CHECK, patch5min, 6);
 		Util::SetByteAtAddress((void*)AFK_30MIN_CHECK, 0xEB);
 	}
+
+	constexpr uint8_t chatWhileDeadOriginal = 0x74;
+	constexpr uint8_t chatWhileDeadBypass = 0xEB;
+	Util::SetByteAtAddress((void*)CHAT_WHILE_DEAD_CHECK, security >= 3 ? chatWhileDeadBypass : chatWhileDeadOriginal);
 }

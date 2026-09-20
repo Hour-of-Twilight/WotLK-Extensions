@@ -28,6 +28,7 @@ void ItemLevelPackets::Handler_SMSG_ITEM_LEVEL_BREAKDOWN(void*, uint32_t, uint32
 		uint32_t level = r.GetUInt32();
 		self.m_slotLevels[slot] = level;
 	}
+	self.m_averageItemLevel = r.GetUInt32();
 
 	self.m_hasData = true;
 	FrameXMLExtensions::SignalEvent("HOT_ITEM_LEVEL_UPDATE", "");
@@ -73,9 +74,23 @@ int ItemLevelPackets::GetItemLevelBreakdownSlot(lua_State* L)
 	return 1;
 }
 
+int ItemLevelPackets::GetItemLevelBreakdownAverage(lua_State* L)
+{
+	ItemLevelPackets& self = Instance();
+	if (!self.m_hasData)
+	{
+		FrameScript::PushNil(L);
+		return 1;
+	}
+
+	FrameScript::PushNumber(L, self.m_averageItemLevel);
+	return 1;
+}
+
 void ItemLevelPackets::Clear()
 {
 	m_slotLevels.clear();
+	m_averageItemLevel = 0;
 	m_subClass = 0;
 	m_hasData = false;
 }
@@ -88,4 +103,5 @@ void ItemLevelPackets::Apply()
 	sLua.RegisterFunction("HasItemLevelBreakdown", &HasItemLevelBreakdown, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetItemLevelSubClass", &GetItemLevelSubClass, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetItemLevelBreakdownSlot", &GetItemLevelBreakdownSlot, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetItemLevelBreakdownAverage", &GetItemLevelBreakdownAverage, LuaFunctionState::FRAME);
 }

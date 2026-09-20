@@ -31,6 +31,13 @@ static void AddCustomStat(void* summary, int type, int value)
 	ItemStatsSummary::Get(summary).values[type - CUSTOM_STAT_FIRST] += value;
 }
 
+static void AddPrimaryStats(void* summary, int value)
+{
+	uint8* bytes = static_cast<uint8*>(summary);
+	for (int type = ITEM_MOD_AGILITY; type <= ITEM_MOD_STAMINA; ++type)
+		*reinterpret_cast<int32*>(bytes + 0x30 + type * 4) += value;
+}
+
 const ExtendedStats* ItemStatsSummary::Find(const void* summary)
 {
 	auto& stats = SideStats();
@@ -96,6 +103,12 @@ static void __cdecl AddItemStatsImpl(void* self, const ItemCache* item)
 		const int type = item->Stats[i];
 		const int value = item->Stats[i + ITEM_CACHE_STAT_COUNT];
 
+		if (type == ITEM_MOD_ALL_PRIMARY_STAT)
+		{
+			AddPrimaryStats(self, value);
+			continue;
+		}
+
 		if (IsCustomStat(type))
 		{
 			AddCustomStat(self, type, value);
@@ -137,6 +150,13 @@ CLIENT_DETOUR_THISCALL(CGItemStatsSummary__AddEnchantEffect, 0x0061F2B0, void, (
 {
 	if (effect == 5)
 	{
+		if (arg == ITEM_MOD_ALL_PRIMARY_STAT)
+		{
+			for (int type = ITEM_MOD_AGILITY; type <= ITEM_MOD_STAMINA; ++type)
+				CGItemStatsSummary__AddEnchantEffect(self, effect, type, value);
+			return;
+		}
+
 		if (IsCustomStat(arg))
 		{
 			AddCustomStat(self, arg, value);

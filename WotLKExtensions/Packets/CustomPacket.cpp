@@ -7,6 +7,7 @@
 #include "AuraValuesCache.h"
 #include "UnitHealthPrediction.h"
 #include "CraftingPackets.h"
+#include "TransmogPackets.h"
 #include "GemSocketPackets.h"
 #include "GroupFinderPackets.h"
 #include "ItemGenPackets.h"
@@ -17,6 +18,7 @@
 #include "PlayerSettingsPackets.h"
 #include "LootWindowPackets.h"
 #include <Character/MovementForce.h>
+#include <Spells/CooldownRate.h>
 #include "Streaming/BackgroundDownloader.h"
 #include "SystemPackets.h"
 #include "XMLExtensions.h"
@@ -66,8 +68,10 @@ void CustomPacket::Apply()
 	sAuraValuesCache.Apply();
 	sUnitHealthPrediction.Apply();
 	sCraftingPackets.Apply();
+	sTransmogPackets.Apply();
 	sLootWindowPackets.Apply();
 	sMovementForce.Apply();
+	sCooldownRate.Apply();
 	ItemDbCachePackets::RegisterHandlers();
 
 	// Realm handlers: queued now, applied against the realm connection in SetCustomRealmHandlers.

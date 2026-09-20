@@ -22,6 +22,7 @@ namespace CGItem_C
 	CLIENT_FUNCTION(Lock, 0x00706FE0, __thiscall, void, (void* item))
 	CLIENT_FUNCTION(Unlock, 0x00707020, __thiscall, void, (void* item))
 	CLIENT_FUNCTION(GetItemByFullName, 0x00709DE0, __cdecl, uint32_t, (const char* name))
+	CLIENT_FUNCTION(GetClassID, 0x00707220, __thiscall, int, (void* item))
 }
 
 namespace CGBag_C
@@ -89,10 +90,12 @@ namespace CDataStore_C
 namespace CCharacterComponent
 {
 	CLIENT_FUNCTION(RemoveItemBySlot, 0x004EE6D0, __thiscall, void, (void* _this, int slot))
-	CLIENT_FUNCTION(RemoveItem, 0x004EE6D0, __thiscall, void, (void* _this, int slot))
+	CLIENT_FUNCTION(RemoveItem, 0x004EE460, __thiscall, void, (void* _this, int slot))
 	CLIENT_FUNCTION(AddItem, 0x004F2640, __thiscall, void, (void* _this, int slot, void* itemDisplayInfoRecord, int unk))
-	CLIENT_FUNCTION(AddItemBySlot, 0x004E10BA, __thiscall, void, (void* _this, int slot, int itemEntry, int unk))
+	CLIENT_FUNCTION(AddItemBySlot, 0x004F2880, __thiscall, int, (void* _this, int slot, int itemEntry, int unk))
 	CLIENT_FUNCTION(AddItemByDisplayId, 0x004F2830, __thiscall, void, (void* _this, int slot, int displayId, int unk))
+	CLIENT_FUNCTION(RemoveHandItem, 0x004EB070, __cdecl, void, (void* model, int hand, int sheath, char isShield))
+	CLIENT_FUNCTION(AddHandItem, 0x004EACD0, __cdecl, int, (void* model, void* record, unsigned int hand, int sheath, char a5, char isShield, char isRangedRight, int* enchant))
 }
 
 namespace CGPlayer_C
@@ -125,6 +128,7 @@ namespace CGUnit_C
 	CLIENT_FUNCTION(GetDisplayRaceNameFromRecord, 0x00715970, __cdecl, const char*, (void* raceRecord, int sex, int* outSex))
 	CLIENT_FUNCTION(GetDisplayClassName, 0x0072AAB0, __cdecl, const char*, (void* unitObj, int displaySex))
 	CLIENT_FUNCTION(IsBossMob, 0x00715D70, __thiscall, bool, (void* unit))
+	CLIENT_FUNCTION(IsActivePlayer, 0x004CEE50, __thiscall, bool, (void* unit))
 	CLIENT_FUNCTION(UnitReaction, 0x007251C0, __thiscall, int, (void* unit, void* player))
 	CLIENT_FUNCTION(UpdateModelScale, 0x0072CBB0, __thiscall, void, (void* unit, int flags))
 	CLIENT_FUNCTION(AnimationData, 0x007385C0, __thiscall, void, (CGUnit * unit, int animationId, char flags))
@@ -161,7 +165,7 @@ namespace CGGuildInfo_C
 
 CLIENT_FUNCTION(CGGuildInfo__GuildNameCallback, 0x006D1C70, __cdecl, void, (void*))
 CLIENT_FUNCTION(Script_GetGUIDFromToken, 0x0060ABF0, __cdecl, void, (const char* token, uint64_t* outGuid, char unused))
-CLIENT_FUNCTION(Script_GetTokenFromGUID, 0x0060B102, __cdecl, const char*, (uint64_t guid))
+CLIENT_FUNCTION(Script_GetTokenFromGUID, 0x0060B0B0, __cdecl, const char*, (const uint64_t* guid))
 CLIENT_FUNCTION(Script_GetTokensFromGUID, 0x0060BB70, __cdecl, const char**, (const uint64_t* guid, int* outCount))
 
 namespace CNetClient
@@ -235,6 +239,11 @@ namespace FrameScript
 namespace ItemDisplayInfoDB
 {
 	CLIENT_FUNCTION(GetRecord, 0x004CFD90, __thiscall, int, (void* _this, int itemDisplayInfoId, void* outRecord))
+}
+
+namespace CGDressUpModelFrame
+{
+	CLIENT_FUNCTION(TryOn, 0x00597FC0, __thiscall, void, (void* self, int itemEntry, int enchant, int slotOverride))
 }
 
 namespace Spell_C

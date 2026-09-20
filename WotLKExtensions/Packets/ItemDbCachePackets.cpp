@@ -13,7 +13,6 @@ struct RefreshItemContext
 
 static constexpr uintptr_t PLAYER_ITEM_BASE_OFFSET = 0x1008;
 static constexpr uintptr_t PLAYER_COMP_OFFSET = 0xB4C;
-static constexpr uintptr_t COMP_DISPLAY_ID_OFFSET = 0x428;
 static constexpr uintptr_t ITEM_ENTRY_OFFSET = 0x21C;
 static constexpr uint32 ITEM_SLOT_STRIDE = 8;
 
@@ -36,22 +35,14 @@ static int __cdecl RefreshItemCallback(uint32 guidLow, uint32 guidHigh, void* us
 	if (!comp)
 		return 1;
 
-	uintptr_t compBase = reinterpret_cast<uintptr_t>(comp);
-
 	for (uint32 slot = 0; slot <= 0x12; slot++)
 	{
 		uint32* itemEntry = reinterpret_cast<uint32*>(itemBase + slot * ITEM_SLOT_STRIDE + ITEM_ENTRY_OFFSET);
-		uint32 displayId = *reinterpret_cast<uint32*>(compBase + COMP_DISPLAY_ID_OFFSET + slot * sizeof(uint32));
-
 		if (*itemEntry != ctx->targetItemEntry)
 			continue;
 
 		CCharacterComponent::RemoveItemBySlot(comp, slot);
 		CGPlayer_C::EquipVisibleItem(player, reinterpret_cast<int*>(itemEntry), slot);
-
-		uint8 displayRecord[0x64] = {};
-		if (displayId && ItemDisplayInfoDB::GetRecord(&g_itemDisplayInfoDB, displayId, displayRecord))
-			CCharacterComponent::AddItem(comp, slot, displayRecord, 0);
 	}
 
 	return 1;

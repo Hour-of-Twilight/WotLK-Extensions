@@ -282,3 +282,72 @@ namespace ClientData::SpellBook
 		UpdateSpells(0, 0, 0);
 	}
 }
+
+namespace ClientData::SpellCooldowns
+{
+	// SPELLHISTORY, 0x30 bytes. Offsets from SpellHistory__AddHistory (0x00805230) and
+	// SpellHistory__GetCooldown (0x00807980).
+	struct Entry
+	{
+		Entry* m_prevLink;
+		Entry* m_next;
+		uint32_t m_spellId;
+		uint32_t m_itemId;
+		uint32_t m_startTime;
+		uint32_t m_duration;
+		uint32_t m_categoryId;
+		uint32_t m_categoryStart;
+		uint32_t m_categoryDuration;
+		uint8_t m_onHold;
+		uint8_t m_pad[3];
+		uint32_t m_gcdCategory;
+		uint32_t m_gcdDuration;
+	};
+
+	struct History
+	{
+		uint32_t m_unk00;
+		uint32_t m_unk04;
+		Entry* m_head;
+		uint32_t m_unk0C;
+		uint32_t m_unk10;
+		Entry* m_free;
+	};
+
+	// s_SpellHistoryPlayer, index 0 is the player and index 1 the pet.
+	CLIENT_ADDRESS(History, s_spellHistory, 0x00D3F5AC)
+
+	constexpr uint32_t PlayerHistory = 0;
+	constexpr uint32_t PetHistory = 1;
+	constexpr uint32_t HistoryCount = 2;
+
+	// The client stops walking on a null pointer or one with bit 0 set, which is how the tail
+	// sentinel links back to the list.
+	inline Entry* Valid(Entry* entry)
+	{
+		return (!entry || (reinterpret_cast<uintptr_t>(entry) & 1)) ? nullptr : entry;
+	}
+
+	inline Entry* First(uint32_t historyIndex)
+	{
+		return Valid(s_spellHistory[historyIndex].m_head);
+	}
+
+	inline Entry* Next(Entry* entry)
+	{
+		return Valid(entry->m_next);
+	}
+
+	CLIENT_FUNCTION(UpdateSpellBookCooldowns, 0x0053BAC0, __cdecl, void, ())
+	CLIENT_FUNCTION(UpdateSpellBookUsable, 0x0053CF10, __cdecl, void, ())
+	CLIENT_FUNCTION(UpdateContainerCooldowns, 0x005D6F10, __cdecl, void, ())
+	CLIENT_FUNCTION(UpdatePetCooldowns, 0x005D3090, __cdecl, void, ())
+
+	inline void RefreshUI()
+	{
+		UpdateSpellBookCooldowns();
+		UpdateSpellBookUsable();
+		UpdateContainerCooldowns();
+		UpdatePetCooldowns();
+	}
+}

@@ -62,6 +62,8 @@ private:
 	static int GetTalentTreeVersion(lua_State* L);
 	static int GetCachedTalentFreePoints(lua_State* L);
 	static int GetCachedTalentLevel(lua_State* L);
+	static int GetCachedXPTalentLevel(lua_State* L);
+	static int GetCachedMaxTalentLevel(lua_State* L);
 	static int GetCachedLearntTalents(lua_State* L);
 	static int GetCachedItemGrantedTalents(lua_State* L);
 	static int GetCachedInspectLearntTalents(lua_State* L);
@@ -95,6 +97,8 @@ private:
 	uint32_t m_version = 0;
 	uint32_t m_freePoints = 0;
 	uint32_t m_talentLevel = 0;
+	uint32_t m_xpTalentLevel = 0;
+	uint32_t m_maxTalentLevel = 0;
 	std::vector<uint32_t> m_learntTalents;
 	std::vector<uint32_t> m_itemGrantedTalents;
 	std::vector<uint32_t> m_inspectLearntTalents;

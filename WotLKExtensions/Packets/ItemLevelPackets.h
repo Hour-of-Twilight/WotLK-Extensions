@@ -26,9 +26,11 @@ private:
 	static int HasItemLevelBreakdown(lua_State* L);
 	static int GetItemLevelSubClass(lua_State* L);
 	static int GetItemLevelBreakdownSlot(lua_State* L);
+	static int GetItemLevelBreakdownAverage(lua_State* L);
 
 	uint8_t m_subClass = 0;
 	std::unordered_map<uint8_t, uint32_t> m_slotLevels;
+	uint32_t m_averageItemLevel = 0; // uncapped, unlike GetOurItemLevel
 	bool m_hasData = false;
 };
 

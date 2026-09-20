@@ -16,6 +16,7 @@
 
 #include <Character/MovementForce.h>
 #include <Packets/CraftingPackets.h>
+#include <Spells/CooldownRate.h>
 #include <SharedDefines.h>
 
 #ifdef ENABLE_MAP_EDITOR
@@ -334,6 +335,7 @@ namespace
 
 		// The unit GUIDs these are keyed on are gone once the world is torn down.
 		sMovementForce.Reset();
+		sCooldownRate.Forget();
 
 		GameClient::DestroyGame(a1, a2, a3);
 	}
@@ -355,6 +357,7 @@ namespace
 		sActionRepeat.OnUpdate();
 		sMovementForce.Tick();
 		sCraftingPackets.Tick();
+		sCooldownRate.Tick();
 		return result;
 	}
 

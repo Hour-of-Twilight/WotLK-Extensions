@@ -1647,9 +1647,14 @@ namespace Streaming
 		return 1;
 	}
 
+	bool BackgroundDownloader::IsRestartPending()
+	{
+		return g_restartNeeded.load();
+	}
+
 	int BackgroundDownloader::Lua_RestartPending(lua_State* L)
 	{
-		FrameScript::PushBoolean(L, g_restartNeeded.load());
+		FrameScript::PushBoolean(L, Instance().IsRestartPending());
 		return 1;
 	}
 

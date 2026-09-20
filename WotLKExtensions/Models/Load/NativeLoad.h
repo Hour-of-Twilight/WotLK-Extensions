@@ -20,8 +20,8 @@
 
 /// Read-only query surface plus the load entry point of the native modern-M2 reader: the client reads
 /// a modern-window MD21 container (inner version 272-274) directly, direct-filling the client's own
-/// model runtime -- no host transform, no in-memory MD21->MD20 reshape, no version rewrite (the
-/// resident header keeps its modern version).
+/// model runtime -- no host transform, no in-memory MD21->MD20 reshape. The resident header's inner
+/// version is restamped to the target once every record has been normalized to the target shape.
 /// Everything here is snapshot-by-value so the Lua methods (wxl.m2.*) never hold pointers into
 /// the feature's mutable state.
 namespace ModernM2::Reader

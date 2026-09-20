@@ -11,6 +11,7 @@
 #endif
 #include <Chat/ChatTags.h>
 #include <Character/AnimationFixes.h>
+#include <Character/MovementNetcode.h>
 #include <Spells/AutoRepeatDeadzone.h>
 #include <Spells/SpellDescriptionVars.h>
 #include <Config/LauncherSettings.h>
@@ -37,6 +38,7 @@ void Main::OnAttach()
 #endif
 	FreeCam::Apply();
 	AnimationFixes::Apply();
+	MovementNetcode::Apply();
 	ChatTags::Apply();
 	ModernM2::Apply();
 	ClientDetours::Apply();

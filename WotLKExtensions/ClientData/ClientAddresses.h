@@ -71,3 +71,4 @@ constexpr uint32 OS_GET_TIME_ADDR = 0x0086AE20;
 constexpr uint32 AFK_CHECK_SUB = 0x0052B251;
 constexpr uint32 AFK_5MIN_CHECK = 0x0052B25F;
 constexpr uint32 AFK_30MIN_CHECK = 0x0052B26A;
+constexpr uint32 CHAT_WHILE_DEAD_CHECK = 0x0050D641;

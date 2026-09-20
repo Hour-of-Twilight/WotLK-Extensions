@@ -5,6 +5,7 @@
 #include <ClientData/ClientFunctions.h>
 #include <XMLExtensions.h>
 #include <SharedDefines.h>
+#include <algorithm>
 
 TalentFramePackets& TalentFramePackets::Instance()
 {
@@ -72,6 +73,8 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_SMALL_CACHE(void*, uint32_t,
 	self.m_talentLevel = r.GetUInt32();
 	ReadLearntTalents(r, self.m_learntTalents);
 	ReadLearntTalents(r, self.m_itemGrantedTalents);
+	self.m_xpTalentLevel = r.GetUInt32();
+	self.m_maxTalentLevel = r.GetUInt32();
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_SMALL_CACHE", "");
 }
 
@@ -91,8 +94,12 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_POINTS(void*, uint32_t, uint
 
 void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEVEL(void*, uint32_t, uint32_t, CDataStore* a3)
 {
-	uint32_t talentLevel = Packet(a3).GetUInt32();
-	Instance().m_talentLevel = talentLevel;
+	Packet r(a3);
+	TalentFramePackets& self = Instance();
+	uint32_t talentLevel = r.GetUInt32();
+	self.m_talentLevel = talentLevel;
+	self.m_xpTalentLevel = r.GetUInt32();
+	self.m_maxTalentLevel = r.GetUInt32();
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_LEVEL", "%u", talentLevel);
 }
 
@@ -101,6 +108,14 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARN_RESPONSE(void*, uint32
 	Packet r(a3);
 	uint32_t nodeId = r.GetUInt32();
 	uint8_t canLearn = r.GetUInt8();
+	if (canLearn == 0)
+	{
+		TalentFramePackets& self = Instance();
+		if (std::find(self.m_learntTalents.begin(), self.m_learntTalents.end(), nodeId) == self.m_learntTalents.end())
+			self.m_learntTalents.push_back(nodeId);
+		if (self.m_freePoints > 0)
+			--self.m_freePoints;
+	}
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_LEARN_RESPONSE", "%u%u", nodeId, (uint32_t)canLearn);
 }
 
@@ -109,6 +124,16 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_UNLEARN_RESPONSE(void*, uint
 	Packet r(a3);
 	uint32_t nodeId = r.GetUInt32();
 	uint8_t result = r.GetUInt8();
+	if (result != 0)
+	{
+		TalentFramePackets& self = Instance();
+		auto itr = std::find(self.m_learntTalents.begin(), self.m_learntTalents.end(), nodeId);
+		if (itr != self.m_learntTalents.end())
+		{
+			self.m_learntTalents.erase(itr);
+			++self.m_freePoints;
+		}
+	}
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_UNLEARN_RESPONSE", "%u%u", nodeId, (uint32_t)result);
 }
 
@@ -245,6 +270,18 @@ int TalentFramePackets::GetCachedTalentFreePoints(lua_State* L)
 int TalentFramePackets::GetCachedTalentLevel(lua_State* L)
 {
 	FrameScript::PushNumber(L, Instance().m_talentLevel);
+	return 1;
+}
+
+int TalentFramePackets::GetCachedXPTalentLevel(lua_State* L)
+{
+	FrameScript::PushNumber(L, Instance().m_xpTalentLevel);
+	return 1;
+}
+
+int TalentFramePackets::GetCachedMaxTalentLevel(lua_State* L)
+{
+	FrameScript::PushNumber(L, Instance().m_maxTalentLevel);
 	return 1;
 }
 
@@ -505,6 +542,8 @@ void TalentFramePackets::Apply()
 	sLua.RegisterFunction("GetTalentTreeVersion", &GetTalentTreeVersion, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetCachedTalentFreePoints", &GetCachedTalentFreePoints, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetCachedTalentLevel", &GetCachedTalentLevel, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetCachedXPTalentLevel", &GetCachedXPTalentLevel, LuaFunctionState::FRAME);
+	sLua.RegisterFunction("GetCachedMaxTalentLevel", &GetCachedMaxTalentLevel, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetCachedLearntTalents", &GetCachedLearntTalents, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetCachedItemGrantedTalents", &GetCachedItemGrantedTalents, LuaFunctionState::FRAME);
 	sLua.RegisterFunction("GetCachedInspectLearntTalents", &GetCachedInspectLearntTalents, LuaFunctionState::FRAME);

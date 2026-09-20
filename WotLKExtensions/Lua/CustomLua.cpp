@@ -14,6 +14,8 @@
 #include <Packets/UnitLevelCache.h>
 #include <Packets/UnitHealthPrediction.h>
 #include <Packets/CraftingPackets.h>
+#include <Packets/TransmogPackets.h>
+#include <Spells/CooldownRate.h>
 #include <UnitDetours.h>
 #include <ClientData/Enums.h>
 
@@ -1162,6 +1164,8 @@ void CustomLua::RegisterBuiltinFunctions()
 	sPlayer.RegisterCustomLuaFunctions();
 	sUnitHealthPrediction.RegisterLuaFunctions();
 	sCraftingPackets.RegisterLuaFunctions();
+	sTransmogPackets.RegisterLuaFunctions();
+	sCooldownRate.RegisterLuaFunctions();
 
 	RegisterFunction("GetMouseWorldPosition", &GetMouseWorldPosition, LuaFunctionState::FRAME);
 	RegisterFunction("GetLastMouseoverGUID", &GetLastMouseoverGUID, LuaFunctionState::FRAME);

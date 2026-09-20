@@ -27,6 +27,9 @@ namespace Streaming
 		// Active download, or the first update check has not finished yet.
 		bool IsBusy();
 
+		// A downloaded file is staged and only swaps in on the next launch.
+		bool IsRestartPending();
+
 		static int Lua_IsStreaming(lua_State* L);
 		static int Lua_IsBusy(lua_State* L);
 		static int Lua_GetProgress(lua_State* L);

@@ -1,8 +1,31 @@
 #include "Spell.h"
 #include "SharedDefines.h"
 #include <string>
+#include <cstring>
 #include "Player.h"
 #include <ClientDetours.h>
+#include <ClientData/ClientFunctions.h>
+#include <ClientData/GameEnums.h>
+#include <ClientData/ObjectManager.h>
+#include "../CDBCMgr/CDBCDefs/SpellCustomAttr.h"
+
+namespace
+{
+	constexpr uint32_t kPlayerBackpackOffset = 0x18F0;
+	constexpr int kMainhandEquipmentSlot = 15;
+	constexpr int kOffhandEquipmentSlot = 16;
+	constexpr uint32_t kSpellFailedEquippedItemClassMainhand = 30;
+	constexpr uint32_t kSpellFailedEquippedItemClassOffhand = 31;
+	constexpr uintptr_t kTooltipColorWhite = 0x00AD2D30;
+	constexpr uintptr_t kTooltipColorRed = 0x00AD2D34;
+	constexpr uint32_t kMeleeWeaponSubclassMask =
+		(1u << ClientData::ITEM_SUBCLASS_WEAPON_AXE) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_AXE2) |
+		(1u << ClientData::ITEM_SUBCLASS_WEAPON_MACE) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_MACE2) |
+		(1u << ClientData::ITEM_SUBCLASS_WEAPON_POLEARM) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_SWORD) |
+		(1u << ClientData::ITEM_SUBCLASS_WEAPON_SWORD2) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_STAFF) |
+		(1u << ClientData::ITEM_SUBCLASS_WEAPON_FIST) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_DAGGER) |
+		(1u << ClientData::ITEM_SUBCLASS_WEAPON_SPEAR);
+}
 
 static bool __cdecl SpellIgnoresMovementGate(SpellRow* spell)
 {
@@ -80,6 +103,55 @@ bool Spells::ApplyPowerTypeMod(SpellRow* spell)
 	return true;
 }
 
+uint32_t Spells::GetCustomAttributes(uint32_t spellId)
+{
+	auto* row = GlobalCDBCMap.getRow<SpellCustomAttrRow>("SpellCustomAttr", spellId);
+	return row ? row->attributes : 0;
+}
+
+uint32_t Spells::GetCustomAttributes2(uint32_t spellId)
+{
+	auto* row = GlobalCDBCMap.getRow<SpellCustomAttrRow>("SpellCustomAttr", spellId);
+	return row ? row->attributes2 : 0;
+}
+
+static bool IsWeaponEquipped(int slot)
+{
+	CGObject_C* player = ClientData::ObjectManager::GetActivePlayerObject();
+	if (!player)
+		return false;
+
+	void* backpack = reinterpret_cast<uint8_t*>(player) + kPlayerBackpackOffset;
+	void* item = CGBag_C::GetItemPointer(backpack, slot);
+	return item && CGItem_C::GetClassID(item) == ClientData::ITEM_CLASS_WEAPON;
+}
+
+bool Spells::IsDualWielding()
+{
+	return IsWeaponEquipped(kMainhandEquipmentSlot) && IsWeaponEquipped(kOffhandEquipmentSlot);
+}
+
+bool Spells::MeetsCustomAttributeRequirements(SpellRow* spell, int32_t reportError, void* spellCast)
+{
+	if (!spell || !(GetCustomAttributes(spell->m_ID) & SPELL_ATTR0_CU_REQ_DUAL_WIELD))
+		return true;
+
+	bool mainhand = IsWeaponEquipped(kMainhandEquipmentSlot);
+	if (mainhand && IsWeaponEquipped(kOffhandEquipmentSlot))
+		return true;
+
+	if (reportError)
+	{
+		int32_t subclassMask = static_cast<int32_t>(kMeleeWeaponSubclassMask);
+		if (spell->m_equippedItemClass == ClientData::ITEM_CLASS_WEAPON && spell->m_equippedItemSubclass)
+			subclassMask = static_cast<int32_t>(spell->m_equippedItemSubclass);
+
+		Spell_C::SpellFailed(spellCast, spell, mainhand ? kSpellFailedEquippedItemClassOffhand : kSpellFailedEquippedItemClassMainhand,
+			ClientData::ITEM_CLASS_WEAPON, subclassMask, 0);
+	}
+	return false;
+}
+
 static void __cdecl RelaxStackSpellRow(SpellRow* spell)
 {
 	Spells::RelaxEquippedItemRequirements(spell);
@@ -93,6 +165,45 @@ static void __cdecl PatchStackSpellRowPowerType(SpellRow* spell, uint32_t guidLo
 		return;
 
 	Spells::ApplyPowerTypeMod(spell);
+}
+
+void Spells::AddDualWieldTooltipLine(void* tooltip, SpellRow* spell)
+{
+	if (!tooltip || !spell || !(GetCustomAttributes(spell->m_ID) & SPELL_ATTR0_CU_REQ_DUAL_WIELD))
+		return;
+
+	const char* key = "SPELL_REQUIRES_DUAL_WIELD";
+	char* text = FrameScript::GetText(key, -1, 0);
+	if (!text || !*text || std::strncmp(text, key, std::strlen(key)) == 0)
+		return;
+
+	void* color = reinterpret_cast<void*>(IsDualWielding() ? kTooltipColorWhite : kTooltipColorRed);
+	CGTooltip::AddLine(tooltip, text, nullptr, color, color, 1);
+}
+
+static void __cdecl AddStackDualWieldTooltipLine(void* tooltip, SpellRow* spell)
+{
+	Spells::AddDualWieldTooltipLine(tooltip, spell);
+}
+
+__declspec(naked) void CGTooltip__SetSpell_DualWieldLine()
+{
+	__asm {
+        pushad
+        pushfd
+        lea  eax, [ebp-0x488]
+        push eax
+        mov  ecx, [ebp-0x1C]
+        push ecx
+        call AddStackDualWieldTooltipLine
+        add  esp, 8
+        popfd
+        popad
+
+        cmp  dword ptr [ebp-0x458], 0
+        push 0x00624AF0
+        ret
+	}
 }
 
 // CGTooltip__SetSpell holds its SpellRow on the stack at ebp-0x488 and runs the same three guards
@@ -226,6 +337,7 @@ void Spells::Apply()
 {
 	WriteJumpPatch(0x0073A042, &CGUnit_C__MovementGate, 9);
 	WriteJumpPatch(0x006248A3, &CGTooltip__SetSpell_EquippedItemGate, 7);
+	WriteJumpPatch(0x00624AE9, &CGTooltip__SetSpell_DualWieldLine, 7);
 	WriteJumpPatch(0x0080CD11, &Spell_C_CastSpell_RelaxSpellRow, 7);
 	WriteJumpPatch(0x00806871, &Spell_C_HandleSpellGo_PowerType, 6);
 	WriteJumpPatch(0x0080E624, &Spell_C_HandleSpellStart_PowerType, 6);

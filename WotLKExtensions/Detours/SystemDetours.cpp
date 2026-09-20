@@ -9,6 +9,7 @@
 #include <AuraValuesCache.h>
 #include <UnitHealthPrediction.h>
 #include <CraftingPackets.h>
+#include <TransmogPackets.h>
 #include <ItemLevelPackets.h>
 
 CLIENT_DETOUR(CGlueMgr__EnterWorld, 0x4D9BD0, __cdecl, void, ())
@@ -20,6 +21,7 @@ CLIENT_DETOUR(CGlueMgr__EnterWorld, 0x4D9BD0, __cdecl, void, ())
 	sAuraValuesCache.ClearAll();
 	sUnitHealthPrediction.ClearAll();
 	sCraftingPackets.Reset();
+	sTransmogPackets.Reset();
 	sItemLevelPackets.Clear();
 	sCustomPacket.SendSanityCheck(true);
 }

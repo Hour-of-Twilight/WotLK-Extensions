@@ -16,11 +16,16 @@ namespace Streaming
 	{
 		constexpr const char* kStatusLua = "Interface\\SharedXML\\StreamingPatchStatus.lua";
 
-		// Shown when a login is refused because we are still patching.
+		constexpr const char* kBusyMessage =
+		    "The game is still downloading updated files. Please wait for patching to finish before logging in.";
+
+		constexpr const char* kRestartMessage =
+		    "A game update has been downloaded. Please restart the game to finish patching before logging in.";
+
+		// Shown when a login is refused because we are still patching. Expects msg to be set by the caller.
 		constexpr const char* kBlockedScript =
-		    "if ( HoTFallbackPatchStatus_LoginBlocked ) then HoTFallbackPatchStatus_LoginBlocked(); "
-		    "elseif ( GlueDialog_Show ) then GlueDialog_Show(\"OKAY\", \"The game is still downloading "
-		    "updated files. Please wait for patching to finish before logging in.\"); end";
+		    "if ( HoTFallbackPatchStatus_LoginBlocked ) then HoTFallbackPatchStatus_LoginBlocked(msg); "
+		    "elseif ( GlueDialog_Show ) then GlueDialog_Show(\"OKAY\", msg); end";
 
 		// Self-contained status UI
 		constexpr const char* kFallbackLua = R"LUA(
@@ -189,6 +194,11 @@ local function HidePanel()
 end
 
 local WAIT_TEXT = IS_GLUE and "Logging in is disabled until this finishes." or "";
+local RESTART_TEXT = IS_GLUE and "Logging in is disabled until you restart the game." or "";
+
+local function RestartPending()
+	return (IsStreamingRestartPending and IsStreamingRestartPending()) or false;
+end
 
 -- Nothing to lose on the login screen, so apply new interface files without asking.
 local function AutoRefresh()
@@ -218,12 +228,18 @@ local function Apply(state)
 			ShowPanel("Interface update ready",
 				"New interface files were downloaded. Refresh the UI to apply them.",
 				false, true, true, 100);
-			SetLoginEnabled(true);
+			SetLoginEnabled(not RestartPending());
 		end
 	elseif ( state == "r" ) then
-		ShowPanel("Update downloaded", "Please restart the game to finish updating.",
-			false, false, true, 100);
-		SetLoginEnabled(true);
+		if ( IS_GLUE ) then
+			ShowPanel("Restart required",
+				"A game update has been downloaded. Restart the game to finish patching.\n" .. RESTART_TEXT,
+				false, false, false, 100);
+			SetLoginEnabled(false);
+		else
+			ShowPanel("Update downloaded", "Please restart the game to finish updating.",
+				false, false, true, 100);
+		end
 	else
 		HidePanel();
 		SetLoginEnabled(true);
@@ -237,7 +253,7 @@ local function CurrentState()
 		return "c";
 	elseif ( IsStreamingUIRefreshPending and IsStreamingUIRefreshPending() and not f.uiDismissed ) then
 		return "u";
-	elseif ( IsStreamingRestartPending and IsStreamingRestartPending() and not f.restartDismissed ) then
+	elseif ( RestartPending() and (IS_GLUE or not f.restartDismissed) ) then
 		return "r";
 	end
 	return "h";
@@ -295,10 +311,10 @@ f:SetScript("OnUpdate", function(self, elapsed)
 	f.detail:SetText(text);
 end);
 
-function HoTFallbackPatchStatus_LoginBlocked()
+function HoTFallbackPatchStatus_LoginBlocked(msg)
 	f.state = nil;
 	if ( GlueDialog_Show ) then
-		GlueDialog_Show("OKAY", "The game is still downloading updated files. Please wait for patching to finish before logging in.");
+		GlueDialog_Show("OKAY", msg or "The game is still patching. Please wait before logging in.");
 	end
 end
 
@@ -326,10 +342,20 @@ HidePanel();
 
 	CLIENT_DETOUR(Script_DefaultServerLogin, 0x004DC260, __cdecl, int, (lua_State * L))
 	{
-		if (PatchStatusUI::ClientUIMissing() && sBackgroundDownloader.IsBusy())
+		const char* message = nullptr;
+		if (sBackgroundDownloader.IsBusy())
+			message = kBusyMessage;
+		else if (sBackgroundDownloader.IsRestartPending())
+			message = kRestartMessage;
+
+		if (message)
 		{
-			LOG_DEBUG << "Refused login, still patching";
-			FrameScript::Execute(kBlockedScript, "HoTPatchStatus", 0);
+			LOG_DEBUG << "Refused login: " << message;
+			std::string script = "local msg = \"";
+			script += message;
+			script += "\";\n";
+			script += kBlockedScript;
+			FrameScript::Execute(script.c_str(), "HoTPatchStatus", 0);
 			return 0;
 		}
 

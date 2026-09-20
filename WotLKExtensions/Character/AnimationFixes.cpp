@@ -23,6 +23,11 @@ namespace
 	constexpr uint32_t MOVE_FLAG_BACKWARD = 0x00000002;
 	constexpr uint32_t MOVE_FLAG_FALLING = 0x00003000;
 	constexpr uint32_t MOVE_FLAG_SWIMMING = 0x00200000;
+	constexpr uint32_t MOVE_FLAG_FLYING = 0x02000000;
+	constexpr uint32_t ANIM_TIER_SWIM = 1;
+	constexpr uint32_t ANIM_TIER_FLY = 3;
+	constexpr uintptr_t UNIT_ANIM_TIER_OFFSET = 0xB80;
+	constexpr uintptr_t UNIT_MOUNT_MODEL_OFFSET = 0x98C;
 	constexpr uint32_t SHEATH_STATE_UNARMED = 0;
 	constexpr uint32_t SHEATH_STATE_MELEE = 1;
 	constexpr uintptr_t UNIT_PREVIOUS_SHEATH_STATE_OFFSET = 0xB58;
@@ -67,7 +72,7 @@ namespace
 	bool IsJumpingUpward(uintptr_t unit);
 	bool CM2ModelHasDirectSequence(void* model, unsigned int animationId);
 	int ResolveExtendedModelAnimationId(uintptr_t unit, int animationId, void* model);
-	int GetMountedAnimationForSituation(int animationId, void* model);
+	int GetMountedAnimationForSituation(uintptr_t unit, int animationId, void* model);
 
 	bool SpellHasAuraType(SpellRow const& row, uint32_t auraType)
 	{
@@ -497,93 +502,163 @@ namespace
 		return -1;
 	}
 
-	struct MountAnimationPair
+	enum class MountAnimationMode
 	{
-		const char* onFoot;
-		const char* mounted;
+		None,
+		Swim,
+		Flight
 	};
 
-	constexpr MountAnimationPair MOUNT_ANIMATION_PAIRS[] = {
-		{ "SwimIdle", "MountSwimIdle" },
-		{ "Swim", "MountSwimRun" },
-		{ "SwimLeft", "MountSwimLeft" },
-		{ "SwimRight", "MountSwimRight" },
-		{ "SwimBackwards", "MountSwimBackwards" },
-		{ "SwimRun", "MountSwimRun" },
-		{ "SwimWalk", "MountSwimWalk" },
-		{ "SwimWalkBackwards", "MountSwimWalkBackwards" },
-		{ "SwimSprint", "MountSwimSprint" },
-		{ "FlyStand", "MountFlightIdle" },
-		{ "FlyRun", "MountFlightRun" },
-		{ "FlyWalk", "MountFlightWalk" },
-		{ "FlyWalkbackwards", "MountFlightWalkBackwards" },
-		{ "FlyShuffleLeft", "MountFlightLeft" },
-		{ "FlyShuffleRight", "MountFlightRight" },
-		{ "FlyRunLeft", "MountFlightLeft" },
-		{ "FlyRunRight", "MountFlightRight" },
-		{ "FlyRise", "MountFlightStart" },
-		{ "FlyStop", "MountFlightLand" },
-		{ "JumpLandRun", "MountFlightLandRun" },
+	enum class MountAnimationMotion
+	{
+		None,
+		Idle,
+		Forward,
+		Walk,
+		Sprint,
+		Left,
+		Right,
+		Backward,
+		Count
 	};
 
-	constexpr int MOUNT_ANIMATION_PAIR_COUNT =
-	    static_cast<int>(sizeof(MOUNT_ANIMATION_PAIRS) / sizeof(MOUNT_ANIMATION_PAIRS[0]));
-
-	constexpr int ANIMATION_DATA_SCAN_LIMIT = 4096;
-
-	const char* GetAnimationName(int animationId)
+	struct MountAnimationMotionEntry
 	{
+		int behaviorId;
+		MountAnimationMotion motion;
+	};
+
+	constexpr MountAnimationMotionEntry MOUNT_ANIMATION_MOTIONS[] = {
+		{ ANIMATION_STAND, MountAnimationMotion::Idle },
+		{ ANIMATION_SWIM_IDLE, MountAnimationMotion::Idle },
+		{ ANIMATION_HOVER, MountAnimationMotion::Idle },
+		{ ANIMATION_RUN, MountAnimationMotion::Forward },
+		{ ANIMATION_SWIM, MountAnimationMotion::Forward },
+		{ ANIMATION_SWIM_RUN, MountAnimationMotion::Forward },
+		{ ANIMATION_FLY, MountAnimationMotion::Forward },
+		{ ANIMATION_WALK, MountAnimationMotion::Walk },
+		{ ANIMATION_SWIM_WALK, MountAnimationMotion::Walk },
+		{ ANIMATION_SPRINT, MountAnimationMotion::Sprint },
+		{ ANIMATION_SWIM_SPRINT, MountAnimationMotion::Sprint },
+		{ ANIMATION_SHUFFLE_LEFT, MountAnimationMotion::Left },
+		{ ANIMATION_SWIM_LEFT, MountAnimationMotion::Left },
+		{ ANIMATION_RUN_LEFT, MountAnimationMotion::Left },
+		{ ANIMATION_SHUFFLE_RIGHT, MountAnimationMotion::Right },
+		{ ANIMATION_SWIM_RIGHT, MountAnimationMotion::Right },
+		{ ANIMATION_RUN_RIGHT, MountAnimationMotion::Right },
+		{ ANIMATION_RUN_BACKWARDS, MountAnimationMotion::Backward },
+		{ ANIMATION_SWIM_BACKWARDS, MountAnimationMotion::Backward },
+		{ ANIMATION_SWIM_WALK_BACKWARDS, MountAnimationMotion::Backward },
+	};
+
+	constexpr int MOUNT_FLIGHT_IDLE_IDS[] = { ANIMATION_MOUNT_FLIGHT_IDLE, ANIMATION_FLY_STAND, ANIMATION_MOUNT_FLIGHT_RUN, ANIMATION_FLY_RUN, ANIMATION_MOUNT_FLIGHT_WALK };
+	constexpr int MOUNT_FLIGHT_FORWARD_IDS[] = { ANIMATION_MOUNT_FLIGHT_RUN, ANIMATION_FLY_RUN, ANIMATION_FLY_FLY, ANIMATION_MOUNT_FLIGHT_WALK };
+	constexpr int MOUNT_FLIGHT_WALK_IDS[] = { ANIMATION_MOUNT_FLIGHT_WALK, ANIMATION_FLY_WALK, ANIMATION_MOUNT_FLIGHT_RUN, ANIMATION_FLY_RUN };
+	constexpr int MOUNT_FLIGHT_SPRINT_IDS[] = { ANIMATION_MOUNT_FLIGHT_SPRINT, ANIMATION_MOUNT_FLIGHT_RUN, ANIMATION_FLY_RUN, ANIMATION_FLY_FLY };
+	constexpr int MOUNT_FLIGHT_LEFT_IDS[] = { ANIMATION_MOUNT_FLIGHT_LEFT, ANIMATION_FLY_RUN_LEFT, ANIMATION_FLY_SHUFFLE_LEFT, ANIMATION_MOUNT_FLIGHT_RUN, ANIMATION_FLY_RUN, ANIMATION_MOUNT_FLIGHT_WALK };
+	constexpr int MOUNT_FLIGHT_RIGHT_IDS[] = { ANIMATION_MOUNT_FLIGHT_RIGHT, ANIMATION_FLY_RUN_RIGHT, ANIMATION_FLY_SHUFFLE_RIGHT, ANIMATION_MOUNT_FLIGHT_RUN, ANIMATION_FLY_RUN, ANIMATION_MOUNT_FLIGHT_WALK };
+	constexpr int MOUNT_FLIGHT_BACKWARD_IDS[] = { ANIMATION_MOUNT_FLIGHT_BACKWARDS, ANIMATION_MOUNT_FLIGHT_WALK_BACKWARDS, ANIMATION_FLY_WALK_BACKWARDS, ANIMATION_FLY_WALK, ANIMATION_MOUNT_FLIGHT_RUN, ANIMATION_FLY_RUN, ANIMATION_MOUNT_FLIGHT_WALK };
+
+	constexpr int MOUNT_SWIM_IDLE_IDS[] = { ANIMATION_MOUNT_SWIM_IDLE };
+	constexpr int MOUNT_SWIM_FORWARD_IDS[] = { ANIMATION_MOUNT_SWIM_RUN, ANIMATION_MOUNT_SWIM_WALK };
+	constexpr int MOUNT_SWIM_WALK_IDS[] = { ANIMATION_MOUNT_SWIM_WALK, ANIMATION_MOUNT_SWIM_RUN };
+	constexpr int MOUNT_SWIM_SPRINT_IDS[] = { ANIMATION_MOUNT_SWIM_SPRINT, ANIMATION_MOUNT_SWIM_RUN };
+	constexpr int MOUNT_SWIM_LEFT_IDS[] = { ANIMATION_MOUNT_SWIM_LEFT, ANIMATION_MOUNT_SWIM_RUN };
+	constexpr int MOUNT_SWIM_RIGHT_IDS[] = { ANIMATION_MOUNT_SWIM_RIGHT, ANIMATION_MOUNT_SWIM_RUN };
+	constexpr int MOUNT_SWIM_BACKWARD_IDS[] = { ANIMATION_MOUNT_SWIM_BACKWARDS, ANIMATION_MOUNT_SWIM_WALK_BACKWARDS, ANIMATION_MOUNT_SWIM_RUN };
+
+	template <typename T, size_t Count>
+	constexpr size_t ArrayCount(T const (&)[Count])
+	{
+		return Count;
+	}
+
+	struct MountAnimationCandidates
+	{
+		const int* flight;
+		size_t flightCount;
+		const int* swim;
+		size_t swimCount;
+	};
+
+	constexpr MountAnimationCandidates MOUNT_ANIMATION_CANDIDATES[] = {
+		{ nullptr, 0, nullptr, 0 },
+		{ MOUNT_FLIGHT_IDLE_IDS, ArrayCount(MOUNT_FLIGHT_IDLE_IDS), MOUNT_SWIM_IDLE_IDS, ArrayCount(MOUNT_SWIM_IDLE_IDS) },
+		{ MOUNT_FLIGHT_FORWARD_IDS, ArrayCount(MOUNT_FLIGHT_FORWARD_IDS), MOUNT_SWIM_FORWARD_IDS, ArrayCount(MOUNT_SWIM_FORWARD_IDS) },
+		{ MOUNT_FLIGHT_WALK_IDS, ArrayCount(MOUNT_FLIGHT_WALK_IDS), MOUNT_SWIM_WALK_IDS, ArrayCount(MOUNT_SWIM_WALK_IDS) },
+		{ MOUNT_FLIGHT_SPRINT_IDS, ArrayCount(MOUNT_FLIGHT_SPRINT_IDS), MOUNT_SWIM_SPRINT_IDS, ArrayCount(MOUNT_SWIM_SPRINT_IDS) },
+		{ MOUNT_FLIGHT_LEFT_IDS, ArrayCount(MOUNT_FLIGHT_LEFT_IDS), MOUNT_SWIM_LEFT_IDS, ArrayCount(MOUNT_SWIM_LEFT_IDS) },
+		{ MOUNT_FLIGHT_RIGHT_IDS, ArrayCount(MOUNT_FLIGHT_RIGHT_IDS), MOUNT_SWIM_RIGHT_IDS, ArrayCount(MOUNT_SWIM_RIGHT_IDS) },
+		{ MOUNT_FLIGHT_BACKWARD_IDS, ArrayCount(MOUNT_FLIGHT_BACKWARD_IDS), MOUNT_SWIM_BACKWARD_IDS, ArrayCount(MOUNT_SWIM_BACKWARD_IDS) },
+	};
+
+	static_assert(ArrayCount(MOUNT_ANIMATION_CANDIDATES) == static_cast<size_t>(MountAnimationMotion::Count), "mount motion candidate table out of sync");
+
+	int GetAnimationBehaviorId(int animationId)
+	{
+		if (animationId < 0)
+			return -1;
+
 		auto* row = reinterpret_cast<AnimationDataRow*>(
 		    ClientDB::GetRow(reinterpret_cast<void*>(ANIMATION_DATA_DB), animationId));
-		return row ? row->name : nullptr;
+		return row ? static_cast<int>(row->behaviorId) : animationId;
 	}
 
-	const int* GetMountAnimationIds()
+	bool IsUnitMounted(uintptr_t unit)
 	{
-		static bool resolved = false;
-		static int ids[MOUNT_ANIMATION_PAIR_COUNT];
-		if (!resolved)
-		{
-			for (int i = 0; i < MOUNT_ANIMATION_PAIR_COUNT; ++i)
-				ids[i] = -1;
-
-			for (int id = 0; id < ANIMATION_DATA_SCAN_LIMIT; ++id)
-			{
-				const char* rowName = GetAnimationName(id);
-				if (!rowName)
-					continue;
-
-				for (int i = 0; i < MOUNT_ANIMATION_PAIR_COUNT; ++i)
-				{
-					if (ids[i] < 0 && _stricmp(rowName, MOUNT_ANIMATION_PAIRS[i].mounted) == 0)
-						ids[i] = id;
-				}
-			}
-
-			resolved = true;
-		}
-
-		return ids;
+		return unit && *reinterpret_cast<void**>(unit + UNIT_MOUNT_MODEL_OFFSET) != nullptr;
 	}
 
-	int GetMountedAnimationForSituation(int animationId, void* model)
+	MountAnimationMode GetMountAnimationMode(uintptr_t unit)
 	{
-		if (animationId < 0 || animationId >= ANIMATION_CURRENT_OR_NONE || !model)
+		if (!IsUnitMounted(unit))
+			return MountAnimationMode::None;
+
+		const uint32_t movementFlags = *reinterpret_cast<uint32_t*>(unit + UNIT_MOVEMENT_FLAGS_OFFSET);
+		const uint32_t animTier = *reinterpret_cast<uint32_t*>(unit + UNIT_ANIM_TIER_OFFSET);
+
+		if ((movementFlags & MOVE_FLAG_FLYING) != 0 || animTier == ANIM_TIER_FLY)
+			return MountAnimationMode::Flight;
+
+		if ((movementFlags & MOVE_FLAG_SWIMMING) != 0 || animTier == ANIM_TIER_SWIM)
+			return MountAnimationMode::Swim;
+
+		return MountAnimationMode::None;
+	}
+
+	MountAnimationMotion GetMountAnimationMotion(int behaviorId)
+	{
+		if (behaviorId < 0)
+			return MountAnimationMotion::None;
+
+		for (MountAnimationMotionEntry const& entry : MOUNT_ANIMATION_MOTIONS)
+			if (entry.behaviorId == behaviorId)
+				return entry.motion;
+
+		return MountAnimationMotion::None;
+	}
+
+	int GetMountedAnimationForSituation(uintptr_t unit, int animationId, void* model)
+	{
+		if (animationId < 0 || !model)
 			return -1;
 
-		const char* name = GetAnimationName(animationId);
-		if (!name)
+		const MountAnimationMode mode = GetMountAnimationMode(unit);
+		if (mode == MountAnimationMode::None)
 			return -1;
 
-		const int* mountedIds = GetMountAnimationIds();
-		for (int i = 0; i < MOUNT_ANIMATION_PAIR_COUNT; ++i)
-		{
-			if (mountedIds[i] < 0 || _stricmp(name, MOUNT_ANIMATION_PAIRS[i].onFoot) != 0)
-				continue;
+		const MountAnimationMotion motion = GetMountAnimationMotion(GetAnimationBehaviorId(animationId));
+		if (motion == MountAnimationMotion::None)
+			return -1;
 
-			if (CM2ModelHasDirectSequence(model, static_cast<unsigned int>(mountedIds[i])))
-				return mountedIds[i];
-		}
+		MountAnimationCandidates const& candidates = MOUNT_ANIMATION_CANDIDATES[static_cast<size_t>(motion)];
+		const bool flight = mode == MountAnimationMode::Flight;
+		const int* candidateIds = flight ? candidates.flight : candidates.swim;
+		const size_t candidateCount = flight ? candidates.flightCount : candidates.swimCount;
+
+		for (size_t index = 0; index < candidateCount; ++index)
+			if (CM2ModelHasDirectSequence(model, static_cast<unsigned int>(candidateIds[index])))
+				return candidateIds[index];
 
 		return -1;
 	}
@@ -676,24 +751,21 @@ namespace
 		if (monkUnarmedAnimationId != -1 && ShouldPreventMeleeUnsheath(reinterpret_cast<CGUnit*>(self)))
 			animationId = monkUnarmedAnimationId;
 
+		const uintptr_t unit = reinterpret_cast<uintptr_t>(self);
+
+		void* animationModel = model;
+		if (!animationModel)
+			animationModel = *reinterpret_cast<void**>(unit + UNIT_MODEL_OFFSET);
+
+		const int mountedAnimationId = GetMountedAnimationForSituation(unit, animationId, animationModel);
+		if (mountedAnimationId != -1)
+			return mountedAnimationId;
+
 		if (animationId > ANIMATION_CURRENT_OR_NONE)
 		{
-			const int extendedAnimationId = ResolveExtendedModelAnimationId(
-			    reinterpret_cast<uintptr_t>(self),
-			    animationId,
-			    model);
+			const int extendedAnimationId = ResolveExtendedModelAnimationId(unit, animationId, model);
 			if (extendedAnimationId != -1)
 				return extendedAnimationId;
-		}
-		else
-		{
-			void* animationModel = model;
-			if (!animationModel)
-				animationModel = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(self) + UNIT_MODEL_OFFSET);
-
-			const int mountedAnimationId = GetMountedAnimationForSituation(animationId, animationModel);
-			if (mountedAnimationId != -1)
-				return mountedAnimationId;
 		}
 
 		return CGUnit_C__ResolveModelAnimationId_MonkUnarmed(self, animationId, model);

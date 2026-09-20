@@ -7,6 +7,7 @@
 #include "ActionRepeatCvar.h"
 #include "MeleeDeadzoneCvar.h"
 #include "HealPredictionCvars.h"
+#include "ComboPointCvar.h"
 
 namespace FeatureCvars
 {
@@ -19,5 +20,6 @@ namespace FeatureCvars
 		ActionRepeatCvar::Apply();
 		MeleeDeadzoneCvar::Apply();
 		HealPredictionCvars::Apply();
+		ComboPointCvar::Apply();
 	}
 }

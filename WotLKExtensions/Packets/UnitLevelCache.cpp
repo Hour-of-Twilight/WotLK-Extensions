@@ -85,32 +85,38 @@ uint32_t UnitLevelCache::GetUnitItemLevelOrDungeonLevel(uint64_t guid) const
 	return 0;
 }
 
-void UnitLevelCache::ApplyPlayerItemLevel(CGUnit* unit, uint32_t ilvl)
+// The reply usually lands after the unit was first drawn (it's requested when the unit comes into
+// view, which is also when its nameplate appears and when it's often targeted or hovered), and
+// nothing redraws those on its own, so the raw level stayed until it was drawn again
+void UnitLevelCache::RefreshUnitDisplays(uint64_t guid)
 {
-	if (!unit)
-		return;
+	// Same null-checked call the client makes itself (0x72E41A)
+	if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
+		if (void* namePlate = *reinterpret_cast<void**>(reinterpret_cast<uint8_t*>(unit) + 0xC38))
+			CGNamePlateFrame::UpdateLevelDisplay(namePlate, unit);
 
-	void* namePlate = *reinterpret_cast<void**>(reinterpret_cast<uint8_t*>(unit) + 0xC38);
-	if (namePlate)
-		CGNamePlateFrame::UpdateLevelDisplay(namePlate, unit);
+	static const char* const kTokens[] = { "mouseover", "target", "focus", "targettarget", "focustarget" };
+	bool onScreen = false;
+	for (const char* token : kTokens)
+	{
+		uint64_t tokenGuid = 0;
+		Script_GetGUIDFromToken(token, &tokenGuid, 0);
+		if (tokenGuid != guid)
+			continue;
 
-	if (!unit->objectBase.ObjectData)
-		return;
+		onScreen = true;
+		if (strcmp(token, "mouseover") != 0)
+			FrameXMLExtensions::SignalEvent("UNIT_LEVEL", "%s", token);
+	}
 
-	uint64_t guid = unit->objectBase.ObjectData->OBJECT_FIELD_GUID;
-	const char* token = Script_GetTokenFromGUID(guid);
-	if (token)
-		FrameXMLExtensions::SignalEvent("UNIT_LEVEL", "%s", token);
-}
-
-void UnitLevelCache::ApplyCreatureDungeonLevel(CGUnit* unit, uint32_t level)
-{
-	if (!unit)
-		return;
-
-	void* namePlate = *reinterpret_cast<void**>(reinterpret_cast<uint8_t*>(unit) + 0xC38);
-	if (namePlate)
-		CGNamePlateFrame::UpdateLevelDisplay(namePlate, unit);
+	// Tooltips don't listen for UNIT_LEVEL, so fill the unit's tooltip again if it's showing
+	if (onScreen)
+	{
+		char script[192];
+		sprintf_s(script, "if GameTooltip:IsShown() then local _,u=GameTooltip:GetUnit() if u and UnitGUID(u)==\"0x%016llX\" then GameTooltip:SetUnit(u) end end",
+		    (unsigned long long)guid);
+		FrameScript::Execute(script, "UnitLevelCache", 0);
+	}
 }
 
 int __stdcall UnitLevelCache::GetTooltipUnitLevel(void* unit)
@@ -149,16 +155,14 @@ void UnitLevelCache::Handler_SMSG_UNIT_LEVEL_CACHE_RESPONSE(void*, uint32_t, uin
 		    (unsigned long long)guid, value, subClass);
 		if (guid == ClntObjMgr::GetActivePlayer())
 			FrameXMLExtensions::SignalEvent("HOT_PLAYER_ITEM_LEVEL", "%u", value);
-		// else if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
-		//	ApplyPlayerItemLevel(unit, value);
 	}
 	else
 	{
 		sUnitLevelCache.SetCreatureDungeonLevel(guid, value);
 		Util::DebugOutput("UnitLevelCache: GUID %016llX  type=creature  dlvl=%u", (unsigned long long)guid, value);
-		// if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
-		// ApplyCreatureDungeonLevel(unit, value);
 	}
+
+	RefreshUnitDisplays(guid);
 }
 
 void UnitLevelCache::Apply()

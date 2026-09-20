@@ -15,5 +15,10 @@ public:
 	static bool RelaxEquippedItemRequirements(SpellRow* spell);
 	// mutates spell in place, true if the caster's mods moved it onto another power type
 	static bool ApplyPowerTypeMod(SpellRow* spell);
+	static uint32_t GetCustomAttributes(uint32_t spellId);
+	static uint32_t GetCustomAttributes2(uint32_t spellId);
+	static bool IsDualWielding();
+	static bool MeetsCustomAttributeRequirements(SpellRow* spell, int32_t reportError, void* spellCast);
+	static void AddDualWieldTooltipLine(void* tooltip, SpellRow* spell);
 	static void Apply();
 };

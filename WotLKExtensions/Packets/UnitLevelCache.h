@@ -23,8 +23,7 @@ public:
 	void ClearAll();
 
 	static void SendRequest(uint64_t guid);
-	static void ApplyCreatureDungeonLevel(CGUnit* unit, uint32_t level);
-	static void ApplyPlayerItemLevel(CGUnit* unit, uint32_t ilvl);
+	static void RefreshUnitDisplays(uint64_t guid);
 	void Apply();
 
 	// Called from CGTooltip__SetUnit via raw patch (push ebx; call).

@@ -146,6 +146,8 @@ namespace
             return;
         }
 
+        h->version = fmt::kClientVersion;
+
         // --- the offset->pointer walk ---
         if (!WalkHeaderArrays(buf, s.bodySize, h)) { out.fail = "header walk rejected an array"; return; }
 
