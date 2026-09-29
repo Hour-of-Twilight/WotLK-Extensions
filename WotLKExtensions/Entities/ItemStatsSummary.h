@@ -22,8 +22,7 @@ namespace ItemStatsSummary
 		return *a == *b;
 	}
 
-	// customItemModStrings is the list the client's mod table is built from, so a mod
-	// type is that list's position plus CUSTOM_STAT_FIRST rather than a second literal.
+	// A mod type is its position in customItemModStrings plus CUSTOM_STAT_FIRST.
 	constexpr int ModTypeOf(const char* name)
 	{
 		for (int i = 0; i < CUSTOM_STAT_COUNT; ++i)

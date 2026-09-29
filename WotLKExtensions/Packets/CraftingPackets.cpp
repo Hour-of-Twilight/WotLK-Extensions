@@ -1,9 +1,9 @@
 #include "CraftingPackets.h"
 #include "Packet.h"
 
+#include <ClientData/Containers.h>
 #include <ClientData/GameObject.h>
 #include <ClientData/ObjectManager.h>
-#include <ClientDetours.h>
 #include <CustomLua.h>
 #include <CustomPacket.h>
 #include <Item.h>
@@ -11,23 +11,13 @@
 
 #include <Windows.h>
 
+namespace Containers = ClientData::Containers;
+
 namespace
 {
 	constexpr uint32_t kObjectFieldGuid = 0;
 	constexpr uint32_t kObjectFieldEntry = 3;
 	constexpr uint32_t kItemFieldStackCount = 14;
-	constexpr uint32_t kContainerFieldNumSlots = 64;
-	constexpr uint32_t kItemLockFlagOffset = 0x394;
-	constexpr uint32_t kPlayerBackpackOffset = 0x18F0;
-	constexpr int kBackpackFirstIndex = 23;
-	constexpr int kBackpackLastIndex = 38;
-	constexpr int kBankFirstIndex = 39;
-	constexpr int kBankLastIndex = 66;
-	constexpr int kKeyringFirstIndex = 86;
-	constexpr int kKeyringLastIndex = 117;
-	constexpr int kMaxEquippedBags = 4;
-	constexpr int kMaxContainers = 10;
-	constexpr uint32_t kBagVTableSlot = 10;
 	constexpr uint32_t kRangeCheckIntervalMs = 500;
 	constexpr uint32_t kPendingTimeoutMs = 15000;
 	constexpr uint8_t kScrapItemSkipped = 3;
@@ -55,13 +45,6 @@ namespace
 		return static_cast<CGObject_C*>(item)->GetValue<uint32_t>(kItemFieldStackCount);
 	}
 
-	void* ContainerFromObject(CGObject_C* container)
-	{
-		typedef void*(__fastcall * GetBagFn)(void* self, void* edx);
-		void** vtable = *reinterpret_cast<void***>(container);
-		return reinterpret_cast<GetBagFn>(vtable[kBagVTableSlot])(container, nullptr);
-	}
-
 	int OptionalSlotArg(lua_State* L, int index, int maxSlots)
 	{
 		if (FrameScript::GetTop(L) < index || !FrameScript::IsNumber(L, index))
@@ -79,11 +62,6 @@ CraftingPackets& CraftingPackets::Instance()
 {
 	static CraftingPackets instance;
 	return instance;
-}
-
-bool CraftingPackets::IsItemLocked(void* item)
-{
-	return (*reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(item) + kItemLockFlagOffset) & 1) != 0;
 }
 
 void CraftingPackets::LockItem(uint64_t guid)
@@ -108,85 +86,24 @@ void CraftingPackets::SignalSlots(Mode mode)
 	FrameXMLExtensions::SignalEvent("HOT_CRAFTING_SLOTS_UPDATE", "%d", static_cast<int>(mode));
 }
 
-void* CraftingPackets::ResolveContainerItem(int luaBag, int luaSlot)
-{
-	if (luaSlot < 1)
-		return nullptr;
-
-	int index = luaSlot - 1;
-	void* container = nullptr;
-
-	if (luaBag <= 0)
-	{
-		CGObject_C* player = ClientData::ObjectManager::GetActivePlayerObject();
-		if (!player)
-			return nullptr;
-
-		container = reinterpret_cast<uint8_t*>(player) + kPlayerBackpackOffset;
-		switch (luaBag)
-		{
-			case 0:
-				index += kBackpackFirstIndex;
-				if (index > kBackpackLastIndex)
-					return nullptr;
-				break;
-			case -1:
-				index += kBankFirstIndex;
-				if (index > kBankLastIndex)
-					return nullptr;
-				break;
-			case -2:
-				index += kKeyringFirstIndex;
-				if (index > kKeyringLastIndex)
-					return nullptr;
-				break;
-			default:
-				return nullptr;
-		}
-	}
-	else
-	{
-		if (luaBag > kMaxContainers)
-			return nullptr;
-
-		uint64_t bagGuid = CGContainerInfo::GetContainer(luaBag - 1);
-		if (!bagGuid)
-			return nullptr;
-
-		CGObject_C* bagObject = ClientData::ObjectManager::ObjectPtr(bagGuid, TYPEMASK_CONTAINER);
-		if (!bagObject)
-			return nullptr;
-
-		if (index >= static_cast<int>(bagObject->GetValue<uint32_t>(kContainerFieldNumSlots)))
-			return nullptr;
-
-		container = ContainerFromObject(bagObject);
-		if (!container)
-			return nullptr;
-	}
-
-	return CGBag_C::GetItemPointer(container, index);
-}
-
 bool CraftingPackets::FindItemBagSlot(uint64_t guid, int& outBag, int& outSlot)
 {
-	CGObject_C* player = ClientData::ObjectManager::GetActivePlayerObject();
-	if (!player)
+	void* backpack = Containers::GetBackpack();
+	if (!backpack)
 		return false;
 
-	void* backpack = reinterpret_cast<uint8_t*>(player) + kPlayerBackpackOffset;
-	for (int index = kBackpackFirstIndex; index <= kBackpackLastIndex; ++index)
+	for (int index = Containers::kBackpackFirstIndex; index <= Containers::kBackpackLastIndex; ++index)
 	{
 		void* item = CGBag_C::GetItemPointer(backpack, index);
 		if (item && ItemGuid(item) == guid)
 		{
 			outBag = 0;
-			outSlot = index - kBackpackFirstIndex + 1;
+			outSlot = index - Containers::kBackpackFirstIndex + 1;
 			return true;
 		}
 	}
 
-	for (int bag = 0; bag < kMaxEquippedBags; ++bag)
+	for (int bag = 0; bag < Containers::kMaxEquippedBags; ++bag)
 	{
 		uint64_t bagGuid = CGContainerInfo::GetContainer(bag);
 		if (!bagGuid)
@@ -196,11 +113,11 @@ bool CraftingPackets::FindItemBagSlot(uint64_t guid, int& outBag, int& outSlot)
 		if (!bagObject)
 			continue;
 
-		void* container = ContainerFromObject(bagObject);
+		void* container = Containers::GetBag(bagObject);
 		if (!container)
 			continue;
 
-		uint32_t numSlots = bagObject->GetValue<uint32_t>(kContainerFieldNumSlots);
+		uint32_t numSlots = Containers::GetNumSlots(bagObject);
 		for (uint32_t index = 0; index < numSlots; ++index)
 		{
 			void* item = CGBag_C::GetItemPointer(container, static_cast<int>(index));
@@ -262,6 +179,38 @@ bool CraftingPackets::IsCatalystEntry(uint32_t entry) const
 	return m_catalystLookup.find(entry) != m_catalystLookup.end();
 }
 
+const CraftingPackets::CatalystInfo* CraftingPackets::FindCatalyst(uint32_t entry) const
+{
+	auto itr = m_catalystLookup.find(entry);
+	return itr != m_catalystLookup.end() ? &itr->second : nullptr;
+}
+
+bool CraftingPackets::StacksWithOtherCatalysts(uint32_t entry, int ignoreSlot) const
+{
+	const CatalystInfo* info = FindCatalyst(entry);
+	if (!info)
+		return false;
+
+	if (info->type == CATALYST_LEVEL_BOOST)
+		return true;
+
+	for (uint32_t i = 0; i < MaxCatalysts; ++i)
+	{
+		if (static_cast<int>(i) == ignoreSlot || !m_catalysts[i])
+			continue;
+
+		ItemRef other;
+		if (!ResolveItem(m_catalysts[i], other))
+			continue;
+
+		const CatalystInfo* otherInfo = FindCatalyst(other.entry);
+		if (otherInfo && otherInfo->type == info->type)
+			return false;
+	}
+
+	return true;
+}
+
 bool CraftingPackets::HasCatalyst(uint64_t guid) const
 {
 	for (uint64_t slotGuid : m_catalysts)
@@ -316,6 +265,12 @@ bool CraftingPackets::PlaceCatalyst(uint64_t guid, uint32_t entry, int preferred
 	if (slot < 0)
 	{
 		SignalError(CRAFT_ERR_SLOTS_FULL);
+		return false;
+	}
+
+	if (!StacksWithOtherCatalysts(entry, slot))
+	{
+		SignalError(CRAFT_ERR_CATALYST_CONFLICT);
 		return false;
 	}
 
@@ -386,18 +341,22 @@ bool CraftingPackets::HandleUseContainerItem(lua_State* L)
 
 	int bag = static_cast<int>(FrameScript::GetNumber(L, 1));
 	int slot = static_cast<int>(FrameScript::GetNumber(L, 2));
-	void* item = ResolveContainerItem(bag, slot);
+	void* item = Containers::GetLuaContainerItem(bag, slot);
 	if (!item)
 		return false;
 
-	if (IsItemLocked(item))
+	uint32_t entry = ItemEntry(item);
+	bool wanted = m_mode == MODE_CRAFTING ? IsCatalystEntry(entry) : IsScrapCandidate(entry);
+	if (!wanted)
+		return false;
+
+	if (Containers::IsItemLocked(item))
 	{
 		SignalError(CRAFT_ERR_ITEM_LOCKED);
 		return true;
 	}
 
 	uint64_t guid = ItemGuid(item);
-	uint32_t entry = ItemEntry(item);
 	bool placed = m_mode == MODE_CRAFTING ? PlaceCatalyst(guid, entry, -1) : PlaceScrapItem(guid, entry, -1);
 	if (placed)
 		LockItem(guid);
@@ -1176,12 +1135,4 @@ void CraftingPackets::Apply()
 	sCustomPacket.RegisterHandler(SMSG_CRAFTING_CLOSE, &Handler_SMSG_CRAFTING_CLOSE);
 	sCustomPacket.RegisterHandler(SMSG_CRAFTING_RESULT, &Handler_SMSG_CRAFTING_RESULT);
 	sCustomPacket.RegisterHandler(SMSG_CRAFTING_SCRAP_RESULT, &Handler_SMSG_CRAFTING_SCRAP_RESULT);
-}
-
-CLIENT_DETOUR(Script_UseContainerItem, 0x005D8650, __cdecl, int, (lua_State * L))
-{
-	if (sCraftingPackets.HandleUseContainerItem(L))
-		return 0;
-
-	return Script_UseContainerItem(L);
 }

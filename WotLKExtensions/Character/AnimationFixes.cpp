@@ -1,4 +1,5 @@
 #include <Character/AnimationFixes.h>
+#include <Character/HandItemDisplay.h>
 
 #include <ClientDetours.h>
 #include <ClientData/SharedDefines.h>
@@ -841,7 +842,7 @@ namespace
 			return 0;
 		}
 
-		return CGUnit_C__MoveHandItemAttachment_MonkUnarmed(self, slot, moveToSheath);
+		return HandItemDisplay::SheatheHandItem(self, slot, moveToSheath);
 	}
 
 	CLIENT_DETOUR_THISCALL_NOARGS(CGUnit_C__AttachMainHandItem_MonkUnarmed, 0x7367B0, int)

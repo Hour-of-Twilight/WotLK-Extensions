@@ -8,12 +8,20 @@ struct CDataStore;
 class FeaturePackets
 {
 public:
+	enum Feature : uint32_t
+	{
+		GEM_SYSTEM = 0,
+		AOE_LOOT = 1,
+		TRANSMOG = 2
+	};
+
 	static FeaturePackets& Instance();
 
 	FeaturePackets(const FeaturePackets&) = delete;
 	FeaturePackets& operator=(const FeaturePackets&) = delete;
 
 	void Apply();
+	bool IsEnabled(uint32_t featureId) const;
 
 private:
 	FeaturePackets() = default;

@@ -57,6 +57,8 @@ CLIENT_DETOUR_THISCALL(CGNamePlateFrame__UpdateLevelDisplay, 0x0098EF10, void, (
 
 	uint64_t guid = cgUnit->objectBase.ObjectData->OBJECT_FIELD_GUID;
 	uint32_t dlvl = sUnitLevelCache.GetUnitItemLevelOrDungeonLevel(guid);
+	if (!dlvl)
+		UnitLevelCache::EnsureRequested(guid);
 	int displayLevel = dlvl ? static_cast<int>(dlvl)
 	                        : (cgUnit->unitData ? static_cast<int>(cgUnit->unitData->level) : 0);
 
@@ -71,6 +73,8 @@ CLIENT_DETOUR_THISCALL(CGNamePlateFrame__UpdateLevelDisplay, 0x0098EF10, void, (
 
 		uint64_t playerGuid = cgPlayer->objectBase.ObjectData->OBJECT_FIELD_GUID;
 		uint32_t playerIlvl = sUnitLevelCache.GetPlayerItemLevel(playerGuid);
+		if (!playerIlvl)
+			UnitLevelCache::EnsureRequested(playerGuid);
 		int playerLevel = playerIlvl ? static_cast<int>(playerIlvl)
 		                             : (cgPlayer->unitData ? static_cast<int>(cgPlayer->unitData->level) : 0);
 		const uint8_t* color = GetNameplateLevelColor(displayLevel, playerLevel);
@@ -260,7 +264,9 @@ CLIENT_DETOUR(Script_UnitLevel, 0x0060F9E0, __cdecl, int, (lua_State * L))
 		if (guid)
 		{
 			uint32_t lvl = sUnitLevelCache.GetUnitItemLevelOrDungeonLevel(guid);
-			if (lvl)
+			if (!lvl)
+				UnitLevelCache::EnsureRequested(guid);
+			else
 			{
 				void* unit = ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT);
 				if (unit && !CGUnit_C::IsBossMob(unit))
@@ -282,7 +288,9 @@ CLIENT_DETOUR(CGUnit_C__GetDisplayClassName, 0x0072AAB0, __cdecl, const char*, (
 	{
 		uint64_t guid = unit->objectBase.ObjectData->OBJECT_FIELD_GUID;
 		uint8_t subClass = sUnitLevelCache.GetPlayerSubClass(guid);
-		if (subClass)
+		if (!subClass)
+			UnitLevelCache::EnsureRequested(guid);
+		else
 		{
 			void* row = ClientDB::GetRow(reinterpret_cast<void*>(kChrClassesDB), subClass);
 			if (row)
@@ -291,14 +299,6 @@ CLIENT_DETOUR(CGUnit_C__GetDisplayClassName, 0x0072AAB0, __cdecl, const char*, (
 	}
 
 	return CGUnit_C__GetDisplayClassName(unit, nameCacheRecord);
-}
-
-static bool GuidWantsLevelCache(uint64_t guid)
-{
-	if (guid == 0)
-		return false;
-	uint16_t high = static_cast<uint16_t>(guid >> 48);
-	return high == 0x0000 || high == 0xF130 || high == 0xF140 || high == 0xF150;
 }
 
 CLIENT_DETOUR(PostInitObject, 0x004D63B0, __cdecl, void*, (CDataStore * createBlock, int isCreate2))
@@ -313,8 +313,9 @@ CLIENT_DETOUR(PostInitObject, 0x004D63B0, __cdecl, void*, (CDataStore * createBl
 
 	void* result = PostInitObject(createBlock, isCreate2);
 
-	if (GuidWantsLevelCache(guid))
-		sUnitLevelCache.SendRequest(guid);
+	// Unconditional: the object was just (re)created, so any value we still hold for this GUID
+	// could belong to a different unit or to stale gear.
+	UnitLevelCache::SendRequest(guid);
 
 	return result;
 }

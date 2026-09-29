@@ -31,12 +31,14 @@ void UnitLevelCache::SetPlayerItemLevel(uint64_t guid, uint32_t ilvl, uint8_t su
 {
 	m_playerItemLevels[guid] = ilvl;
 	m_playerSubClasses[guid] = subClass;
+	ForgetRequest(guid);
 }
 
 void UnitLevelCache::ClearPlayers()
 {
 	m_playerItemLevels.clear();
 	m_playerSubClasses.clear();
+	ForgetRequests(true);
 }
 
 bool UnitLevelCache::HasCreatureDungeonLevel(uint64_t guid) const
@@ -53,11 +55,13 @@ uint32_t UnitLevelCache::GetCreatureDungeonLevel(uint64_t guid) const
 void UnitLevelCache::SetCreatureDungeonLevel(uint64_t guid, uint32_t level)
 {
 	m_creatureDungeonLevels[guid] = level;
+	ForgetRequest(guid);
 }
 
 void UnitLevelCache::ClearCreatures()
 {
 	m_creatureDungeonLevels.clear();
+	ForgetRequests(false);
 }
 
 void UnitLevelCache::ClearAll()
@@ -65,6 +69,7 @@ void UnitLevelCache::ClearAll()
 	m_playerItemLevels.clear();
 	m_playerSubClasses.clear();
 	m_creatureDungeonLevels.clear();
+	m_requests.clear();
 }
 
 bool UnitLevelCache::HasUnitItemLevelOrDungeonLevel(uint64_t guid) const
@@ -85,19 +90,89 @@ uint32_t UnitLevelCache::GetUnitItemLevelOrDungeonLevel(uint64_t guid) const
 	return 0;
 }
 
-// The reply usually lands after the unit was first drawn (it's requested when the unit comes into
-// view, which is also when its nameplate appears and when it's often targeted or hovered), and
-// nothing redraws those on its own, so the raw level stayed until it was drawn again
+static bool IsPlayerGuid(uint64_t guid)
+{
+	return guid != 0 && (guid >> 48) == 0;
+}
+
+bool UnitLevelCache::WantsLevelCache(uint64_t guid)
+{
+	if (guid == 0)
+		return false;
+	uint16_t high = static_cast<uint16_t>(guid >> 48);
+	return high == 0x0000 || high == 0xF130 || high == 0xF140 || high == 0xF150;
+}
+
+void UnitLevelCache::StampRequest(uint64_t guid)
+{
+	Request& req = m_requests[guid];
+	req.lastMs = static_cast<uint32_t>(OsGetAsyncTimeMs());
+	if (req.attempts < kMaxAttempts)
+		++req.attempts;
+}
+
+bool UnitLevelCache::ShouldRequest(uint64_t guid) const
+{
+	auto it = m_requests.find(guid);
+	if (it == m_requests.end())
+		return true;
+	if (it->second.attempts >= kMaxAttempts)
+		return false;
+
+	uint32_t nowMs = static_cast<uint32_t>(OsGetAsyncTimeMs());
+	return (nowMs - it->second.lastMs) >= kRetryIntervalMs;
+}
+
+void UnitLevelCache::ForgetRequest(uint64_t guid)
+{
+	m_requests.erase(guid);
+}
+
+void UnitLevelCache::ForgetRequests(bool players)
+{
+	for (auto it = m_requests.begin(); it != m_requests.end();)
+	{
+		if (IsPlayerGuid(it->first) == players)
+			it = m_requests.erase(it);
+		else
+			++it;
+	}
+}
+
+void UnitLevelCache::SendRequest(uint64_t guid)
+{
+	if (!WantsLevelCache(guid))
+		return;
+
+	sUnitLevelCache.ForgetRequest(guid);
+	sUnitLevelCache.StampRequest(guid);
+	Packet(CMSG_UNIT_LEVEL_CACHE_REQUEST).PutUInt64(guid).Send();
+}
+
+void UnitLevelCache::EnsureRequested(uint64_t guid)
+{
+	UnitLevelCache& self = sUnitLevelCache;
+	if (!WantsLevelCache(guid) || self.HasUnitItemLevelOrDungeonLevel(guid) || !self.ShouldRequest(guid))
+		return;
+
+	self.StampRequest(guid);
+	Packet(CMSG_UNIT_LEVEL_CACHE_REQUEST).PutUInt64(guid).Send();
+}
+
 void UnitLevelCache::RefreshUnitDisplays(uint64_t guid)
 {
-	// Same null-checked call the client makes itself (0x72E41A)
 	if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
 		if (void* namePlate = *reinterpret_cast<void**>(reinterpret_cast<uint8_t*>(unit) + 0xC38))
 			CGNamePlateFrame::UpdateLevelDisplay(namePlate, unit);
 
-	static const char* const kTokens[] = { "mouseover", "target", "focus", "targettarget", "focustarget" };
+	int tokenCount = 0;
+	if (const char** tokens = Script_GetTokensFromGUID(&guid, &tokenCount))
+		for (int i = 0; i < tokenCount; ++i)
+			FrameXMLExtensions::SignalEvent("UNIT_LEVEL", "%s", tokens[i]);
+
+	static const char* const kViewTokens[] = { "mouseover", "target", "focus", "targettarget", "focustarget" };
 	bool onScreen = false;
-	for (const char* token : kTokens)
+	for (const char* token : kViewTokens)
 	{
 		uint64_t tokenGuid = 0;
 		Script_GetGUIDFromToken(token, &tokenGuid, 0);
@@ -109,7 +184,6 @@ void UnitLevelCache::RefreshUnitDisplays(uint64_t guid)
 			FrameXMLExtensions::SignalEvent("UNIT_LEVEL", "%s", token);
 	}
 
-	// Tooltips don't listen for UNIT_LEVEL, so fill the unit's tooltip again if it's showing
 	if (onScreen)
 	{
 		char script[192];
@@ -126,17 +200,9 @@ int __stdcall UnitLevelCache::GetTooltipUnitLevel(void* unit)
 	uint32_t dlvl = sUnitLevelCache.GetUnitItemLevelOrDungeonLevel(guid);
 	if (dlvl)
 		return static_cast<int>(dlvl);
+
+	EnsureRequested(guid);
 	return cgUnit->unitData ? static_cast<int>(cgUnit->unitData->level) : 0;
-}
-
-void UnitLevelCache::SendRequest(uint64_t guid)
-{
-	Packet(CMSG_UNIT_LEVEL_CACHE_REQUEST).PutUInt64(guid).Send();
-}
-
-static bool IsPlayerGuid(uint64_t guid)
-{
-	return guid != 0 && (guid >> 48) == 0;
 }
 
 void UnitLevelCache::Handler_SMSG_UNIT_LEVEL_CACHE_RESPONSE(void*, uint32_t, uint32_t, CDataStore* pkt)

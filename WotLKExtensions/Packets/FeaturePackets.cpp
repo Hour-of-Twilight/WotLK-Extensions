@@ -32,11 +32,15 @@ int FeaturePackets::HasFeatureFlags(lua_State* L)
 	return 1;
 }
 
+bool FeaturePackets::IsEnabled(uint32_t featureId) const
+{
+	return m_hasData && (m_mask & (1u << featureId)) != 0;
+}
+
 int FeaturePackets::IsFeatureEnabled(lua_State* L)
 {
 	uint32_t featureId = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
-	bool enabled = Instance().m_hasData && (Instance().m_mask & (1u << featureId)) != 0;
-	FrameScript::PushBoolean(L, enabled);
+	FrameScript::PushBoolean(L, Instance().IsEnabled(featureId));
 	return 1;
 }
 

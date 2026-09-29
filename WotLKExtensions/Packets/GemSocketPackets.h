@@ -16,6 +16,7 @@ public:
 	GemSocketPackets& operator=(const GemSocketPackets&) = delete;
 
 	void Apply();
+	bool HandleUseContainerItem(lua_State* L);
 
 private:
 	GemSocketPackets() = default;
@@ -68,6 +69,7 @@ private:
 	static int SwitchGemLoadout(lua_State* L);
 	static int UnlockGemLoadout(lua_State* L);
 	static int RenameGemLoadout(lua_State* L);
+	static bool IsSpellGem(uint32_t entry);
 
 	uint8_t m_totalSockets = 0;
 	uint8_t m_socketCount = 0;

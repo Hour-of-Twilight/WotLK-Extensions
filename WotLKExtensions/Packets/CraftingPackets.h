@@ -27,7 +27,16 @@ public:
 		CRAFT_ERR_NOT_A_CATALYST = 3,
 		CRAFT_ERR_CANNOT_SCRAP = 4,
 		CRAFT_ERR_ITEM_LOCKED = 5,
-		CRAFT_ERR_BUSY = 6
+		CRAFT_ERR_BUSY = 6,
+		CRAFT_ERR_CATALYST_CONFLICT = 7
+	};
+
+	enum CatalystType : uint8_t
+	{
+		CATALYST_MIN_QUALITY = 1,
+		CATALYST_STAT_GROUP = 2,
+		CATALYST_LEVEL_BOOST = 3,
+		CATALYST_TALENT_NOTABLE = 4
 	};
 
 	struct PatternInfo
@@ -124,11 +133,9 @@ private:
 	static int Script_CraftingIsBusy(lua_State* L);
 	static int Script_CraftingCancelPending(lua_State* L);
 
-	static void* ResolveContainerItem(int luaBag, int luaSlot);
 	static bool ResolveItem(uint64_t guid, ItemRef& out);
 	static int PushItemRef(lua_State* L, uint64_t guid);
 	static bool FindItemBagSlot(uint64_t guid, int& outBag, int& outSlot);
-	static bool IsItemLocked(void* item);
 	static bool IsScrapCandidate(uint32_t entry);
 	static void LockItem(uint64_t guid);
 	static void UnlockItem(uint64_t guid);
@@ -139,6 +146,8 @@ private:
 	bool PlaceScrapItem(uint64_t guid, uint32_t entry, int preferredSlot);
 	bool AddCursorItem(Mode mode, int preferredSlot);
 	bool IsCatalystEntry(uint32_t entry) const;
+	const CatalystInfo* FindCatalyst(uint32_t entry) const;
+	bool StacksWithOtherCatalysts(uint32_t entry, int ignoreSlot) const;
 	bool HasCatalyst(uint64_t guid) const;
 	bool HasScrapItem(uint64_t guid) const;
 	void UnlockAllSlots();

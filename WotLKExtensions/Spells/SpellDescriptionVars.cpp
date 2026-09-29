@@ -184,7 +184,7 @@ static float VarItemLevel(const FormulaContext&)
 
 	if (!sUnitLevelCache.HasUnitItemLevelOrDungeonLevel(guid))
 	{
-		UnitLevelCache::SendRequest(guid);
+		UnitLevelCache::EnsureRequested(guid);
 		return 0.0f;
 	}
 

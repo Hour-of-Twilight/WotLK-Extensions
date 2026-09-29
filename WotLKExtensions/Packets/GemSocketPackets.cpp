@@ -1,8 +1,11 @@
 #include "GemSocketPackets.h"
+#include "CraftingPackets.h"
+#include "FeaturePackets.h"
 #include "Packet.h"
 #include <CustomPacket.h>
 #include <CustomLua.h>
 #include <ClientData/ClientFunctions.h>
+#include <ClientData/Containers.h>
 #include <XMLExtensions.h>
 #include <SharedDefines.h>
 
@@ -332,6 +335,41 @@ int GemSocketPackets::RenameGemLoadout(lua_State* L)
 
 	Packet(CMSG_GEM_LOADOUT_RENAME).PutUInt8(id).PutString(name).Send();
 	return 0;
+}
+
+bool GemSocketPackets::IsSpellGem(uint32_t entry)
+{
+	ItemCache* cache = DBItemCache_GetInfoBlockByID(WDB_CACHE_ITEM, entry, nullptr, nullptr, nullptr, 0);
+	if (!cache)
+		return false;
+
+	for (int i = 0; i < 5; ++i)
+		if (cache->SpellTrigger[i] == ITEM_SPELLTRIGGER_ON_SOCKET && cache->SpellId[i] > 0)
+			return true;
+
+	return false;
+}
+
+bool GemSocketPackets::HandleUseContainerItem(lua_State* L)
+{
+	if (!sFeaturePackets.IsEnabled(FeaturePackets::GEM_SYSTEM) || sCraftingPackets.IsOpen())
+		return false;
+
+	if (!FrameScript::IsNumber(L, 1) || !FrameScript::IsNumber(L, 2))
+		return false;
+
+	int bag = static_cast<int>(FrameScript::GetNumber(L, 1));
+	int slot = static_cast<int>(FrameScript::GetNumber(L, 2));
+	void* item = ClientData::Containers::GetLuaContainerItem(bag, slot);
+	if (!item || ClientData::Containers::IsItemLocked(item))
+		return false;
+
+	uint32_t entry = static_cast<ClientData::CGObject_C*>(item)->GetValue<uint32_t>(ClientData::OBJECT_FIELD_ENTRY);
+	if (!IsSpellGem(entry))
+		return false;
+
+	FrameXMLExtensions::SignalEvent("HOT_GEM_SOCKET_USE", "%u", entry);
+	return true;
 }
 
 void GemSocketPackets::Apply()

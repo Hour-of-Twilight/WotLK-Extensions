@@ -6,6 +6,8 @@
 #include "MultiCastBarDetours.h"
 #include "Streaming/BackgroundDownloader.h"
 #include "Tools/MPQScanner.h"
+#include "Packets/CraftingPackets.h"
+#include "Packets/GemSocketPackets.h"
 
 CLIENT_DETOUR(CGlueMgr__Idle, 0x004DAB40, __cdecl, int, (void))
 {
@@ -157,4 +159,41 @@ void __cdecl CGSpellBook__AddKnownSpell_PutActionInSlotHook(int slot)
 	if (!found)
 		FrameXMLExtensions::SignalEvent("HOT_PLACE_ACTION", "%u%u", spellId, (uint32_t)slot);
 	CGGameUI::ClearCursor(1, 1);
+}
+
+static constexpr int kLuaTypeString = 4;
+static constexpr int kCursorResetModeRepair = 0x11;
+
+static bool ClientOwnsContainerItemClick(lua_State* L)
+{
+	if (FrameScript::Type(L, 3) == kLuaTypeString)
+		return true;
+
+	if (Spell_C::IsTargeting())
+		return true;
+
+	if (CGGameUI::CursorGetResetMode() == kCursorResetModeRepair)
+		return true;
+
+	if (*CGBankInfo__m_banker || *CGMerchantInfo__m_merchant)
+		return true;
+
+	if (*CGMailInfo__m_sendMailShowing && *CGMailInfo__m_object)
+		return true;
+
+	if (*CGAuctionHouse__m_auctionsTabShowing && *CGAuctionHouse__m_auctioneer)
+		return true;
+
+	return *CGTradeInfo__m_tradingPlayer || *CGGuildBankInfo__m_banker;
+}
+
+CLIENT_DETOUR(Script_UseContainerItem, 0x005D8650, __cdecl, int, (lua_State * L))
+{
+	if (ClientOwnsContainerItemClick(L))
+		return Script_UseContainerItem(L);
+
+	if (sCraftingPackets.HandleUseContainerItem(L) || sGemSocketPackets.HandleUseContainerItem(L))
+		return 0;
+
+	return Script_UseContainerItem(L);
 }

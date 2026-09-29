@@ -61,6 +61,7 @@ private:
 	static int GetSpellDescription(lua_State* L);
 	static int GetSpellNameById(lua_State* L);
 	static int GetMapNameById(lua_State* L);
+	static int GetCurrentMapId(lua_State* L);
 	static int GetGemSpellInfo(lua_State* L);
 	static int GetGemType(lua_State* L);
 

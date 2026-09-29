@@ -16,6 +16,8 @@
 #include <Spells/SpellDescriptionVars.h>
 #include <Config/LauncherSettings.h>
 #include <Config/LauncherSettingsLua.h>
+#include <Packets/DBCacheQueries.h>
+#include <Quests/QuestLogStorage.h>
 #include <Streaming/ArchiveRegistry.h>
 #include <Models/ModernM2.h>
 #include <FeatureCvars.h>
@@ -41,12 +43,14 @@ void Main::OnAttach()
 	MovementNetcode::Apply();
 	ChatTags::Apply();
 	ModernM2::Apply();
+	sQuestLog.ApplyPatches();
 	ClientDetours::Apply();
 	FrameXMLExtensions::Apply();
 	Spells::Apply();
 	AutoRepeatDeadzone::Apply();
 	sSpellDescriptionVars.Apply();
 	Item::Apply();
+	DBCacheQueries::Apply();
 	CDBCMgr::Load();
 
 	LauncherSettingsLua::Apply();

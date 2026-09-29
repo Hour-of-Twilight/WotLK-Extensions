@@ -12,11 +12,13 @@
 #include "GroupFinderPackets.h"
 #include "ItemGenPackets.h"
 #include "GameTelePackets.h"
+#include "TowerDefencePackets.h"
 #include "ItemLevelPackets.h"
 #include "ItemDbCachePackets.h"
 #include "FeaturePackets.h"
 #include "PlayerSettingsPackets.h"
 #include "LootWindowPackets.h"
+#include "QuestLogPackets.h"
 #include <Character/MovementForce.h>
 #include <Spells/CooldownRate.h>
 #include "Streaming/BackgroundDownloader.h"
@@ -62,6 +64,7 @@ void CustomPacket::Apply()
 	sGroupFinderPackets.Apply();
 	sItemGenPackets.Apply();
 	sGameTelePackets.Apply();
+	sTowerDefencePackets.Apply();
 	sItemLevelPackets.Apply();
 	sTestFramePackets.Apply();
 	sUnitLevelCache.Apply();
@@ -70,6 +73,7 @@ void CustomPacket::Apply()
 	sCraftingPackets.Apply();
 	sTransmogPackets.Apply();
 	sLootWindowPackets.Apply();
+	sQuestLogPackets.Apply();
 	sMovementForce.Apply();
 	sCooldownRate.Apply();
 	ItemDbCachePackets::RegisterHandlers();

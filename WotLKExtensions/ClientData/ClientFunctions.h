@@ -44,6 +44,7 @@ namespace CGGameUI
 	CLIENT_FUNCTION(IsAutoLooting, 0x00513700, __cdecl, bool, ())
 	CLIENT_FUNCTION(LockItem, 0x00513740, __cdecl, int, (uint64_t guid))
 	CLIENT_FUNCTION(UnlockItem, 0x00513770, __cdecl, int, (uint64_t guid))
+	CLIENT_FUNCTION(CursorGetResetMode, 0x00616260, __cdecl, int, ())
 }
 
 namespace CGContainerInfo
@@ -96,6 +97,16 @@ namespace CCharacterComponent
 	CLIENT_FUNCTION(AddItemByDisplayId, 0x004F2830, __thiscall, void, (void* _this, int slot, int displayId, int unk))
 	CLIENT_FUNCTION(RemoveHandItem, 0x004EB070, __cdecl, void, (void* model, int hand, int sheath, char isShield))
 	CLIENT_FUNCTION(AddHandItem, 0x004EACD0, __cdecl, int, (void* model, void* record, unsigned int hand, int sheath, char a5, char isShield, char isRangedRight, int* enchant))
+	CLIENT_FUNCTION(RemoveLinkpt, 0x004E79A0, __cdecl, void, (void* model, unsigned int attachment))
+	CLIENT_FUNCTION(AddLink, 0x004EAA70, __cdecl, void, (void* model, int attachment, const char* modelPath, const char* texturePath, int itemVisual, void* record))
+	CLIENT_FUNCTION(GetSheatheLink, 0x004E7940, __cdecl, int, (int sheath, char isMainHand))
+	CLIENT_FUNCTION(ComponentCloseFingers, 0x004E7700, __cdecl, void, (void* model, int leftHand))
+	CLIENT_FUNCTION(ComponentOpenFingers, 0x004E7750, __cdecl, void, (void* model, int leftHand))
+}
+
+namespace CGBarberShop
+{
+	CLIENT_ADDRESS(uint8_t, m_barberShopEnabled, 0x00BD19B8)
 }
 
 namespace CGPlayer_C
@@ -135,6 +146,8 @@ namespace CGUnit_C
 	CLIENT_FUNCTION(GetPowerRegen, 0x004F5390, __thiscall, double, (void* descriptorSlot, int power, int interrupted))
 	CLIENT_FUNCTION(GetPredictedPower, 0x0071C2E0, __thiscall, int, (CGUnit * unit, int power))
 	CLIENT_FUNCTION(SetPredictedPowerSlot, 0x00722C50, __thiscall, void, (CGUnit * unit, int power, int value))
+	CLIENT_FUNCTION(AddHandItemForSlot, 0x0072DBC0, __thiscall, void, (void* unit, int slot))
+	CLIENT_FUNCTION(ShowHandItemSpellEffects, 0x00720400, __thiscall, void, (void* unit, int a2, int a3))
 }
 
 namespace ClientDB

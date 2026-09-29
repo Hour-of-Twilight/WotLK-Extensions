@@ -117,17 +117,11 @@ void DiscordRPC::UpdateActivity(const std::string& state,
 	_pendingActivity.SetState(state.c_str());
 	_pendingActivity.SetDetails(details.c_str());
 
-	if (!largeImage.empty())
-		_pendingActivity.GetAssets().SetLargeImage(largeImage.c_str());
-
-	if (!largeText.empty())
-		_pendingActivity.GetAssets().SetLargeText(largeText.c_str());
-
-	if (!smallImage.empty())
-		_pendingActivity.GetAssets().SetSmallImage(smallImage.c_str());
-
-	if (!smallText.empty())
-		_pendingActivity.GetAssets().SetSmallText(smallText.c_str());
+	auto& assets = _pendingActivity.GetAssets();
+	assets.SetLargeImage(largeImage.c_str());
+	assets.SetLargeText(largeText.c_str());
+	assets.SetSmallImage(smallImage.c_str());
+	assets.SetSmallText(smallText.c_str());
 
 	_hasActivity = true;
 	_hasPending = true;

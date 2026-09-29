@@ -11,6 +11,7 @@
 #include <CraftingPackets.h>
 #include <TransmogPackets.h>
 #include <ItemLevelPackets.h>
+#include <TowerDefencePackets.h>
 
 CLIENT_DETOUR(CGlueMgr__EnterWorld, 0x4D9BD0, __cdecl, void, ())
 {
@@ -23,6 +24,7 @@ CLIENT_DETOUR(CGlueMgr__EnterWorld, 0x4D9BD0, __cdecl, void, ())
 	sCraftingPackets.Reset();
 	sTransmogPackets.Reset();
 	sItemLevelPackets.Clear();
+	sTowerDefencePackets.Reset();
 	sCustomPacket.SendSanityCheck(true);
 }
 

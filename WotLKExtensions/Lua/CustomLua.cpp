@@ -113,6 +113,12 @@ int CustomLua::GetSpellNameById(lua_State* L)
 	return 2;
 }
 
+int CustomLua::GetCurrentMapId(lua_State* L)
+{
+	FrameScript::PushNumber(L, *CGGameUI__m_iCurrentMapID);
+	return 1;
+}
+
 int CustomLua::GetMapNameById(lua_State* L)
 {
 	if (FrameScript::IsNumber(L, 1))
@@ -170,6 +176,7 @@ namespace
 		    itemId, nullptr, nullptr, nullptr, 0);
 		if (!item)
 			return false; // not cached yet (a query was queued); caller should retry
+
 
 		uint32_t triggerSpell = 0;
 		for (int i = 0; i < 5; ++i)
@@ -738,13 +745,25 @@ int CustomLua::GetMagicFind(lua_State* L)
 }
 
 #ifdef ENABLE_DISCORD
+static const char* OptionalLuaString(lua_State* L, int index, const char* fallback)
+{
+	if (FrameScript::Type(L, index) != 4)
+		return fallback;
+
+	const char* value = FrameScript::ToLString(L, index, false);
+	return value ? value : fallback;
+}
+
 int CustomLua::UpdateDiscordPresence(lua_State* L)
 {
 	char* status = FrameScript::ToLString(L, 1, false);
 	char* details = FrameScript::ToLString(L, 2, false);
-	// char* icon = FrameScript::ToLString(L, 3, false);
-	//  in future, allow custom icons per instance?
-	sDiscord.UpdateActivity(details, status, /*icon*/ "icon_transparent_");
+	const char* largeImage = OptionalLuaString(L, 3, "icon_transparent_");
+	const char* largeText = OptionalLuaString(L, 4, "");
+	const char* smallImage = OptionalLuaString(L, 5, "");
+	const char* smallText = OptionalLuaString(L, 6, "");
+
+	sDiscord.UpdateActivity(details ? details : "", status ? status : "", largeImage, largeText, smallImage, smallText);
 	return 0;
 }
 
@@ -1027,7 +1046,7 @@ int CustomLua::GetUnitItemLevel(lua_State* L)
 	}
 	if (!sUnitLevelCache.HasPlayerItemLevel(guid))
 	{
-		UnitLevelCache::SendRequest(guid);
+		UnitLevelCache::EnsureRequested(guid);
 		FrameScript::PushNil(L);
 		return 1;
 	}
@@ -1052,7 +1071,7 @@ int CustomLua::GetUnitDungeonLevel(lua_State* L)
 	}
 	if (!sUnitLevelCache.HasUnitItemLevelOrDungeonLevel(guid))
 	{
-		UnitLevelCache::SendRequest(guid);
+		UnitLevelCache::EnsureRequested(guid);
 		FrameScript::PushNil(L);
 		return 1;
 	}
@@ -1074,7 +1093,7 @@ int CustomLua::GetUnitSubclass(lua_State* L)
 	}
 	if (!sUnitLevelCache.HasPlayerItemLevel(guid))
 	{
-		UnitLevelCache::SendRequest(guid);
+		UnitLevelCache::EnsureRequested(guid);
 		FrameScript::PushNil(L);
 		return 1;
 	}
@@ -1093,7 +1112,7 @@ int CustomLua::GetItemLevel(lua_State* L)
 
 	if (!sUnitLevelCache.HasPlayerItemLevel(ourGuid))
 	{
-		UnitLevelCache::SendRequest(ourGuid);
+		UnitLevelCache::EnsureRequested(ourGuid);
 		FrameScript::PushNil(L);
 		return 1;
 	}
@@ -1110,6 +1129,7 @@ void CustomLua::RegisterBuiltinFunctions()
 		RegisterFunction("GetSpellDescription", &GetSpellDescription, LuaFunctionState::FRAME);
 		RegisterFunction("GetSpellNameById", &GetSpellNameById, LuaFunctionState::FRAME);
 		RegisterFunction("GetMapNameById", &GetMapNameById, LuaFunctionState::FRAME);
+		RegisterFunction("GetCurrentMapId", &GetCurrentMapId, LuaFunctionState::FRAME);
 		RegisterFunction("GetGemSpellInfo", &GetGemSpellInfo, LuaFunctionState::FRAME);
 		RegisterFunction("GetGemType", &GetGemType, LuaFunctionState::FRAME);
 		RegisterFunction("ConvertCoordsToScreenSpace", &ConvertCoordsToScreenSpace, LuaFunctionState::FRAME);
