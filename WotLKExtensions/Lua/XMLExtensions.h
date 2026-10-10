@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <vector>
 #include <cstddef>
 #include <cstdint>
@@ -10,13 +12,13 @@
 
 struct Event
 {
-	uint32_t hash;
-	uint32_t gap4[4];
+	uint32 hash;
+	uint32 gap4[4];
 	const char* name;
-	uint32_t gap18[12];
-	uint32_t field48;
-	uint32_t field4C;
-	uint32_t field50;
+	uint32 gap18[12];
+	uint32 field48;
+	uint32 field4C;
+	uint32 field50;
 };
 
 struct EventList
@@ -28,7 +30,7 @@ struct EventList
 
 namespace RCString_C
 {
-	uint32_t __stdcall hash(const char* str);
+	uint32 __stdcall hash(const char* str);
 }
 
 class FrameXMLExtensions

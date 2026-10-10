@@ -17,12 +17,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/ModernM2.h"
 
 #include "Models/Common/ModelHooks.h"
 #include "Models/Client/M2Arena.h"
 #include "Models/Client/WideIndices.h"
+#include "Models/Offsets/GxOffsets.h"
 
+#include <Util.h>
 #include <windows.h>
 
 namespace ModernM2
@@ -48,8 +51,36 @@ namespace ModernM2
 		return written != 0 && written < cap;
 	}
 
+	// The client sizes its one mip scratch buffer at boot for a 32-bpp 1024x1024 chain. Every
+	// synchronous mip fill memcpys a texture's decoded chain into it, and a 2048 chain does not
+	// fit, so any texture wider than 1024 overruns it the first time it takes that path. A
+	// graphics device restart - changing resolution, toggling windowed mode - sends textures back
+	// down it, and the overrun shows up as textures rendering white until the UI is reloaded and
+	// they are decoded again.
+	//
+	// Both operands are the push imm32 of the boot-time size computation. Widening them to 0x800
+	// sizes the buffer for a 2048 chain of any encoding (~22.4 MB).
+	void WidenMipScratch()
+	{
+		namespace Gx = Offsets::Gx;
+
+		const auto height = reinterpret_cast<const uint32*>(Gx::kMipScratchDimHImm);
+		const auto width = reinterpret_cast<const uint32*>(Gx::kMipScratchDimWImm);
+		if (*height != Gx::kMipScratchStockEdge || *width != Gx::kMipScratchStockEdge)
+		{
+			// Not the shipped operands: another build, or already patched. Leave it alone.
+			return;
+		}
+
+		Util::OverwriteUInt32AtAddress(static_cast<uint32>(Gx::kMipScratchDimHImm), Gx::kMipScratchWideEdge);
+		Util::OverwriteUInt32AtAddress(static_cast<uint32>(Gx::kMipScratchDimWImm), Gx::kMipScratchWideEdge);
+	}
+
 	void Apply()
 	{
+		// Before anything can take the synchronous mip path.
+		WidenMipScratch();
+
 		// The arena wants its contiguous 32-bit reservation before world loading fragments the
 		// address space, so it is taken here rather than at the first large allocation.
 		Arena::Reserve();

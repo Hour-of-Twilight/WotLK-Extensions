@@ -11,6 +11,7 @@ public:
 private:
 	static int IsHDPatchEnabled(lua_State* L);
 	static int SetHDPatchEnabled(lua_State* L);
+	static int AreHDCharacterModelsAvailable(lua_State* L);
 	static int GetDownloadSpeedLimit(lua_State* L);
 	static int SetDownloadSpeedLimit(lua_State* L);
 };

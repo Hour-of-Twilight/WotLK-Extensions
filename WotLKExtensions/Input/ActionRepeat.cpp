@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Input/ActionRepeat.h>
 
 #include <ClientDetours.h>
@@ -16,13 +17,13 @@ using ClientData::EventRegisterEx;
 namespace AB = ClientData::ActionBar;
 namespace KB = ClientData::Bindings;
 
-static constexpr uint32_t kCastableGraceMs = 100;
+static constexpr uint32 kCastableGraceMs = 100;
 
 // ---- Helpers ---------------------------------------------------------------
 
-static uint32_t NowMs()
+static uint32 NowMs()
 {
-	return reinterpret_cast<uint32_t(__cdecl*)()>(OS_GET_TIME_ADDR)();
+	return reinterpret_cast<uint32(__cdecl*)()>(OS_GET_TIME_ADDR)();
 }
 
 static bool IsCasting()
@@ -71,7 +72,7 @@ static int ReadCooldownStart(int slot)
 	return start;
 }
 
-CLIENT_DETOUR(AR_UseAction, AB::kUseActionAddr, __cdecl, void, (int slot, uint64_t* targetGuid, char* button))
+CLIENT_DETOUR(AR_UseAction, AB::kUseActionAddr, __cdecl, void, (int slot, uint64* targetGuid, char* button))
 {
 	if (sActionRepeat.ConsumeSuppressUse())
 		return;
@@ -103,7 +104,7 @@ CLIENT_DETOUR_THISCALL(AR_ExecKey, KB::kExecKeyAddr, int, (int mods, void* slot,
 	return AR_ExecKey(self, mods, slot, isDown, argC, keyMode);
 }
 
-static int32_t __cdecl AR_OnFocus(const void*, void*)
+static int32 __cdecl AR_OnFocus(const void*, void*)
 {
 	sActionRepeat.ClearAll();
 	return 0;
@@ -131,14 +132,14 @@ void ActionRepeat::SetDelayMs(int ms)
 {
 	if (ms < 0)
 		ms = 0;
-	m_delayMs = static_cast<uint32_t>(ms);
+	m_delayMs = static_cast<uint32>(ms);
 }
 
 void ActionRepeat::SetIntervalMs(int ms)
 {
 	if (ms < 1)
 		ms = 1;
-	m_intervalMs = static_cast<uint32_t>(ms);
+	m_intervalMs = static_cast<uint32>(ms);
 }
 
 ActionRepeat::Held* ActionRepeat::Find(void* keySlot)
@@ -202,7 +203,7 @@ void ActionRepeat::OnUpdate()
 	if (m_mode == ModeOff)
 		return;
 
-	uint32_t now = NowMs();
+	uint32 now = NowMs();
 
 	for (Held& e : m_held)
 	{
@@ -230,7 +231,7 @@ void ActionRepeat::OnUpdate()
 
 		int start = 0, duration = 0, enable = 0;
 		AB::GetCooldown(e.actionSlot, &start, &duration, &enable);
-		bool onCooldown = duration > 0 && (now - static_cast<uint32_t>(start)) < static_cast<uint32_t>(duration);
+		bool onCooldown = duration > 0 && (now - static_cast<uint32>(start)) < static_cast<uint32>(duration);
 		if (onCooldown)
 		{
 			e.readySinceMs = 0;
@@ -244,7 +245,7 @@ void ActionRepeat::OnUpdate()
 		if (now - e.lastRepeatMs < m_intervalMs)
 			continue;
 
-		uint64_t guid = 0;
+		uint64 guid = 0;
 		char button[1] = { '\0' };
 		AR_UseAction(e.actionSlot, &guid, button);
 		e.lastRepeatMs = now;

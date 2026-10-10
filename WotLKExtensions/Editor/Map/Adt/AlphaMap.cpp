@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Editor/Map/Adt/AlphaMap.h>
 
 #include <cstdio>
@@ -13,7 +14,7 @@ namespace MapEditor::Adt
 		// with both.
 		void FixLastRowAndColumn(AlphaMap& map)
 		{
-			for (int32_t i = 0; i < kAlphaSide; ++i)
+			for (int32 i = 0; i < kAlphaSide; ++i)
 			{
 				map.texel[i * kAlphaSide + 63] = map.texel[i * kAlphaSide + 62];
 				map.texel[63 * kAlphaSide + i] = map.texel[62 * kAlphaSide + i];
@@ -24,11 +25,11 @@ namespace MapEditor::Adt
 
 		// MCAL RLE. Each command byte is a 7 bit count plus a fill/copy bit: fill repeats the one
 		// byte that follows, copy takes the next count bytes verbatim.
-		bool DecodeCompressed(uint8_t const* data, size_t available, AlphaMap& out,
+		bool DecodeCompressed(uint8 const* data, size_t available, AlphaMap& out,
 		    std::string& error)
 		{
 			size_t read = 0;
-			int32_t written = 0;
+			int32 written = 0;
 
 			while (written < kAlphaTexels)
 			{
@@ -38,8 +39,8 @@ namespace MapEditor::Adt
 					return false;
 				}
 
-				uint8_t command = data[read++];
-				int32_t count = command & 0x7F;
+				uint8 command = data[read++];
+				int32 count = command & 0x7F;
 				bool fill = (command & 0x80) != 0;
 
 				// A truncated run is worth clamping rather than refusing, since the rest of the
@@ -78,7 +79,7 @@ namespace MapEditor::Adt
 			return true;
 		}
 
-		bool DecodeOne(uint8_t const* data, size_t available, uint32_t layerFlags,
+		bool DecodeOne(uint8 const* data, size_t available, uint32 layerFlags,
 		    AlphaFormat const& format, AlphaMap& out, std::string& error)
 		{
 			// Compression only ever appears alongside big alpha, so a 4 bit map is always flat.
@@ -105,15 +106,15 @@ namespace MapEditor::Adt
 					return false;
 				}
 
-				for (int32_t i = 0; i < kAlphaTexels / 2; ++i)
+				for (int32 i = 0; i < kAlphaTexels / 2; ++i)
 				{
 					// The low nibble is the even texel. Both widen by repeating the nibble rather
 					// than shifting, so 0xF becomes 0xFF and full opacity stays full.
-					uint8_t lo = data[i] & 0x0F;
-					uint8_t hi = (data[i] >> 4) & 0x0F;
+					uint8 lo = data[i] & 0x0F;
+					uint8 hi = (data[i] >> 4) & 0x0F;
 
-					out.texel[i * 2 + 0] = static_cast<uint8_t>(lo | (lo << 4));
-					out.texel[i * 2 + 1] = static_cast<uint8_t>(hi | (hi << 4));
+					out.texel[i * 2 + 0] = static_cast<uint8>(lo | (lo << 4));
+					out.texel[i * 2 + 1] = static_cast<uint8>(hi | (hi << 4));
 				}
 			}
 
@@ -126,12 +127,12 @@ namespace MapEditor::Adt
 		// 8 bits back down to 4, to the nearest of the 16 values the file can hold rather than down
 		// to the next one. Decoding widens by repeating the nibble so the levels sit 17 apart, and
 		// a plain `>> 4` loses enough that a slow stroke never moves a texel at all.
-		uint8_t ToNibble(uint8_t value)
+		uint8 ToNibble(uint8 value)
 		{
-			return static_cast<uint8_t>((value * 15 + 127) / 255);
+			return static_cast<uint8>((value * 15 + 127) / 255);
 		}
 
-		void EncodeOne(AlphaMap const& map, AlphaFormat const& format, std::vector<uint8_t>& out)
+		void EncodeOne(AlphaMap const& map, AlphaFormat const& format, std::vector<uint8>& out)
 		{
 			if (format.bigAlpha)
 			{
@@ -139,11 +140,11 @@ namespace MapEditor::Adt
 				return;
 			}
 
-			for (int32_t i = 0; i < kAlphaTexels / 2; ++i)
+			for (int32 i = 0; i < kAlphaTexels / 2; ++i)
 			{
-				uint8_t lo = ToNibble(map.texel[i * 2 + 0]);
-				uint8_t hi = ToNibble(map.texel[i * 2 + 1]);
-				out.push_back(static_cast<uint8_t>(lo | (hi << 4)));
+				uint8 lo = ToNibble(map.texel[i * 2 + 0]);
+				uint8 hi = ToNibble(map.texel[i * 2 + 1]);
+				out.push_back(static_cast<uint8>(lo | (hi << 4)));
 			}
 		}
 
@@ -152,9 +153,9 @@ namespace MapEditor::Adt
 		// tile to anything else that reads it.
 		size_t McalInsertPoint(Mcnk const& mcnk)
 		{
-			uint32_t const before[] = { kMCRF, kMCLY, kMCNR, kMCVT };
+			uint32 const before[] = { kMCRF, kMCLY, kMCNR, kMCVT };
 
-			for (uint32_t id : before)
+			for (uint32 id : before)
 			{
 				for (size_t i = 0; i < mcnk.subs.size(); ++i)
 				{
@@ -167,7 +168,7 @@ namespace MapEditor::Adt
 		}
 	}
 
-	bool ReadMapFlags(char const* mapName, uint32_t& flags, std::string& error)
+	bool ReadMapFlags(char const* mapName, uint32& flags, std::string& error)
 	{
 		flags = 0;
 
@@ -180,17 +181,17 @@ namespace MapEditor::Adt
 		char path[512];
 		std::snprintf(path, sizeof(path), "World\\Maps\\%s\\%s.wdt", mapName, mapName);
 
-		std::vector<uint8_t> bytes;
+		std::vector<uint8> bytes;
 		if (!ReadFileBytes(path, bytes, error))
 			return false;
 
 		// Plain IFF walk to MPHD. The client reads it positionally straight after MVER, but
 		// seeking by magic costs nothing and survives a file that puts them the other way round.
-		uint32_t at = 0;
+		uint32 at = 0;
 		while (static_cast<size_t>(at) + 8 <= bytes.size())
 		{
-			uint32_t id = 0;
-			uint32_t size = 0;
+			uint32 id = 0;
+			uint32 size = 0;
 			std::memcpy(&id, bytes.data() + at, 4);
 			std::memcpy(&size, bytes.data() + at + 4, 4);
 
@@ -213,7 +214,7 @@ namespace MapEditor::Adt
 		return false;
 	}
 
-	AlphaFormat FormatFor(Mcnk const& mcnk, uint32_t mapFlags)
+	AlphaFormat FormatFor(Mcnk const& mcnk, uint32 mapFlags)
 	{
 		AlphaFormat out;
 		out.bigAlpha = (mapFlags & 0x4) != 0;
@@ -227,7 +228,7 @@ namespace MapEditor::Adt
 		out.layers.clear();
 		out.maps.clear();
 
-		uint32_t count = mcnk.header.nLayers;
+		uint32 count = mcnk.header.nLayers;
 		if (!count)
 			return true;
 
@@ -245,7 +246,7 @@ namespace MapEditor::Adt
 		SubChunk const* mcal = mcnk.Find(kMCAL);
 		size_t available = mcal ? mcal->data.size() : 0;
 
-		for (uint32_t i = 0; i < count; ++i)
+		for (uint32 i = 0; i < count; ++i)
 		{
 			SMLayer const& layer = out.layers[i];
 			if (!(layer.flags & kLayerUseAlpha))
@@ -275,7 +276,7 @@ namespace MapEditor::Adt
 		}
 
 		std::vector<SMLayer> layers = in.layers;
-		std::vector<uint8_t> alpha;
+		std::vector<uint8> alpha;
 
 		for (size_t i = 0; i < layers.size(); ++i)
 		{
@@ -290,7 +291,7 @@ namespace MapEditor::Adt
 
 			layer.flags |= kLayerUseAlpha;
 			layer.flags &= ~kLayerCompressed;
-			layer.offsetInMCAL = static_cast<uint32_t>(alpha.size());
+			layer.offsetInMCAL = static_cast<uint32>(alpha.size());
 
 			AlphaMap map = in.maps[i];
 			if (!format.doNotFix)
@@ -320,7 +321,7 @@ namespace MapEditor::Adt
 		}
 
 		mcal->data = std::move(alpha);
-		mcnk.header.nLayers = static_cast<uint32_t>(layers.size());
+		mcnk.header.nLayers = static_cast<uint32>(layers.size());
 		return true;
 	}
 }

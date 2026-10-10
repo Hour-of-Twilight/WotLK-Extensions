@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <ClientDetours.h>
 #include <Macros.h>
 
@@ -14,7 +15,7 @@ namespace
 
 	float& InfoField(void* info, uintptr_t offset)
 	{
-		return *reinterpret_cast<float*>(static_cast<uint8_t*>(info) + offset);
+		return *reinterpret_cast<float*>(static_cast<uint8*>(info) + offset);
 	}
 
 	float RoundToPixel(float value)

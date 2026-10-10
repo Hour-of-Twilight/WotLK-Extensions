@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <Editor/GizmoPick.h>
 #include <Editor/QuatFunctions.h>
 #include <ClientData/SharedDefines.h>
@@ -33,6 +35,6 @@ namespace EState
 		Axis gizmoTranslationAxis = Axis::None;
 		Axis gizmoRotationAxis = Axis::None;
 		DragState gizmoDragState{};
-		uint64_t currentObjectGuid = 0;
+		uint64 currentObjectGuid = 0;
 	};
 }

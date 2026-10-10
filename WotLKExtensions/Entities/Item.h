@@ -1,7 +1,9 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <SharedDefines.h>
-static constexpr int32 ITEM_ALLOCATE_AMOUNT = 0x3FFFFFF;
+static constexpr int32 ITEM_ALLOCATE_AMOUNT = 0xFFFFFF;
 class Item
 {
 public:
@@ -19,5 +21,7 @@ public:
 private:
 	static void PatchHeroicQualityTooltipLabel();
 	static void PatchOnSocketSpellTriggerLabel();
-	static void PatchTooltipLabelPush(uint32_t pushSite, void* stub);
+	static void PatchTooltipLabelPush(uint32 pushSite, void* stub);
+	static void StoreRecord(int itemID, int itemClass, int itemSubClass, int soundOverride,
+	    int materialID, int displayInfo, int inventorySlot, int sheathID);
 };

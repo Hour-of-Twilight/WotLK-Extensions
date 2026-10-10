@@ -1,4 +1,6 @@
 #pragma once
+
+#include <Defines.h>
 #include <Macros.h>
 #include <ClientData/ObjectModel.h>
 #include <ClientData/DBCRows.h>
@@ -21,13 +23,13 @@ namespace CGItem_C
 {
 	CLIENT_FUNCTION(Lock, 0x00706FE0, __thiscall, void, (void* item))
 	CLIENT_FUNCTION(Unlock, 0x00707020, __thiscall, void, (void* item))
-	CLIENT_FUNCTION(GetItemByFullName, 0x00709DE0, __cdecl, uint32_t, (const char* name))
+	CLIENT_FUNCTION(GetItemByFullName, 0x00709DE0, __cdecl, uint32, (const char* name))
 	CLIENT_FUNCTION(GetClassID, 0x00707220, __thiscall, int, (void* item))
 }
 
 namespace CGBag_C
 {
-	CLIENT_FUNCTION(FindItemOfType, 0x00754A20, __thiscall, void*, (void* bagContainer, uint32_t entryId, uint32_t flags))
+	CLIENT_FUNCTION(FindItemOfType, 0x00754A20, __thiscall, void*, (void* bagContainer, uint32 entryId, uint32 flags))
 	CLIENT_FUNCTION(GetItemPointer, 0x00754390, __thiscall, void*, (void* bagContainer, int slot))
 }
 
@@ -38,18 +40,19 @@ namespace CGNamePlateFrame
 
 namespace CGGameUI
 {
-	CLIENT_FUNCTION(GetCursorSpell, 0x005136C0, __cdecl, uint32_t, ())
-	CLIENT_FUNCTION(GetCursorItem, 0x00513660, __cdecl, uint64_t, ())
+	CLIENT_FUNCTION(GetCursorSpell, 0x005136C0, __cdecl, uint32, ())
+	CLIENT_FUNCTION(GetCursorItem, 0x00513660, __cdecl, uint64, ())
 	CLIENT_FUNCTION(ClearCursor, 0x00519280, __cdecl, void, (int arg0, int arg4))
 	CLIENT_FUNCTION(IsAutoLooting, 0x00513700, __cdecl, bool, ())
-	CLIENT_FUNCTION(LockItem, 0x00513740, __cdecl, int, (uint64_t guid))
-	CLIENT_FUNCTION(UnlockItem, 0x00513770, __cdecl, int, (uint64_t guid))
+	CLIENT_FUNCTION(CloseLoot, 0x00523640, __cdecl, void, (int sendRelease, int suppressAutoLoot, int showError))
+	CLIENT_FUNCTION(LockItem, 0x00513740, __cdecl, int, (uint64 guid))
+	CLIENT_FUNCTION(UnlockItem, 0x00513770, __cdecl, int, (uint64 guid))
 	CLIENT_FUNCTION(CursorGetResetMode, 0x00616260, __cdecl, int, ())
 }
 
 namespace CGContainerInfo
 {
-	CLIENT_FUNCTION(GetContainer, 0x005D6F20, __cdecl, uint64_t, (int index))
+	CLIENT_FUNCTION(GetContainer, 0x005D6F20, __cdecl, uint64, (int index))
 }
 
 namespace CGTooltip
@@ -69,23 +72,23 @@ namespace CGItemStatsSummary
 namespace CDataStore_C
 {
 	CLIENT_FUNCTION(GenPacket, 0x401050, __thiscall, void, (CDataStore*))
-	CLIENT_FUNCTION(GetInt8, 0x47B340, __thiscall, void, (CDataStore*, int8_t*))
-	CLIENT_FUNCTION(PutInt8, 0x47AFE0, __thiscall, void, (CDataStore*, int8_t))
-	CLIENT_FUNCTION(GetInt16, 0x47B380, __thiscall, void, (CDataStore*, int16_t*))
-	CLIENT_FUNCTION(PutInt16, 0x47B040, __thiscall, void, (CDataStore*, int16_t))
-	CLIENT_FUNCTION(GetInt32, 0x47B3C0, __thiscall, void, (CDataStore*, int32_t*))
-	CLIENT_FUNCTION(GetUInt32, 0x47B3C0, __thiscall, void, (CDataStore*, uint32_t*))
-	CLIENT_FUNCTION(PutInt32, 0x47B0A0, __thiscall, void, (CDataStore*, int32_t))
-	CLIENT_FUNCTION(PutInt64, 0x47B100, __thiscall, void, (CDataStore*, int64_t))
+	CLIENT_FUNCTION(GetInt8, 0x47B340, __thiscall, void, (CDataStore*, int8*))
+	CLIENT_FUNCTION(PutInt8, 0x47AFE0, __thiscall, void, (CDataStore*, int8))
+	CLIENT_FUNCTION(GetInt16, 0x47B380, __thiscall, void, (CDataStore*, int16*))
+	CLIENT_FUNCTION(PutInt16, 0x47B040, __thiscall, void, (CDataStore*, int16))
+	CLIENT_FUNCTION(GetInt32, 0x47B3C0, __thiscall, void, (CDataStore*, int32*))
+	CLIENT_FUNCTION(GetUInt32, 0x47B3C0, __thiscall, void, (CDataStore*, uint32*))
+	CLIENT_FUNCTION(PutInt32, 0x47B0A0, __thiscall, void, (CDataStore*, int32))
+	CLIENT_FUNCTION(PutInt64, 0x47B100, __thiscall, void, (CDataStore*, int64))
 	CLIENT_FUNCTION(PutFloat, 0x47B160, __thiscall, void, (CDataStore*, float))
-	CLIENT_FUNCTION(GetInt64, 0x47B400, __thiscall, void, (CDataStore*, int64_t*))
+	CLIENT_FUNCTION(GetInt64, 0x47B400, __thiscall, void, (CDataStore*, int64*))
 	CLIENT_FUNCTION(GetFloat, 0x47B440, __thiscall, void, (CDataStore*, float*))
 	CLIENT_FUNCTION(GetCString, 0x47B480, __thiscall, void, (CDataStore*, char*, uint32))
 	CLIENT_FUNCTION(PutCString, 0x47B300, __thiscall, void, (CDataStore*, char* string))
 	CLIENT_FUNCTION(Release, 0x403880, __thiscall, void, (CDataStore*))
 	CLIENT_FUNCTION(IsRead, 0x4010D0, __thiscall, bool, (CDataStore*))
-	CLIENT_FUNCTION(FetchRead, 0x47B290, __thiscall, int, (CDataStore*, uint32_t offset, uint32_t size))
-	CLIENT_FUNCTION(GetWowGUID, 0x76DC20, __cdecl, void, (CDataStore*, uint64_t* outGuid))
+	CLIENT_FUNCTION(FetchRead, 0x47B290, __thiscall, int, (CDataStore*, uint32 offset, uint32 size))
+	CLIENT_FUNCTION(GetWowGUID, 0x76DC20, __cdecl, void, (CDataStore*, uint64* outGuid))
 }
 
 namespace CCharacterComponent
@@ -106,13 +109,13 @@ namespace CCharacterComponent
 
 namespace CGBarberShop
 {
-	CLIENT_ADDRESS(uint8_t, m_barberShopEnabled, 0x00BD19B8)
+	CLIENT_ADDRESS(uint8, m_barberShopEnabled, 0x00BD19B8)
 }
 
 namespace CGPlayer_C
 {
 	CLIENT_FUNCTION(IsDeadOrGhost, 0x6DAC10, __thiscall, bool, (CGPlayer*))
-	CLIENT_FUNCTION(SetComboPoints, 0x00519780, __cdecl, void, (uint64_t* targetGuid, uint8_t count))
+	CLIENT_FUNCTION(SetComboPoints, 0x00519780, __cdecl, void, (uint64 * targetGuid, uint8 count))
 	CLIENT_FUNCTION(RefreshVisibleItems, 0x006E09E0, __thiscall, int, (CGPlayer * _this))
 	CLIENT_FUNCTION(UpdateXRayVision, 0x6D7490, __cdecl, int, (int arg))
 	CLIENT_FUNCTION(EquipVisibleItem, 0x006E08C0, __thiscall, void, (CGPlayer * _this, int* itemEntry, int slot))
@@ -135,24 +138,29 @@ namespace CSimpleFontString
 namespace CGUnit_C
 {
 	CLIENT_FUNCTION(InitializeComponent, 0x00730100, __thiscall, int, (CGUnit * pUnit))
+	CLIENT_FUNCTION(FreeComponent, 0x00714BD0, __thiscall, void, (void* unit))
 	CLIENT_FUNCTION(GetDisplayClassNameFromRecord, 0x007159E0, __cdecl, const char*, (void* classRecord, int sex, int* outSex))
 	CLIENT_FUNCTION(GetDisplayRaceNameFromRecord, 0x00715970, __cdecl, const char*, (void* raceRecord, int sex, int* outSex))
 	CLIENT_FUNCTION(GetDisplayClassName, 0x0072AAB0, __cdecl, const char*, (void* unitObj, int displaySex))
 	CLIENT_FUNCTION(IsBossMob, 0x00715D70, __thiscall, bool, (void* unit))
+	CLIENT_FUNCTION(IsSpellKnown, 0x007260E0, __thiscall, bool, (CGUnit * unit, uint32 spellId))
+	CLIENT_FUNCTION(IsInMeleeRange, 0x0071B820, __thiscall, int, (CGUnit * self, CGUnit* target))
 	CLIENT_FUNCTION(IsActivePlayer, 0x004CEE50, __thiscall, bool, (void* unit))
 	CLIENT_FUNCTION(UnitReaction, 0x007251C0, __thiscall, int, (void* unit, void* player))
 	CLIENT_FUNCTION(UpdateModelScale, 0x0072CBB0, __thiscall, void, (void* unit, int flags))
+	CLIENT_FUNCTION(UpdateSelectionRadius, 0x00720330, __thiscall, void, (void* unit))
 	CLIENT_FUNCTION(AnimationData, 0x007385C0, __thiscall, void, (CGUnit * unit, int animationId, char flags))
 	CLIENT_FUNCTION(GetPowerRegen, 0x004F5390, __thiscall, double, (void* descriptorSlot, int power, int interrupted))
 	CLIENT_FUNCTION(GetPredictedPower, 0x0071C2E0, __thiscall, int, (CGUnit * unit, int power))
 	CLIENT_FUNCTION(SetPredictedPowerSlot, 0x00722C50, __thiscall, void, (CGUnit * unit, int power, int value))
 	CLIENT_FUNCTION(AddHandItemForSlot, 0x0072DBC0, __thiscall, void, (void* unit, int slot))
 	CLIENT_FUNCTION(ShowHandItemSpellEffects, 0x00720400, __thiscall, void, (void* unit, int a2, int a3))
+	CLIENT_FUNCTION(GetObjectModel, 0x006E6F80, __thiscall, void*, (void* unit))
 }
 
 namespace ClientDB
 {
-	CLIENT_FUNCTION(GetGameTableValue, 0x7F6990, __cdecl, double, (uint32_t, uint32_t, uint32_t))
+	CLIENT_FUNCTION(GetGameTableValue, 0x7F6990, __cdecl, double, (uint32, uint32, uint32))
 	CLIENT_FUNCTION(DecompressRow, 0x004CFBB0, __cdecl, void, (void* compressedData, int size, void* outBuffer))
 }
 
@@ -166,25 +174,25 @@ namespace ClientServices
 
 namespace ClntObjMgr
 {
-	CLIENT_FUNCTION(GetObjectNameFromGuid, 0x74D750, __cdecl, char*, (uint64_t))
-	CLIENT_FUNCTION(EnumVisibleObjects, 0x004D4B30, __cdecl, int, (int(__cdecl * callback)(uint32_t guidLow, uint32_t guidHigh, void* userdata), void* userdata))
+	CLIENT_FUNCTION(GetObjectNameFromGuid, 0x74D750, __cdecl, char*, (uint64))
+	CLIENT_FUNCTION(EnumVisibleObjects, 0x004D4B30, __cdecl, int, (int(__cdecl * callback)(uint32 guidLow, uint32 guidHigh, void* userdata), void* userdata))
 }
 
 namespace CGGuildInfo_C
 {
 	CLIENT_FUNCTION(DbGuildCache_GetInfoBlockById, 0x0067D930, __thiscall, void*,
-	    (void* cache, uint32_t guildId, uint32_t* playerGuidPair, void* callback, uint32_t callbackArg, uint8_t flags))
+	    (void* cache, uint32 guildId, uint32* playerGuidPair, void* callback, uint32 callbackArg, uint8 flags))
 }
 
 CLIENT_FUNCTION(CGGuildInfo__GuildNameCallback, 0x006D1C70, __cdecl, void, (void*))
-CLIENT_FUNCTION(Script_GetGUIDFromToken, 0x0060ABF0, __cdecl, void, (const char* token, uint64_t* outGuid, char unused))
-CLIENT_FUNCTION(Script_GetTokenFromGUID, 0x0060B0B0, __cdecl, const char*, (const uint64_t* guid))
-CLIENT_FUNCTION(Script_GetTokensFromGUID, 0x0060BB70, __cdecl, const char**, (const uint64_t* guid, int* outCount))
+CLIENT_FUNCTION(Script_GetGUIDFromToken, 0x0060ABF0, __cdecl, void, (const char* token, uint64* outGuid, char unused))
+CLIENT_FUNCTION(Script_GetTokenFromGUID, 0x0060B0B0, __cdecl, const char*, (const uint64* guid))
+CLIENT_FUNCTION(Script_GetTokensFromGUID, 0x0060BB70, __cdecl, const char**, (const uint64* guid, int* outCount))
 
 namespace CNetClient
 {
-	CLIENT_FUNCTION(ProcessMessage, 0x631FE0, __thiscall, int, (void*, uint32_t, CDataStore*, uint32_t))
-	CLIENT_FUNCTION(SetMessageHandler, 0x631FA0, __thiscall, void, (void*, uint32_t, void*, void*))
+	CLIENT_FUNCTION(ProcessMessage, 0x631FE0, __thiscall, int, (void*, uint32, CDataStore*, uint32))
+	CLIENT_FUNCTION(SetMessageHandler, 0x631FA0, __thiscall, void, (void*, uint32, void*, void*))
 }
 
 namespace CVar_C
@@ -204,15 +212,15 @@ namespace CVar_C
 
 namespace FriendList_C
 {
-	CLIENT_FUNCTION(GetFriendInfoByName, 0x006B3570, __thiscall, uint8_t*, (void* self, const char* name))
+	CLIENT_FUNCTION(GetFriendInfoByName, 0x006B3570, __thiscall, uint8*, (void* self, const char* name))
 }
 
 namespace FrameScript
 {
 	CLIENT_FUNCTION(DisplayError, 0x84F280, __cdecl, void, (lua_State * L, const char*, ...))
-	CLIENT_FUNCTION(GetNumber, 0x84E030, __cdecl, double, (lua_State*, int32_t))
+	CLIENT_FUNCTION(GetNumber, 0x84E030, __cdecl, double, (lua_State*, int32))
 	CLIENT_FUNCTION(ToLString, 0x84E0E0, __cdecl, char*, (lua_State*, int, bool))
-	CLIENT_FUNCTION(IsNumber, 0x84DF20, __cdecl, int32_t, (lua_State*, int32_t))
+	CLIENT_FUNCTION(IsNumber, 0x84DF20, __cdecl, int32, (lua_State*, int32))
 	CLIENT_FUNCTION(LoadFunctions, 0x5120E0, __cdecl, int, ())
 	CLIENT_FUNCTION(RegisterSimpleFrameScriptMethods, 0x0081B870, __cdecl, int, ())
 	CLIENT_FUNCTION(PushBoolean, 0x84E4D0, __cdecl, int, (lua_State * L, int))
@@ -242,9 +250,9 @@ namespace FrameScript
 	CLIENT_FUNCTION(SetMetatable, 0x0084EA90, __cdecl, int, (lua_State * L, int idx))
 	CLIENT_FUNCTION(PCall, 0x0084EC50, __cdecl, int, (lua_State * L, int nargs, int nresults, int errfunc))
 	CLIENT_FUNCTION(Next, 0x0084EF50, __cdecl, int, (lua_State * L, int idx))
-	CLIENT_FUNCTION(NewUserdata, 0x0084F0F0, __cdecl, void*, (lua_State * L, uint32_t size))
+	CLIENT_FUNCTION(NewUserdata, 0x0084F0F0, __cdecl, void*, (lua_State * L, uint32 size))
 	CLIENT_FUNCTION(CheckType, 0x0084F960, __cdecl, void, (lua_State * L, int idx, int t))
-	CLIENT_FUNCTION(CheckLString, 0x0084F9F0, __cdecl, const char*, (lua_State * L, int idx, uint32_t* len))
+	CLIENT_FUNCTION(CheckLString, 0x0084F9F0, __cdecl, const char*, (lua_State * L, int idx, uint32* len))
 	CLIENT_FUNCTION(CheckNumber, 0x0084FAB0, __cdecl, double, (lua_State * L, int idx))
 	CLIENT_FUNCTION(GetParamValue, 0x00815500, __cdecl, int, (lua_State * L, int idx, int default_))
 }
@@ -261,9 +269,9 @@ namespace CGDressUpModelFrame
 
 namespace Spell_C
 {
-	CLIENT_FUNCTION(GetCastTime, 0x7EF180, __cdecl, int, (SpellRow * pSpellRec, uint32_t hasInstantCast, int param3, int param4))
-	CLIENT_FUNCTION(CancelSpell, 0x00806200, __cdecl, void, (void* spellCast, uint32_t arg1, uint32_t arg2, uint32_t cancelReason))
-	CLIENT_FUNCTION(GetSpellModifiers, 0x007FD970, __cdecl, bool, (SpellRow * pSpellRec, uint32_t modifierType, int32_t* outFlatMod, int32_t* outPctMod))
+	CLIENT_FUNCTION(GetCastTime, 0x7EF180, __cdecl, int, (SpellRow * pSpellRec, uint32 hasInstantCast, int param3, int param4))
+	CLIENT_FUNCTION(CancelSpell, 0x00806200, __cdecl, void, (void* spellCast, uint32 arg1, uint32 arg2, uint32 cancelReason))
+	CLIENT_FUNCTION(GetSpellModifiers, 0x007FD970, __cdecl, bool, (SpellRow * pSpellRec, uint32 modifierType, int32* outFlatMod, int32* outPctMod))
 }
 
 namespace Tooltip
@@ -273,14 +281,14 @@ namespace Tooltip
 
 namespace SStr
 {
-	CLIENT_FUNCTION(Copy_0, 0x76EF70, __stdcall, char*, (char*, char*, uint32_t))
+	CLIENT_FUNCTION(Copy_0, 0x76EF70, __stdcall, char*, (char*, char*, uint32))
 	CLIENT_FUNCTION(SStrCopy, 0x0076E670, __cdecl, void, (char* dest, const char* src, int maxLen))
 	CLIENT_FUNCTION(SStrCmp, 0x0076E760, __cdecl, int, (const char* a, const char* b, size_t maxLen))
 }
 
 namespace World
 {
-	CLIENT_FUNCTION(Pos3Dto2D, 0x4F6D20, __fastcall, int, (void* This, void* edx, C3Vector* pos3d, C3Vector* pos2d, uint32_t* flags))
+	CLIENT_FUNCTION(Pos3Dto2D, 0x4F6D20, __fastcall, int, (void* This, void* edx, C3Vector* pos3d, C3Vector* pos2d, uint32* flags))
 }
 
 namespace WowClientDb_C
@@ -294,11 +302,11 @@ namespace MiscFunctions
 	CLIENT_FUNCTION(GetPhysicalDamageClassID, 0x006337A0, __cdecl, int, ())
 }
 
-CLIENT_FUNCTION(sub_61FEC0, 0x61FEC0, __thiscall, void, (void*, char*, char*, void*, void*, uint32_t))
+CLIENT_FUNCTION(sub_61FEC0, 0x61FEC0, __thiscall, void, (void*, char*, char*, void*, void*, uint32))
 CLIENT_FUNCTION(CGAutoCompleteName__AddFlags, 0x0057B7C0, __cdecl, int, (void* guidPtr, int flags, const char* name, const char* extra))
 CLIENT_FUNCTION(CGAutoCompleteName__Remove, 0x0057B000, __cdecl, void, (void* guidPtr, int flags))
 CLIENT_FUNCTION(CGAutoCompleteName__RemoveFlagsFromAllNodes, 0x0057B0D0, __cdecl, int, (int flags))
 CLIENT_FUNCTION(CCharacterSelection__UpdateCharacterList, 0x004E4610, __cdecl, int, ())
-CLIENT_FUNCTION(ScrubString, 0x007E1830, __cdecl, char, (char* dest, char* src, int replaceChar, int maxLen, uint8_t flags))
+CLIENT_FUNCTION(ScrubString, 0x007E1830, __cdecl, char, (char* dest, char* src, int replaceChar, int maxLen, uint8 flags))
 CLIENT_FUNCTION(CCharacterCreation__CreateCharacter, 0x004E0380, __cdecl, void, (char* src))
-CLIENT_FUNCTION(WowClientDB_GemProperties_GetRecord, 0x0065C290, __thiscall, void*, (void* _this, uint32_t id))
+CLIENT_FUNCTION(WowClientDB_GemProperties_GetRecord, 0x0065C290, __thiscall, void*, (void* _this, uint32 id))

@@ -1,11 +1,13 @@
 #pragma once
 
+#include <Defines.h>
+
 #include "SharedDefines.h"
 #include <vector>
 
 class Main;
 
-enum class LuaFunctionState : uint8_t
+enum class LuaFunctionState : uint8
 {
 	ALL = 0,
 	FRAME = 1,

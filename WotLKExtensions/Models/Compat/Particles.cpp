@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Compat/Particles.h"
 
 #include "Models/Client/M2Bindings.h"
@@ -27,7 +28,7 @@ namespace ModernM2::Live::Particles
 		constexpr float kSourceAlphaKeyRef = 0.5f;
 	}
 
-	void OnSetupBatchAlpha(uint16_t blendMode, bool downported)
+	void OnSetupBatchAlpha(uint16 blendMode, bool downported)
 	{
 		if (downported && blendMode == kBlendAlphaKey)
 			ModernM2::Client::PushAlphaRef(kSourceAlphaKeyRef);

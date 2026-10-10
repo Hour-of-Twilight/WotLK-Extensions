@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <TalentFramePackets.h>
 #include <Packets/Packet.h>
 #include <CustomPacket.h>
@@ -13,35 +14,35 @@ TalentFramePackets& TalentFramePackets::Instance()
 	return instance;
 }
 
-void TalentFramePackets::ReadLearntTalents(Packet& r, std::vector<uint32_t>& out)
+void TalentFramePackets::ReadLearntTalents(Packet& r, std::vector<uint32>& out)
 {
-	uint32_t count = r.GetUInt32();
+	uint32 count = r.GetUInt32();
 	out.clear();
 	out.reserve(count);
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 		out.push_back(r.GetUInt32());
 }
 
-void TalentFramePackets::Send(uint32_t opcode)
+void TalentFramePackets::Send(uint32 opcode)
 {
 	Packet(opcode).Send();
 }
 
-void TalentFramePackets::SendU32(uint32_t opcode, uint32_t value)
+void TalentFramePackets::SendU32(uint32 opcode, uint32 value)
 {
 	Packet(opcode).PutUInt32(value).Send();
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_CACHE(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_CACHE(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
-	uint32_t count = r.GetUInt32();
+	uint32 count = r.GetUInt32();
 
 	auto& nodes = Instance().m_nodes;
 	nodes.clear();
 	nodes.reserve(count);
 
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
 		NodeInfo info;
 		info.index = r.GetUInt32();
@@ -49,9 +50,9 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_CACHE(void*, uint32_t, uint3
 		info.xOffset = r.GetDouble();
 		info.yOffset = r.GetDouble();
 
-		uint32_t linkCount = r.GetUInt32();
+		uint32 linkCount = r.GetUInt32();
 		info.childLinks.reserve(linkCount);
-		for (uint32_t j = 0; j < linkCount; ++j)
+		for (uint32 j = 0; j < linkCount; ++j)
 			info.childLinks.push_back(r.GetUInt32());
 
 		info.mutex = r.GetUInt32();
@@ -64,7 +65,7 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_CACHE(void*, uint32_t, uint3
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_CACHE", "");
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_SMALL_CACHE(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_SMALL_CACHE(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
 	TalentFramePackets& self = Instance();
@@ -78,36 +79,36 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_SMALL_CACHE(void*, uint32_t,
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_SMALL_CACHE", "");
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_ITEM_GRANTED_UPDATE(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_ITEM_GRANTED_UPDATE(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
 	ReadLearntTalents(r, Instance().m_itemGrantedTalents);
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_ITEM_GRANTED_UPDATE", "");
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_POINTS(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_POINTS(void*, uint32, uint32, CDataStore* a3)
 {
-	uint32_t freePoints = Packet(a3).GetUInt32();
+	uint32 freePoints = Packet(a3).GetUInt32();
 	Instance().m_freePoints = freePoints;
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_POINTS", "%u", freePoints);
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEVEL(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEVEL(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
 	TalentFramePackets& self = Instance();
-	uint32_t talentLevel = r.GetUInt32();
+	uint32 talentLevel = r.GetUInt32();
 	self.m_talentLevel = talentLevel;
 	self.m_xpTalentLevel = r.GetUInt32();
 	self.m_maxTalentLevel = r.GetUInt32();
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_LEVEL", "%u", talentLevel);
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARN_RESPONSE(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARN_RESPONSE(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
-	uint32_t nodeId = r.GetUInt32();
-	uint8_t canLearn = r.GetUInt8();
+	uint32 nodeId = r.GetUInt32();
+	uint8 canLearn = r.GetUInt8();
 	if (canLearn == 0)
 	{
 		TalentFramePackets& self = Instance();
@@ -116,14 +117,14 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARN_RESPONSE(void*, uint32
 		if (self.m_freePoints > 0)
 			--self.m_freePoints;
 	}
-	FrameXMLExtensions::SignalEvent("HOT_TALENT_LEARN_RESPONSE", "%u%u", nodeId, (uint32_t)canLearn);
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_LEARN_RESPONSE", "%u%u", nodeId, (uint32)canLearn);
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_UNLEARN_RESPONSE(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_UNLEARN_RESPONSE(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
-	uint32_t nodeId = r.GetUInt32();
-	uint8_t result = r.GetUInt8();
+	uint32 nodeId = r.GetUInt32();
+	uint8 result = r.GetUInt8();
 	if (result != 0)
 	{
 		TalentFramePackets& self = Instance();
@@ -134,19 +135,19 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_UNLEARN_RESPONSE(void*, uint
 			++self.m_freePoints;
 		}
 	}
-	FrameXMLExtensions::SignalEvent("HOT_TALENT_UNLEARN_RESPONSE", "%u%u", nodeId, (uint32_t)result);
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_UNLEARN_RESPONSE", "%u%u", nodeId, (uint32)result);
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_RESET(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_RESET(void*, uint32, uint32, CDataStore* a3)
 {
-	uint32_t freePoints = Packet(a3).GetUInt32();
+	uint32 freePoints = Packet(a3).GetUInt32();
 	TalentFramePackets& self = Instance();
 	self.m_freePoints = freePoints;
 	self.m_learntTalents.clear();
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_RESET", "%u", freePoints);
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_INSPECT_RESPONSE(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_INSPECT_RESPONSE(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
 	TalentFramePackets& self = Instance();
@@ -156,35 +157,35 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_INSPECT_RESPONSE(void*, uint
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_INSPECT_RESPONSE", "");
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_NEW(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_NEW(void*, uint32, uint32, CDataStore* a3)
 {
-	uint32_t nodeId = Packet(a3).GetUInt32();
+	uint32 nodeId = Packet(a3).GetUInt32();
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_NEW", "%u", nodeId);
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARNT_UPDATE(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LEARNT_UPDATE(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
-	uint32_t freePoints = r.GetUInt32();
+	uint32 freePoints = r.GetUInt32();
 	ReadLearntTalents(r, Instance().m_learntTalents);
 	Instance().m_freePoints = freePoints;
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_LEARNT_UPDATE", "%u", freePoints);
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LOADOUTS(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LOADOUTS(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
 	TalentFramePackets& self = Instance();
 	self.m_activeLoadout = r.GetUInt32();
 	self.m_maxLoadouts = r.GetUInt32();
 
-	uint32_t count = r.GetUInt32();
+	uint32 count = r.GetUInt32();
 	if (count > 256)
 		count = 256;
 
 	self.m_loadouts.clear();
 	self.m_loadouts.reserve(count);
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
 		TalentLoadoutInfo info;
 		info.id = r.GetUInt32();
@@ -198,13 +199,13 @@ void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LOADOUTS(void*, uint32_t, ui
 	FrameXMLExtensions::SignalEvent("HOT_TALENT_LOADOUTS", "%u", self.m_activeLoadout);
 }
 
-void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LOADOUT_RESULT(void*, uint32_t, uint32_t, CDataStore* a3)
+void TalentFramePackets::Handler_SMSG_CUSTOM_TALENT_LOADOUT_RESULT(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
-	uint8_t op = r.GetUInt8();
-	uint8_t result = r.GetUInt8();
-	uint32_t loadoutId = r.GetUInt32();
-	FrameXMLExtensions::SignalEvent("HOT_TALENT_LOADOUT_RESULT", "%u%u%u", (uint32_t)op, (uint32_t)result, loadoutId);
+	uint8 op = r.GetUInt8();
+	uint8 result = r.GetUInt8();
+	uint32 loadoutId = r.GetUInt32();
+	FrameXMLExtensions::SignalEvent("HOT_TALENT_LOADOUT_RESULT", "%u%u%u", (uint32)op, (uint32)result, loadoutId);
 }
 
 int TalentFramePackets::GetCustomTalentStorage(lua_State* L)
@@ -285,7 +286,7 @@ int TalentFramePackets::GetCachedMaxTalentLevel(lua_State* L)
 	return 1;
 }
 
-static int PushTalentList(lua_State* L, std::vector<uint32_t> const& talents)
+static int PushTalentList(lua_State* L, std::vector<uint32> const& talents)
 {
 	FrameScript::CreateTable(L, (int)talents.size(), 0);
 	int tbl = FrameScript::GetTop(L);
@@ -386,13 +387,13 @@ int TalentFramePackets::RequestTalentPoints(lua_State*)
 
 int TalentFramePackets::LearnTalent(lua_State* L)
 {
-	SendU32(CMSG_CUSTOM_TALENT_LEARN, (uint32_t)FrameScript::GetNumber(L, 1));
+	SendU32(CMSG_CUSTOM_TALENT_LEARN, (uint32)FrameScript::GetNumber(L, 1));
 	return 0;
 }
 
 int TalentFramePackets::UnlearnTalent(lua_State* L)
 {
-	SendU32(CMSG_CUSTOM_TALENT_UNLEARN, (uint32_t)FrameScript::GetNumber(L, 1));
+	SendU32(CMSG_CUSTOM_TALENT_UNLEARN, (uint32)FrameScript::GetNumber(L, 1));
 	return 0;
 }
 
@@ -414,7 +415,7 @@ int TalentFramePackets::InspectTalents(lua_State* L)
 
 int TalentFramePackets::SwitchTalentLoadout(lua_State* L)
 {
-	SendU32(CMSG_CUSTOM_TALENT_LOADOUT_SWITCH, (uint32_t)FrameScript::GetNumber(L, 1));
+	SendU32(CMSG_CUSTOM_TALENT_LOADOUT_SWITCH, (uint32)FrameScript::GetNumber(L, 1));
 	return 0;
 }
 
@@ -430,13 +431,13 @@ int TalentFramePackets::CreateTalentLoadout(lua_State* L)
 
 int TalentFramePackets::DeleteTalentLoadout(lua_State* L)
 {
-	SendU32(CMSG_CUSTOM_TALENT_LOADOUT_DELETE, (uint32_t)FrameScript::GetNumber(L, 1));
+	SendU32(CMSG_CUSTOM_TALENT_LOADOUT_DELETE, (uint32)FrameScript::GetNumber(L, 1));
 	return 0;
 }
 
 int TalentFramePackets::RenameTalentLoadout(lua_State* L)
 {
-	uint32_t loadoutId = (uint32_t)FrameScript::GetNumber(L, 1);
+	uint32 loadoutId = (uint32)FrameScript::GetNumber(L, 1);
 	char* name = FrameScript::ToLString(L, 2, false);
 	if (!name || name[0] == '\0')
 		return 0;
@@ -460,13 +461,13 @@ int TalentFramePackets::ImportTalentBuild(lua_State* L)
 		count = 1000;
 
 	Packet pkt(CMSG_CUSTOM_TALENT_IMPORT);
-	pkt.PutUInt32((uint32_t)count);
+	pkt.PutUInt32((uint32)count);
 
 	int top = FrameScript::GetTop(L);
 	for (int i = 1; i <= count; ++i)
 	{
 		FrameScript::RawGetI(L, 1, i);
-		uint32_t nodeId = (uint32_t)FrameScript::GetNumber(L, top + 1);
+		uint32 nodeId = (uint32)FrameScript::GetNumber(L, top + 1);
 		FrameScript::SetTop(L, top);
 		pkt.PutUInt32(nodeId);
 	}
@@ -477,8 +478,8 @@ int TalentFramePackets::ImportTalentBuild(lua_State* L)
 
 int TalentFramePackets::TalentEditorSetLink(lua_State* L)
 {
-	uint32_t nodeId = (uint32_t)FrameScript::GetNumber(L, 1);
-	uint32_t linkTo = (uint32_t)FrameScript::GetNumber(L, 2);
+	uint32 nodeId = (uint32)FrameScript::GetNumber(L, 1);
+	uint32 linkTo = (uint32)FrameScript::GetNumber(L, 2);
 
 	Packet(CMSG_TALENT_EDITOR_SET_LINK).PutUInt32(nodeId).PutUInt32(linkTo).Send();
 	return 0;
@@ -486,18 +487,18 @@ int TalentFramePackets::TalentEditorSetLink(lua_State* L)
 
 int TalentFramePackets::TalentEditorDeleteLinks(lua_State* L)
 {
-	SendU32(CMSG_TALENT_EDITOR_DELETE_LINKS, (uint32_t)FrameScript::GetNumber(L, 1));
+	SendU32(CMSG_TALENT_EDITOR_DELETE_LINKS, (uint32)FrameScript::GetNumber(L, 1));
 	return 0;
 }
 
 int TalentFramePackets::TalentEditorUpdateNode(lua_State* L)
 {
-	uint32_t nodeId = (uint32_t)FrameScript::GetNumber(L, 1);
-	uint32_t spellId = (uint32_t)FrameScript::GetNumber(L, 2);
+	uint32 nodeId = (uint32)FrameScript::GetNumber(L, 1);
+	uint32 spellId = (uint32)FrameScript::GetNumber(L, 2);
 	double x = FrameScript::GetNumber(L, 3);
 	double y = FrameScript::GetNumber(L, 4);
-	uint32_t buttonType = (uint32_t)FrameScript::GetNumber(L, 5);
-	uint32_t flagMask = (uint32_t)FrameScript::GetNumber(L, 6);
+	uint32 buttonType = (uint32)FrameScript::GetNumber(L, 5);
+	uint32 flagMask = (uint32)FrameScript::GetNumber(L, 6);
 
 	Packet(CMSG_TALENT_EDITOR_UPDATE_NODE)
 	    .PutUInt32(nodeId)
@@ -512,7 +513,7 @@ int TalentFramePackets::TalentEditorUpdateNode(lua_State* L)
 
 int TalentFramePackets::TalentEditorDeleteNode(lua_State* L)
 {
-	SendU32(CMSG_TALENT_EDITOR_DELETE_NODE, (uint32_t)FrameScript::GetNumber(L, 1));
+	SendU32(CMSG_TALENT_EDITOR_DELETE_NODE, (uint32)FrameScript::GetNumber(L, 1));
 	return 0;
 }
 

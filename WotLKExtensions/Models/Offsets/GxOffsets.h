@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <cstddef>
 
@@ -39,12 +41,12 @@ namespace ModernM2::Offsets::Gx
     // state the stock table has no room for gets one.
     constexpr uintptr_t kBlendSrcFactors  = 0x00A2F964;
     constexpr uintptr_t kBlendDstFactors  = 0x00A2F994;
-    constexpr uint32_t  kBlendStateCount  = 12;       // entries in the stock tables
+    constexpr uint32  kBlendStateCount  = 12;       // entries in the stock tables
     constexpr uintptr_t kBlendSrcReadDisp = 0x006A4D94; // displacement operand naming the src table
     constexpr uintptr_t kBlendDstReadDisp = 0x006A4DBD; // ... and the dst table
 
     // API blend factors as the tables spell them.
-    enum : uint32_t
+    enum : uint32
     {
         kD3dBlendZero        = 1,
         kD3dBlendOne         = 2,
@@ -59,8 +61,8 @@ namespace ModernM2::Offsets::Gx
     // States added past the stock count. The numbering continues the stock enum because the modern
     // asset data numbers them that way -- these are the values a modern particle record already names,
     // not identifiers of our invention.
-    constexpr uint32_t kBlendStateScreenAdd   = 12;   // inverse-dest-colour / one
-    constexpr uint32_t kBlendStatePremulAlpha = 13;   // one / inverse-src-alpha
+    constexpr uint32 kBlendStateScreenAdd   = 12;   // inverse-dest-colour / one
+    constexpr uint32 kBlendStatePremulAlpha = 13;   // one / inverse-src-alpha
 
     // Render-resolution rects on the graphics-device object. Each is a rect of 4 floats
     // {minX,minY,maxX,maxY}; min stays 0, so maxX/maxY hold the pixel width/height. curWindow is the live
@@ -141,9 +143,9 @@ namespace ModernM2::Offsets::Gx
     // the literal sense that only the model draw between them is guarded, not the clears. Anything
     // painted into the frame beforehand is erased whatever that object turns out to render.
     constexpr uintptr_t kGxSceneClear = 0x006813B0;
-    constexpr uint32_t  kSceneClearColor = 1;
-    constexpr uint32_t  kSceneClearDepth = 2;
-    using GxSceneClearFn = void(__cdecl*)(uint32_t flags, uint32_t colour);
+    constexpr uint32  kSceneClearColor = 1;
+    constexpr uint32  kSceneClearDepth = 2;
+    using GxSceneClearFn = void(__cdecl*)(uint32 flags, uint32 colour);
 
     // M2 triangle-batch draw (this-in-ECX). The hook reads the current model so the per-draw event
     // can name which model is rendering.
@@ -189,7 +191,7 @@ namespace ModernM2::Offsets::Gx
     // CGxBatch::startIndex is 32 bits here, while the M2 draw that filled it read the submesh's start
     // through a 16-bit field. This is the first place on the path where the full value fits.
     constexpr uintptr_t kGxDeviceDraw = 0x006A3620;
-    using GxDeviceDrawFn = void(__fastcall*)(void* device, void* edx, uint32_t* batch, int indexed);
+    using GxDeviceDrawFn = void(__fastcall*)(void* device, void* edx, uint32* batch, int indexed);
     /// The draw descriptor the entry above consumes: 0x10 bytes, built on the M2 draw's own stack.
     constexpr size_t kGxBatchPrimType   = 0x00; // uint32
     constexpr size_t kGxBatchStartIndex = 0x04; // uint32 -- the one wide field on the path
@@ -213,9 +215,9 @@ namespace ModernM2::Offsets::Gx
     /** @brief Graphics-device object (the kGxDevicePtr target): the live D3D device and cached surfaces. */
     struct GxDevice
     {
-        uint8_t  _pad0000[kD3DDeviceField];
+        uint8  _pad0000[kD3DDeviceField];
         void*    d3dDevice;        // kD3DDeviceField -> IDirect3DDevice9*
-        uint8_t  _pad3980[kBackBufferField - (kD3DDeviceField + sizeof(void*))];
+        uint8  _pad3980[kBackBufferField - (kD3DDeviceField + sizeof(void*))];
         void*    backBuffer;       // kBackBufferField (cached back-buffer surface)
         void*    depthSurface;     // kDepthSurfaceField (cached world depth surface)
     };
@@ -226,11 +228,11 @@ namespace ModernM2::Offsets::Gx
     /** @brief M2 triangle-batch draw context (this-in-ECX at kDrawTriangleBatch or kDrawBatchDoodad). */
     struct DrawBatchContext
     {
-        uint8_t  _pad00[kDrawBatchCtxElementField];
+        uint8  _pad00[kDrawBatchCtxElementField];
         void*    element;          // kDrawBatchCtxElementField -> current M2Element/batch record
-        uint8_t  _pad54[kDrawBatchCtxModelField - (kDrawBatchCtxElementField + sizeof(void*))];
+        uint8  _pad54[kDrawBatchCtxModelField - (kDrawBatchCtxElementField + sizeof(void*))];
         void*    model;            // kDrawBatchCtxModelField -> current INSTANCE (see the note there)
-        uint8_t  _pad64[kDrawBatchCtxSectionField - (kDrawBatchCtxModelField + sizeof(void*))];
+        uint8  _pad64[kDrawBatchCtxSectionField - (kDrawBatchCtxModelField + sizeof(void*))];
         void*    section;          // kDrawBatchCtxSectionField -> copied M2SkinSection for this draw
     };
     static_assert(offsetof(DrawBatchContext, element) == kDrawBatchCtxElementField, "DrawBatchContext.element");
@@ -269,7 +271,7 @@ namespace ModernM2::Offsets::Gx
     // kTexHandleNameField. flags/flags2 control load options and are not needed to identify the texture.
     constexpr uintptr_t kTextureCreate      = 0x004B9760;
     constexpr size_t    kTexHandleNameField = 0x6C; // texture handle -> stored name (capped 0x104)
-    using TextureCreateFn = void*(__cdecl*)(const char* fileName, uint32_t flags, int* status, uint32_t flags2);
+    using TextureCreateFn = void*(__cdecl*)(const char* fileName, uint32 flags, int* status, uint32 flags2);
 
     // Process-wide singleton the BLP decode writes per build (mip pointer table at the head of the buffer
     // it points to) and the upload reads. Not reentrancy-safe: a nested build during a force-wait rewrites
@@ -293,8 +295,8 @@ namespace ModernM2::Offsets::Gx
     // chain of any encoding up to 2048 fit.
     constexpr uintptr_t kMipScratchDimHImm = 0x004B7F8D; // push imm32 operand, height arg
     constexpr uintptr_t kMipScratchDimWImm = 0x004B7F92; // push imm32 operand, width arg
-    constexpr uint32_t  kMipScratchStockEdge = 0x400;    // shipped operand value at both sites
-    constexpr uint32_t  kMipScratchWideEdge  = 0x800;    // widened capacity (2048 any-encoding chains)
+    constexpr uint32  kMipScratchStockEdge = 0x400;    // shipped operand value at both sites
+    constexpr uint32  kMipScratchWideEdge  = 0x800;    // widened capacity (2048 any-encoding chains)
 
     // Per-frame liquid render pass loop (this-in-ECX). Brackets every visible liquid instance of one pass;
     // both passes route through it (passType 0 main, 1 secondary). Runs late in the frame, after the liquid
@@ -308,10 +310,10 @@ namespace ModernM2::Offsets::Gx
      *  instances is a 4-byte client pointer; kept as a u32 so the layout is host-width independent. */
     struct LiquidPassEntry
     {
-        uint32_t _unk00;    // 0x00
-        uint32_t count;     // 0x04 visible instance count for this pass
-        uint32_t instances; // 0x08 -> instance array (4-byte client pointer)
-        uint32_t _unk0c;    // 0x0C
+        uint32 _unk00;    // 0x00
+        uint32 count;     // 0x04 visible instance count for this pass
+        uint32 instances; // 0x08 -> instance array (4-byte client pointer)
+        uint32 _unk0c;    // 0x0C
     };
     static_assert(sizeof(LiquidPassEntry) == 0x10, "LiquidPassEntry");
     static_assert(offsetof(LiquidPassEntry, count)     == 0x04, "LiquidPassEntry.count");
@@ -368,7 +370,7 @@ namespace ModernM2::Offsets::Gx
 
     // Engine-internal shader-constant uploader: native this-in-ECX; declared with a dummy second
     // parameter so the trampoline keeps the trailing arguments on the stack.
-    using Gx_SetShaderConstantFn = void(__fastcall*)(void* device, void* edx, uint32_t shaderType, uint32_t startReg, const float* data, uint32_t vec4Count);
+    using Gx_SetShaderConstantFn = void(__fastcall*)(void* device, void* edx, uint32 shaderType, uint32 startReg, const float* data, uint32 vec4Count);
 
     // VS float-constant cache: 256-register software buffer (4 floats per register) that the
     // kVtSetShaderConstant path writes; the pre-draw flush uploads only the dirty range to the device.

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <ClientData/MathTypes.h>
 #include <ClientData/Units.h>
@@ -7,7 +9,7 @@
 
 namespace ClientData
 {
-	enum ObjectTypeMask : uint32_t
+	enum ObjectTypeMask : uint32
 	{
 		TYPEMASK_OBJECT = 0x0001,
 		TYPEMASK_ITEM = 0x0002,
@@ -40,6 +42,31 @@ namespace ClientData
 		OBJECT_FIELD_SCALE_X = 0x0004, // Size: 1, Type: FLOAT, Flags: PUBLIC
 		OBJECT_FIELD_PADDING = 0x0005, // Size: 1, Type: INT,   Flags: NONE
 		OBJECT_END = 0x0006,
+	};
+
+	enum EItemFields
+	{
+		ITEM_FIELD_OWNER = OBJECT_END + 0x0000,                // Size: 2,  Type: LONG, Flags: PUBLIC
+		ITEM_FIELD_CONTAINED = OBJECT_END + 0x0002,            // Size: 2,  Type: LONG, Flags: PUBLIC
+		ITEM_FIELD_CREATOR = OBJECT_END + 0x0004,              // Size: 2,  Type: LONG, Flags: PUBLIC
+		ITEM_FIELD_GIFTCREATOR = OBJECT_END + 0x0006,          // Size: 2,  Type: LONG, Flags: PUBLIC
+		ITEM_FIELD_STACK_COUNT = OBJECT_END + 0x0008,          // Size: 1,  Type: INT,  Flags: OWNER, ITEM_OWNER
+		ITEM_FIELD_DURATION = OBJECT_END + 0x0009,             // Size: 1,  Type: INT,  Flags: OWNER, ITEM_OWNER
+		ITEM_FIELD_SPELL_CHARGES = OBJECT_END + 0x000A,        // Size: 5,  Type: INT,  Flags: OWNER, ITEM_OWNER
+		ITEM_FIELD_FLAGS = OBJECT_END + 0x000F,                // Size: 1,  Type: INT,  Flags: PUBLIC
+		ITEM_FIELD_ENCHANTMENT_1_1 = OBJECT_END + 0x0010,      // Size: 36, Type: INT,  Flags: PUBLIC
+		ITEM_FIELD_PROPERTY_SEED = OBJECT_END + 0x0034,        // Size: 1,  Type: INT,  Flags: PUBLIC
+		ITEM_FIELD_RANDOM_PROPERTIES_ID = OBJECT_END + 0x0035, // Size: 1, Type: INT, Flags: PUBLIC
+		ITEM_FIELD_DURABILITY = OBJECT_END + 0x0036,           // Size: 1,  Type: INT,  Flags: OWNER, ITEM_OWNER
+		ITEM_FIELD_MAXDURABILITY = OBJECT_END + 0x0037,        // Size: 1,  Type: INT,  Flags: OWNER, ITEM_OWNER
+		ITEM_FIELD_CREATE_PLAYED_TIME = OBJECT_END + 0x0038,   // Size: 1,  Type: INT,  Flags: PUBLIC
+		ITEM_FIELD_PAD = OBJECT_END + 0x0039,                  // Size: 1,  Type: INT,  Flags: NONE
+		ITEM_END = OBJECT_END + 0x003A,
+
+		CONTAINER_FIELD_NUM_SLOTS = ITEM_END + 0x0000, // Size: 1,  Type: INT,  Flags: PUBLIC
+		CONTAINER_ALIGN_PAD = ITEM_END + 0x0001,       // Size: 1,  Type: BYTES, Flags: NONE
+		CONTAINER_FIELD_SLOT_1 = ITEM_END + 0x0002,    // Size: 72, Type: LONG, Flags: PUBLIC
+		CONTAINER_END = ITEM_END + 0x004A,
 	};
 
 	enum EGameObjectFields
@@ -435,32 +462,32 @@ namespace ClientData
 
 	struct ObjectFields
 	{
-		uint64_t OBJECT_FIELD_GUID;
-		uint32_t OBJECT_FIELD_TYPE;
-		uint32_t OBJECT_FIELD_ENTRY;
+		uint64 OBJECT_FIELD_GUID;
+		uint32 OBJECT_FIELD_TYPE;
+		uint32 OBJECT_FIELD_ENTRY;
 		float OBJECT_FIELD_SCALE_X;
-		uint32_t OBJECT_FIELD_PADDING;
+		uint32 OBJECT_FIELD_PADDING;
 	};
 
 	struct CGObject
 	{
 		void* vtable;
-		uint32_t padding;
+		uint32 padding;
 		ObjectFields* ObjectData;
-		uint32_t objectClass[49];
+		uint32 objectClass[49];
 	};
 
 	struct CGUnit
 	{
 		CGObject objectBase;
 		UnitFields* unitData;
-		uint32_t paddingD4;
+		uint32 paddingD4;
 		MovementInfo* movementInfo;
-		uint32_t padding34[612];
-		uint32_t currentCastId;
-		uint32_t padding[4];
-		uint32_t currentChannelId;
-		uint32_t padding2[353];
+		uint32 padding34[612];
+		uint32 currentCastId;
+		uint32 padding[4];
+		uint32 currentChannelId;
+		uint32 padding2[353];
 		// TODO: add rest, currently not needed
 	};
 
@@ -468,6 +495,6 @@ namespace ClientData
 	{
 		CGUnit unitBase;
 		PlayerFields* PlayerData;
-		uint32_t playerClass[1024];
+		uint32 playerClass[1024];
 	};
 } // namespace ClientData

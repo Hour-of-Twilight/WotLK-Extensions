@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 #include "Models/Render/CombinerPatch.h"
 #include "Models/Render/Shaders/CombinersModAddAlphaPs.h"
@@ -36,13 +37,13 @@ namespace
     namespace shoff = ModernM2::Offsets::Shader;
     namespace gxoff  = ModernM2::Offsets::Gx;
 
-    using GxSetFn = void(__fastcall*)(void* device, void* edx, uint32_t selector, void* value);
+    using GxSetFn = void(__fastcall*)(void* device, void* edx, uint32 selector, void* value);
 
     bool g_enabled = true;
     shoff::EffectBindFn g_origEffectBind = nullptr;
 
     // (skin -> tagged batch indices). Written once per batch at skin finalize; read once per draw.
-    std::unordered_map<void*, std::unordered_set<uint32_t>> g_tagged;
+    std::unordered_map<void*, std::unordered_set<uint32>> g_tagged;
 
     // Frame stash: armed by SetupMaterial.cpp's hook for the batch about to bind, consumed by the very
     // next EffectBind call. Render is single-threaded, so a plain flag is enough -- no atomics.
@@ -61,7 +62,7 @@ namespace
      * @param vertex    true mints a vertex shader, false a pixel shader.
      * @return the wrapper, or null if the device is not up or creation failed.
      */
-    void* MintWrapper(const void* bytecode, uint32_t len, bool vertex)
+    void* MintWrapper(const void* bytecode, uint32 len, bool vertex)
     {
         auto* dev = static_cast<IDirect3DDevice9*>(ModernM2::Gx::RawDevice());
         if (!dev) return nullptr;
@@ -82,18 +83,18 @@ namespace
             handle = ps;
         }
 
-        auto* copy = new uint8_t[len];
+        auto* copy = new uint8[len];
         std::memcpy(copy, bytecode, len);
 
-        auto* w = new uint8_t[shoff::kCgxShaderWrapBytes]();
+        auto* w = new uint8[shoff::kCgxShaderWrapBytes]();
         *reinterpret_cast<void**>(w + shoff::kCgxShaderHandle)  = handle;
-        *reinterpret_cast<uint32_t*>(w + shoff::kCgxShaderCreated) = 1;
-        *reinterpret_cast<uint32_t*>(w + shoff::kCgxShaderByteLen) = len;
+        *reinterpret_cast<uint32*>(w + shoff::kCgxShaderCreated) = 1;
+        *reinterpret_cast<uint32*>(w + shoff::kCgxShaderByteLen) = len;
         *reinterpret_cast<const void**>(w + shoff::kCgxShaderBytePtr) = copy;
         return w;
     }
 
-    void __cdecl hkEffectBind(uint32_t vtxIdx, uint32_t pixIdx)
+    void __cdecl hkEffectBind(uint32 vtxIdx, uint32 pixIdx)
     {
         g_origEffectBind(vtxIdx, pixIdx);
 
@@ -120,13 +121,13 @@ namespace
 
 namespace ModernM2::Combiner
 {
-    void MarkAddAlphaBatch(void* skin, uint32_t batchIndex)
+    void MarkAddAlphaBatch(void* skin, uint32 batchIndex)
     {
         if (!skin) return;
         g_tagged[skin].insert(batchIndex);
     }
 
-    bool IsAddAlphaBatch(void* skin, uint32_t batchIndex)
+    bool IsAddAlphaBatch(void* skin, uint32 batchIndex)
     {
         if (!skin || g_tagged.empty()) return false;
         auto it = g_tagged.find(skin);

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <string_view>
 #include <vector>
@@ -44,15 +46,15 @@
 namespace ModernM2::Bones
 {
     // The client per-draw bone budget. A submesh past it is split (or, when a split is skipped, clamped).
-    constexpr uint16_t kMaxBonesPerDraw = 75;
+    constexpr uint16 kMaxBonesPerDraw = 75;
     // A submesh / batch count past this is treated as malformed; the commit is capped well under any value
     // that would overflow the native sizing.
-    constexpr uint32_t kMaxBatches = 0x4000;
+    constexpr uint32 kMaxBatches = 0x4000;
 
     /** @brief One rebuilt sub-section plus the original submesh it came from. */
-    struct SplitSection { ModernM2::Format::M2SkinSection section; uint16_t origSubmesh; };
+    struct SplitSection { ModernM2::Format::M2SkinSection section; uint16 origSubmesh; };
     /** @brief The contiguous run of new sub-section indices one original submesh became. */
-    struct SplitRun { uint16_t first; uint16_t count; };
+    struct SplitRun { uint16 first; uint16 count; };
 
     /**
      * @brief Reports whether `name`'s skin sections pack indexStart as (level << 16) | indexStart
@@ -73,7 +75,7 @@ namespace ModernM2::Bones
      * @param extended  Result of UsesExtendedIndexStart for the owning model.
      * @return indexStart, or (level << 16) | indexStart when extended.
      */
-    uint32_t FullIndexStart(const ModernM2::Format::M2SkinSection& section, bool extended);
+    uint32 FullIndexStart(const ModernM2::Format::M2SkinSection& section, bool extended);
 
     /**
      * @brief Partitions over-ceiling submeshes, rebuilding the live skin geometry and header.boneCombos.
@@ -86,9 +88,9 @@ namespace ModernM2::Bones
      * @return true on commit; false (no commit) on any overflow, allocation failure, or missing array, leaving
      *         the caller on the clamp path.
      */
-    bool SplitSubmeshes(ModernM2::Format::M2Header* md, ModernM2::Client::M2SkinProfile* skin, std::vector<SplitSection>& outSections, std::vector<SplitRun>& splitMap, uint32_t& splitCount, const char* name);
+    bool SplitSubmeshes(ModernM2::Format::M2Header* md, ModernM2::Client::M2SkinProfile* skin, std::vector<SplitSection>& outSections, std::vector<SplitRun>& splitMap, uint32& splitCount, const char* name);
 
-    uint32_t ClampBoneBudget(const ModernM2::Format::M2Header* md, ModernM2::Client::M2SkinProfile* skin);
+    uint32 ClampBoneBudget(const ModernM2::Format::M2Header* md, ModernM2::Client::M2SkinProfile* skin);
 
     /**
      * @brief Re-points a skin's existing batches across the sub-section run their original submesh

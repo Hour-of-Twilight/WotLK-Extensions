@@ -27,6 +27,7 @@
 // into separate event / attachment / bone chunks instead of one, which is a different unwrap and has
 // no home while such models are refused at load.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 #include "Models/Load/M2NativeInternal.h"
 
@@ -43,30 +44,30 @@ namespace
     namespace off = ModernM2::Offsets::M2;
     namespace fmt = ModernM2::Format;
 
-    constexpr uint32_t kChunkHeaderBytes = 8; // the wrapper's tag plus its payload size
+    constexpr uint32 kChunkHeaderBytes = 8; // the wrapper's tag plus its payload size
 
     off::M2_AnimLoadCompleteFn g_origAnimLoadComplete = nullptr;
 
     /// Slides a wrapped payload onto the buffer base and shortens the record to it. POD locals only
     /// (this runs under the SEH guard below).
-    void UnwrapCore(void* node, uint32_t* unwrappedTo)
+    void UnwrapCore(void* node, uint32* unwrappedTo)
     {
         auto* n = static_cast<off::LoadNode*>(node);
         if (!n || !n->record) return;
         auto* record = static_cast<off::IoRecord*>(n->record);
-        auto* bytes  = reinterpret_cast<uint8_t*>(record->buffer);
+        auto* bytes  = reinterpret_cast<uint8*>(record->buffer);
         if (!bytes || record->size < kChunkHeaderBytes) return;
         if (ModernM2::Reader::Detail::Rd32(bytes) != fmt::kMagicAFM2) return;
 
-        const uint32_t payload = ModernM2::Reader::Detail::Rd32(bytes + 4);
-        if (static_cast<uint64_t>(kChunkHeaderBytes) + payload > record->size) return;
+        const uint32 payload = ModernM2::Reader::Detail::Rd32(bytes + 4);
+        if (static_cast<uint64>(kChunkHeaderBytes) + payload > record->size) return;
 
         std::memmove(bytes, bytes + kChunkHeaderBytes, payload);
         record->size = payload;
         *unwrappedTo = payload;
     }
 
-    void UnwrapGuarded(void* node, uint32_t* unwrappedTo)
+    void UnwrapGuarded(void* node, uint32* unwrappedTo)
     {
         __try { UnwrapCore(node, unwrappedTo); }
         __except (EXCEPTION_EXECUTE_HANDLER) { *unwrappedTo = 0; }
@@ -74,7 +75,7 @@ namespace
 
     void __cdecl hkAnimLoadComplete(void* node)
     {
-        uint32_t unwrappedTo = 0;
+        uint32 unwrappedTo = 0;
         UnwrapGuarded(node, &unwrappedTo);
         if (unwrappedTo)
             WLOG_INFO("m2native-anim: streamed sequence unwrapped to %u byte(s)", unwrappedTo);

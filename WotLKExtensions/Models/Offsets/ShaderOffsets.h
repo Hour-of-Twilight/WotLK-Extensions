@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <cstddef>
 
@@ -155,5 +157,5 @@ namespace ModernM2::Offsets::Shader
     // Plain two-arg cdecl: the two permutation indices are pushed as ordinary stack args (no this).
     // Beyond binding the two shader handles, the native bind also advances a per-draw fog/alpha state
     // machine, so the detour runs the original (preserving that state) and binds its own handles over it.
-    using EffectBindFn = void(__cdecl*)(uint32_t vtxIdx, uint32_t pixIdx);
+    using EffectBindFn = void(__cdecl*)(uint32 vtxIdx, uint32 pixIdx);
 }

@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 /// Read-only query surface plus the load entry point of the native modern-M2 reader: the client reads
@@ -29,23 +31,23 @@ namespace ModernM2::Reader
     /** @brief Session counters of the native MD21 reader (all monotonic). */
     struct Stats
     {
-        uint32_t modelsNative;       ///< MD21 models direct-filled through the native path
-        uint32_t modelsFailed;       ///< MD21 models the native fill rejected (corrupt / OOB / fault)
-        uint32_t texturesResolved;   ///< TXID FileDataIDs resolved to a client path (handle created)
-        uint32_t texturesUnresolved; ///< TXID FileDataIDs the host DB2 authority could not resolve
+        uint32 modelsNative;       ///< MD21 models direct-filled through the native path
+        uint32 modelsFailed;       ///< MD21 models the native fill rejected (corrupt / OOB / fault)
+        uint32 texturesResolved;   ///< TXID FileDataIDs resolved to a client path (handle created)
+        uint32 texturesUnresolved; ///< TXID FileDataIDs the host DB2 authority could not resolve
         /// Records rewritten from a source-era width onto the one shape the runtime steps (emitters,
         /// cameras): the per-model breakdown is in the load log, this is the session total.
-        uint32_t recordsNormalized;
-        uint32_t skippedTxac;        ///< models carrying a TXAC chunk (no home in the client's format; logged skip)
-        uint32_t skippedLdv1;        ///< models carrying LDV1 LOD-skin data (profile 0 only in Phase 1)
-        uint32_t skippedAfid;        ///< models carrying AFID (external .anim ids; Phase 2)
-        uint32_t skippedSkid;        ///< models carrying SKID (.skel skeleton; Phase 3 -- load refused)
-        uint32_t skippedOtherChunks; ///< models carrying any other auxiliary chunk (EXP2, PFDC, ...)
-        uint32_t externalSeqPending; ///< sequences seen whose data streams from a .anim file (Phase 2)
+        uint32 recordsNormalized;
+        uint32 skippedTxac;        ///< models carrying a TXAC chunk (no home in the client's format; logged skip)
+        uint32 skippedLdv1;        ///< models carrying LDV1 LOD-skin data (profile 0 only in Phase 1)
+        uint32 skippedAfid;        ///< models carrying AFID (external .anim ids; Phase 2)
+        uint32 skippedSkid;        ///< models carrying SKID (.skel skeleton; Phase 3 -- load refused)
+        uint32 skippedOtherChunks; ///< models carrying any other auxiliary chunk (EXP2, PFDC, ...)
+        uint32 externalSeqPending; ///< sequences seen whose data streams from a .anim file (Phase 2)
         /// Models whose shared runtime's shadow-animate gate was zero and had to be lifted to 1.
         /// A modern M2 ships every bone flag at 0x0, which would send the shadow pass down an animate
         /// fast path that never refreshes the bone palette -- the cause of shadows tracking the camera.
-        uint32_t shadowGateForced;
+        uint32 shadowGateForced;
     };
 
     /** @brief Returns a snapshot of the session counters. */

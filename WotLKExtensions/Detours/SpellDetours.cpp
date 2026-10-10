@@ -1,12 +1,17 @@
+#include <Defines.h>
 #include "ClientDetours.h"
 #include <SharedDefines.h>
 #include <Spell.h>
 #include <Player.h>
 #include "../CDBCMgr/CDBCDefs/SpellClassMaskExtension.h"
 #include <ClientData/ClientFunctions.h>
+#include <ClientData/WowObjects.h>
+
+using ClientData::WowPlayer;
+using ClientData::WowUnit;
 
 CLIENT_DETOUR(Spell_C_GetSpellModifiers, 0x007FD970, __cdecl, bool,
-    (SpellRow * pSpellRec, uint32_t modOp, int32_t* outFlatMod, int32_t* outPctMod))
+    (SpellRow * pSpellRec, uint32 modOp, int32* outFlatMod, int32* outPctMod))
 {
 	if (pSpellRec->m_attributesExC & 0x20000000)
 	{
@@ -15,8 +20,8 @@ CLIENT_DETOUR(Spell_C_GetSpellModifiers, 0x007FD970, __cdecl, bool,
 		return false;
 	}
 
-	int32_t flat = 0;
-	int32_t pct = 0;
+	int32 flat = 0;
+	int32 pct = 0;
 	sPlayer.GetSpellModifiers(pSpellRec, (SpellModOp)modOp, flat, pct);
 	*outFlatMod = flat;
 	*outPctMod = pct;
@@ -34,7 +39,7 @@ CLIENT_DETOUR(Spell_C_GetSpellModifiers, 0x007FD970, __cdecl, bool,
 // nearly everything that wants a spell row takes its own copy through here first - the tooltip,
 // Script_GetSpellInfo, Spell_C_CastSpell, the action bar usability pass - so overriding the power
 // type on the way out lands on all of them at once
-CLIENT_DETOUR_THISCALL(ClientDb__GetLocalizedSpellRow, 0x004CFD20, int, (uint32_t spellId, SpellRow* out))
+CLIENT_DETOUR_THISCALL(ClientDb__GetLocalizedSpellRow, 0x004CFD20, int, (uint32 spellId, SpellRow* out))
 {
 	int result = ClientDb__GetLocalizedSpellRow(self, spellId, out);
 	if (result && self == (void*)g_SpellDB)
@@ -44,13 +49,13 @@ CLIENT_DETOUR_THISCALL(ClientDb__GetLocalizedSpellRow, 0x004CFD20, int, (uint32_
 
 // safety net for the callers that hand these a row they did not copy through GetLocalizedRow. the
 // lookup only touches the class mask, the row is copied when there is a change to make
-CLIENT_DETOUR(Spell_C_GetPowerCost, 0x008012F0, __cdecl, uint32_t, (SpellRow * pSpellRec, CGUnit* caster))
+CLIENT_DETOUR(Spell_C_GetPowerCost, 0x008012F0, __cdecl, uint32, (SpellRow * pSpellRec, CGUnit* caster))
 {
-	int32_t powerType = 0;
-	if (pSpellRec && sPlayer.GetSpellPowerType(pSpellRec, powerType) && (uint32_t)powerType != pSpellRec->m_powerType)
+	int32 powerType = 0;
+	if (pSpellRec && sPlayer.GetSpellPowerType(pSpellRec, powerType) && (uint32)powerType != pSpellRec->m_powerType)
 	{
 		SpellRow patched = *pSpellRec;
-		patched.m_powerType = (uint32_t)powerType;
+		patched.m_powerType = (uint32)powerType;
 		return Spell_C_GetPowerCost(&patched, caster);
 	}
 
@@ -61,11 +66,11 @@ CLIENT_DETOUR(Spell_C_GetPowerCost, 0x008012F0, __cdecl, uint32_t, (SpellRow * p
 // compared against. this is what greys the action button out and what fails the cast locally
 CLIENT_DETOUR(Spell_C_HaveSpellPower, 0x008017E0, __cdecl, bool, (CGUnit * caster, SpellRow* pSpellRec))
 {
-	int32_t powerType = 0;
-	if (pSpellRec && sPlayer.GetSpellPowerType(pSpellRec, powerType) && (uint32_t)powerType != pSpellRec->m_powerType)
+	int32 powerType = 0;
+	if (pSpellRec && sPlayer.GetSpellPowerType(pSpellRec, powerType) && (uint32)powerType != pSpellRec->m_powerType)
 	{
 		SpellRow patched = *pSpellRec;
-		patched.m_powerType = (uint32_t)powerType;
+		patched.m_powerType = (uint32)powerType;
 		return Spell_C_HaveSpellPower(caster, &patched);
 	}
 
@@ -74,7 +79,7 @@ CLIENT_DETOUR(Spell_C_HaveSpellPower, 0x008017E0, __cdecl, bool, (CGUnit * caste
 
 // hand the original a relaxed copy so it never sees the requirements the caster can ignore
 CLIENT_DETOUR(Spell_C_HaveEquippedSpellItems, 0x008093D0, __cdecl, bool,
-    (CGUnit * unit, SpellRow* pSpellRec, int32_t checkInventory, int32_t reportError, void* spellCast))
+    (CGUnit * unit, SpellRow* pSpellRec, int32 checkInventory, int32 reportError, void* spellCast))
 {
 	if (pSpellRec && CGUnit_C::IsActivePlayer(unit) && !Spells::MeetsCustomAttributeRequirements(pSpellRec, reportError, spellCast))
 		return false;
@@ -101,10 +106,10 @@ CLIENT_DETOUR(CastSpell, 0x00540310, __cdecl, int, (lua_State * L))
 		FrameScript::SetTop(L, -2);
 		CastSpell(L);
 
-		CGPlayer* activeObjectPtr = ClntObjMgr::GetActivePlayerObj();
-		if (activeObjectPtr)
+		WowPlayer player = WowPlayer::Active();
+		if (player)
 		{
-			C3Vector position = activeObjectPtr->unitBase.movementInfo->position;
+			C3Vector position = player.RawPosition();
 
 			TerrainClickEvent terrainClickEvent = {};
 			terrainClickEvent.GUID = 0;
@@ -185,15 +190,15 @@ CLIENT_DETOUR_THISCALL(GetLineSegment, 0x004F6450, int, (float a2, float a3, C3V
 
 	if (Spell_C::IsTargeting() && Spell_C::CanTargetTerrain())
 	{
-		CGPlayer* activeObjectPtr = ClntObjMgr::GetActivePlayerObj();
-		if (activeObjectPtr)
+		WowPlayer player = WowPlayer::Active();
+		if (player)
 		{
 			PendingSpellCast* targetingSpell = *reinterpret_cast<PendingSpellCast**>(0x00D3F4E4);
 			if (targetingSpell)
 			{
 				auto data = &targetingSpell->data;
 				float minSpellDist = 0.0f, maxSpellDist = 0.0f;
-				Spell_C::GetSpellRange(activeObjectPtr, data->spellId, &minSpellDist, &maxSpellDist, 0);
+				Spell_C::GetSpellRange(player.Raw(), data->spellId, &minSpellDist, &maxSpellDist, 0);
 
 				float left = 0.0f, right = maxSpellDist * 3;
 				float bestDist = -1.0f;
@@ -201,7 +206,7 @@ CLIENT_DETOUR_THISCALL(GetLineSegment, 0x004F6450, int, (float a2, float a3, C3V
 
 				C3Vector point, pos, hitpoint;
 				float distance = 1.0f;
-				C3Vector playerPos = activeObjectPtr->unitBase.movementInfo->position;
+				C3Vector playerPos = player.RawPosition();
 
 				bool shouldCheck = true;
 
@@ -236,7 +241,7 @@ CLIENT_DETOUR_THISCALL(GetLineSegment, 0x004F6450, int, (float a2, float a3, C3V
 
 					if (TraceLine(&point, &pos, &hitpoint, &distance, 0x10111, 0))
 					{
-						float dist = CGUnit_C::GetDistanceToPos((CGUnit*)activeObjectPtr, &hitpoint);
+						float dist = CGUnit_C::GetDistanceToPos(player.Unit(), &hitpoint);
 
 						if (dist < minDist * minDist)
 						{
@@ -281,7 +286,7 @@ CLIENT_DETOUR_THISCALL(GetLineSegment, 0x004F6450, int, (float a2, float a3, C3V
 	return ret;
 }
 
-CLIENT_DETOUR(CGItem_C__GetCooldowns, 0x00706C50, __cdecl, ItemCache*, (int32_t itemId, uint32_t* outCooldown, uint32_t* outCatCooldown, uint32_t* outCategory))
+CLIENT_DETOUR(CGItem_C__GetCooldowns, 0x00706C50, __cdecl, ItemCache*, (int32 itemId, uint32* outCooldown, uint32* outCatCooldown, uint32* outCategory))
 {
 	*outCooldown = 0;
 	*outCatCooldown = 0;
@@ -296,8 +301,8 @@ CLIENT_DETOUR(CGItem_C__GetCooldowns, 0x00706C50, __cdecl, ItemCache*, (int32_t 
 
 	for (int slot = 0; slot < 5; slot++)
 	{
-		uint32_t spellId = (uint32_t)pItemCache->SpellId[slot];
-		int32_t spellTrigger = pItemCache->SpellTrigger[slot];
+		uint32 spellId = (uint32)pItemCache->SpellId[slot];
+		int32 spellTrigger = pItemCache->SpellTrigger[slot];
 
 		if (spellId == 0)
 			continue;
@@ -305,9 +310,9 @@ CLIENT_DETOUR(CGItem_C__GetCooldowns, 0x00706C50, __cdecl, ItemCache*, (int32_t 
 		if (spellTrigger != ITEM_SPELLTRIGGER_ON_USE && spellTrigger != ITEM_SPELLTRIGGER_ON_NO_DELAY_USE)
 			continue;
 
-		*outCooldown = (uint32_t)pItemCache->SpellCooldown[slot];
-		*outCatCooldown = (uint32_t)pItemCache->SpellCatCooldown[slot];
-		*outCategory = (uint32_t)pItemCache->SpellCategory[slot];
+		*outCooldown = (uint32)pItemCache->SpellCooldown[slot];
+		*outCatCooldown = (uint32)pItemCache->SpellCatCooldown[slot];
+		*outCategory = (uint32)pItemCache->SpellCategory[slot];
 
 		SpellRow spellRec;
 		memset(&spellRec, 0, sizeof(SpellRow));
@@ -319,20 +324,20 @@ CLIENT_DETOUR(CGItem_C__GetCooldowns, 0x00706C50, __cdecl, ItemCache*, (int32_t 
 			if (pItemCache->SpellCatCooldown[slot] == -1)
 				*outCatCooldown = spellRec.m_categoryRecoveryTime;
 
-			int32_t flatMod = 0, pctMod = 0;
+			int32 flatMod = 0, pctMod = 0;
 			bool gotMods = Spell_C::GetSpellModifiers(&spellRec, 0x15, &flatMod, &pctMod);
 
 			if (gotMods)
 			{
 				if (outCooldown != nullptr)
 				{
-					int32_t modified = ((int32_t)*outCooldown + flatMod) * pctMod / 100;
-					*outCooldown = modified > 0 ? (uint32_t)modified : 0;
+					int32 modified = ((int32)*outCooldown + flatMod) * pctMod / 100;
+					*outCooldown = modified > 0 ? (uint32)modified : 0;
 				}
 				if (outCatCooldown != nullptr)
 				{
-					int32_t modified = ((int32_t)*outCatCooldown + flatMod) * pctMod / 100;
-					*outCatCooldown = modified > 0 ? (uint32_t)modified : 0;
+					int32 modified = ((int32)*outCatCooldown + flatMod) * pctMod / 100;
+					*outCatCooldown = modified > 0 ? (uint32)modified : 0;
 				}
 			}
 		}
@@ -346,17 +351,17 @@ CLIENT_DETOUR_THISCALL(AddCreatureStatsToTooltip, 0x00620950, void, (CGUnit * un
 	char tempBuffer[32];
 	int minDmg, maxDmg;
 
-	UnitFields* unitData = unit->unitData;
-	bool isPlayer = (unit->objectBase.ObjectData->OBJECT_FIELD_TYPE & TYPEMASK_PLAYER) != 0;
+	WowUnit target(unit);
+	bool isPlayer = target.IsPlayer();
 	bool staffMember = sPlayer.GetSecurityLevel() >= 1;
 	if (!isPlayer && staffMember)
 	{
-		SStr::Printf(outputBuffer, bufferSize, "Entry: %u | Display %u", unit->objectBase.ObjectData->OBJECT_FIELD_ENTRY, unitData->displayId);
+		SStr::Printf(outputBuffer, bufferSize, "Entry: %u | Display %u", target.Entry(), target.DisplayId());
 		Tooltip::sub_61FEC0(self, outputBuffer, nullptr, dword_AD2D30, dword_AD2D30, 0);
 	}
 
-	minDmg = (int)std::ceil(unitData->mainHandMinDamage);
-	maxDmg = (int)std::ceil(unitData->mainHandMaxDamage);
+	minDmg = (int)std::ceil(target.MinDamage());
+	maxDmg = (int)std::ceil(target.MaxDamage());
 	if (minDmg == maxDmg)
 	{
 		const char* damageTemplate = FrameScript::GetText("SINGLE_DAMAGE_TEMPLATE", -1, 0);
@@ -371,14 +376,15 @@ CLIENT_DETOUR_THISCALL(AddCreatureStatsToTooltip, 0x00620950, void, (CGUnit * un
 	Tooltip::sub_61FEC0(self, outputBuffer, nullptr, dword_AD2D30, dword_AD2D30, 0);
 
 	int physicalDmgClass = MiscFunctions::GetPhysicalDamageClassID();
-	int armor = (unitData->resistances[physicalDmgClass] > 0) ? unitData->resistances[physicalDmgClass] : 0;
+	uint32 physicalResistance = target.Resistance(physicalDmgClass);
+	int armor = (physicalResistance > 0) ? physicalResistance : 0;
 
 	const char* armorTemplate = FrameScript::GetText("ARMOR_TEMPLATE", -1, 0);
 	SStr::Printf(outputBuffer, bufferSize, armorTemplate, armor);
 	Tooltip::sub_61FEC0(self, outputBuffer, nullptr, dword_AD2D30, dword_AD2D30, 0);
 
 	const char* hpTemplate = FrameScript::GetText("HP_TEMPLATE", -1, 0);
-	SStr::Printf(outputBuffer, bufferSize, hpTemplate, unitData->unitMaxHealth);
+	SStr::Printf(outputBuffer, bufferSize, hpTemplate, target.MaxHealth());
 	Tooltip::sub_61FEC0(self, outputBuffer, nullptr, dword_AD2D30, dword_AD2D30, 0);
 
 	for (int resistIdx = 0; resistIdx < 7; resistIdx++)
@@ -386,7 +392,8 @@ CLIENT_DETOUR_THISCALL(AddCreatureStatsToTooltip, 0x00620950, void, (CGUnit * un
 		if (resistIdx == MiscFunctions::GetPhysicalDamageClassID())
 			continue;
 
-		if (unitData->resistances[resistIdx] <= 0)
+		uint32 resistance = target.Resistance(resistIdx);
+		if (resistance <= 0)
 			continue;
 
 		SStr::Printf(tempBuffer, 32, "RESISTANCE%d_NAME", resistIdx);
@@ -396,7 +403,7 @@ CLIENT_DETOUR_THISCALL(AddCreatureStatsToTooltip, 0x00620950, void, (CGUnit * un
 			continue;
 
 		const char* resistTemplate = FrameScript::GetText("RESISTANCE_TEMPLATE", -1, 0);
-		SStr::Printf(outputBuffer, bufferSize, resistTemplate, unitData->resistances[resistIdx], resistName);
+		SStr::Printf(outputBuffer, bufferSize, resistTemplate, resistance, resistName);
 		Tooltip::sub_61FEC0(self, outputBuffer, nullptr, dword_AD2D30, dword_AD2D30, 0);
 	}
 }
@@ -418,11 +425,11 @@ CLIENT_DETOUR(CancelSpellsInterruptedByMoving, 0x00806620, __cdecl, void, ())
 		{
 			WowClientDb_C::GetRow(&spellRec);
 
-			uint32_t spellId = ebx->spellId;
+			uint32 spellId = ebx->spellId;
 
 			if (spellId >= g_SpellDB->minIndex && spellId <= g_SpellDB->maxIndex)
 			{
-				uint32_t index = spellId - g_SpellDB->minIndex;
+				uint32 index = spellId - g_SpellDB->minIndex;
 				void** recordsById = (void**)g_SpellDB->Rows;
 
 				if (recordsById[index] != NULL)
@@ -453,9 +460,9 @@ CLIENT_DETOUR(CheckToCancelCurrentChannelSpell, 0x005FAA40, __cdecl, void, ())
 {
 	SpellRow spellRec;
 
-	uint64_t playerGuid = ClntObjMgr::GetActivePlayer();
+	uint64 playerGuid = ClntObjMgr::GetActivePlayer();
 
-	CGPlayer* player = (CGPlayer*)ClntObjMgr::ObjectPtr(playerGuid, 0x10);
+	WowPlayer player = WowPlayer::FromGuid(playerGuid);
 
 	if (!player)
 	{
@@ -464,12 +471,12 @@ CLIENT_DETOUR(CheckToCancelCurrentChannelSpell, 0x005FAA40, __cdecl, void, ())
 
 	CheckToCancelSpellsDueToMovement();
 
-	uint64_t localPlayerGuid = *(uint64_t*)0x00CA1238;
+	uint64 localPlayerGuid = *(uint64*)0x00CA1238;
 
-	if (player->unitBase.objectBase.ObjectData->OBJECT_FIELD_GUID != localPlayerGuid)
+	if (player.Guid() != localPlayerGuid)
 		return;
 
-	uint32_t channelingSpellId = player->unitBase.unitData->channelSpell;
+	uint32 channelingSpellId = player.ChannelSpellField();
 
 	if (channelingSpellId == 0)
 		return;
@@ -483,6 +490,6 @@ CLIENT_DETOUR(CheckToCancelCurrentChannelSpell, 0x005FAA40, __cdecl, void, ())
 	if (!sPlayer.CanCastWhileMoving(&spellRec))
 	{
 		if (spellRec.m_channelInterruptFlags & 0x8)
-			((void(__cdecl*)(uint32_t))0x008008D0)(channelingSpellId);
+			((void(__cdecl*)(uint32))0x008008D0)(channelingSpellId);
 	}
 }

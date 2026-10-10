@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -27,101 +29,101 @@ private:
 
 	struct ActivityGroup
 	{
-		uint16_t id = 0;
-		uint8_t categoryId = 0;
+		uint16 id = 0;
+		uint8 categoryId = 0;
 		std::string name;
-		uint16_t orderIndex = 0;
+		uint16 orderIndex = 0;
 	};
 
 	struct Activity
 	{
-		uint16_t id = 0;
-		uint8_t categoryId = 0;
-		uint16_t groupId = 0;
+		uint16 id = 0;
+		uint8 categoryId = 0;
+		uint16 groupId = 0;
 		std::string fullName;
 		std::string shortName;
-		uint8_t minLevel = 0;
-		uint8_t maxPlayers = 5;
-		uint16_t itemLevelSuggestion = 0;
-		uint16_t mapId = 0;
-		uint8_t difficultyId = 0;
-		uint16_t orderIndex = 0;
-		uint32_t flags = 0;
+		uint8 minLevel = 0;
+		uint8 maxPlayers = 5;
+		uint16 itemLevelSuggestion = 0;
+		uint16 mapId = 0;
+		uint8 difficultyId = 0;
+		uint16 orderIndex = 0;
+		uint32 flags = 0;
 	};
 
 	struct SearchResult
 	{
-		uint32_t searchResultId = 0;
-		uint16_t activityId = 0;
+		uint32 searchResultId = 0;
+		uint16 activityId = 0;
 		std::string name;
 		std::string comment;
 		std::string leaderName;
-		uint8_t leaderSubClass = 0;
-		uint16_t requiredItemLevel = 0;
-		uint8_t numMembers = 0;
-		uint8_t maxMembers = 0;
-		uint8_t numTanks = 0;
-		uint8_t numHealers = 0;
-		uint8_t numDamage = 0;
-		std::vector<std::pair<uint8_t, uint8_t>> subClassTally;
-		uint8_t autoAccept = 0;
-		uint8_t hasSelf = 0;
-		uint32_t ageSeconds = 0;
-		uint8_t applicationStatus = 0;
+		uint8 leaderSubClass = 0;
+		uint16 requiredItemLevel = 0;
+		uint8 numMembers = 0;
+		uint8 maxMembers = 0;
+		uint8 numTanks = 0;
+		uint8 numHealers = 0;
+		uint8 numDamage = 0;
+		std::vector<std::pair<uint8, uint8>> subClassTally;
+		uint8 autoAccept = 0;
+		uint8 hasSelf = 0;
+		uint32 ageSeconds = 0;
+		uint8 applicationStatus = 0;
 	};
 
 	struct ApplicantMember
 	{
 		std::string name;
-		uint8_t level = 0;
-		uint8_t subClass = 0;
-		uint8_t roleMask = 0;
-		uint8_t assignedRole = 0;
-		uint16_t itemLevel = 0;
+		uint8 level = 0;
+		uint8 subClass = 0;
+		uint8 roleMask = 0;
+		uint8 assignedRole = 0;
+		uint16 itemLevel = 0;
 	};
 
 	struct Applicant
 	{
-		uint32_t applicantId = 0;
-		uint8_t status = 0;
+		uint32 applicantId = 0;
+		uint8 status = 0;
 		std::string comment;
 		std::vector<ApplicantMember> members;
 	};
 
 	struct Application
 	{
-		uint32_t searchResultId = 0;
-		uint8_t status = 0;
+		uint32 searchResultId = 0;
+		uint8 status = 0;
 	};
 
 	struct ActiveEntry
 	{
 		bool valid = false;
-		uint32_t listingId = 0;
-		uint16_t activityId = 0;
+		uint32 listingId = 0;
+		uint16 activityId = 0;
 		std::string title;
 		std::string comment;
-		uint16_t requiredItemLevel = 0;
-		uint8_t autoAccept = 0;
-		uint32_t ageSeconds = 0;
-		uint32_t numApplications = 0;
+		uint16 requiredItemLevel = 0;
+		uint8 autoAccept = 0;
+		uint32 ageSeconds = 0;
+		uint32 numApplications = 0;
 	};
 
 	static void ReadSearchResult(class Packet& r, SearchResult& out);
 	static void ReadApplicant(class Packet& r, Applicant& out);
 
-	const Activity* FindActivity(uint16_t activityId) const;
-	const SearchResult* FindSearchResult(uint32_t searchResultId) const;
-	void SetApplicationStatus(uint32_t searchResultId, uint8_t status);
+	const Activity* FindActivity(uint16 activityId) const;
+	const SearchResult* FindSearchResult(uint32 searchResultId) const;
+	void SetApplicationStatus(uint32 searchResultId, uint8 status);
 
-	static void Handler_SMSG_LFG_LIST_ACTIVITY_CACHE(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_LFG_LIST_ACTIVE_ENTRY(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_LFG_LIST_ENTRY_RESULT(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_LFG_LIST_SEARCH_RESULTS(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_LFG_LIST_SEARCH_RESULT_UPDATE(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_LFG_LIST_APPLICATION_UPDATE(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_LFG_LIST_APPLICANT_LIST(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_LFG_LIST_APPLICANT_UPDATE(void*, uint32_t, uint32_t, CDataStore* pkt);
+	static void Handler_SMSG_LFG_LIST_ACTIVITY_CACHE(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_LFG_LIST_ACTIVE_ENTRY(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_LFG_LIST_ENTRY_RESULT(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_LFG_LIST_SEARCH_RESULTS(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_LFG_LIST_SEARCH_RESULT_UPDATE(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_LFG_LIST_APPLICATION_UPDATE(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_LFG_LIST_APPLICANT_LIST(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_LFG_LIST_APPLICANT_UPDATE(void*, uint32, uint32, CDataStore* pkt);
 
 	// Static activity data
 	static int RequestActivities(lua_State* L);
@@ -164,7 +166,7 @@ private:
 	// Applicant side
 	static int AnswerInvite(lua_State* L);
 
-	uint32_t m_activityVersion = 0;
+	uint32 m_activityVersion = 0;
 	bool m_hasActivities = false;
 	std::vector<ActivityGroup> m_activityGroups;
 	std::vector<Activity> m_activities;

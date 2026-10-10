@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Render/ShadowSpace.h"
 
 #include "Models/Common/ModelHooks.h"
@@ -36,46 +37,46 @@ namespace
     bool              g_armed = false;
     std::atomic<bool> g_enabled{ true };
 
-    std::atomic<uint32_t> g_statDraws{ 0 };
-    std::atomic<uint32_t> g_statInflZero{ 0 };
-    std::atomic<uint32_t> g_statInflFixed{ 0 };
-    std::atomic<uint32_t> g_statOverride{ 0 };
-    std::atomic<uint32_t> g_statStaleAnim{ 0 };
-    std::atomic<uint32_t> g_statPaletteMismatch{ 0 };
-    std::atomic<uint32_t> g_statFaults{ 0 };
+    std::atomic<uint32> g_statDraws{ 0 };
+    std::atomic<uint32> g_statInflZero{ 0 };
+    std::atomic<uint32> g_statInflFixed{ 0 };
+    std::atomic<uint32> g_statOverride{ 0 };
+    std::atomic<uint32> g_statStaleAnim{ 0 };
+    std::atomic<uint32> g_statPaletteMismatch{ 0 };
+    std::atomic<uint32> g_statFaults{ 0 };
 
     void ProbeShadowDraw(void* instance, void* section)
     {
         auto* inst = static_cast<off::M2Instance*>(instance);
-        auto* shared = reinterpret_cast<uint8_t*>(inst->model);
+        auto* shared = reinterpret_cast<uint8*>(inst->model);
         if (!shared) return;
 
         auto* sec = static_cast<fmt::M2SkinSection*>(section);
 
         // --- the value that actually selects the shadow vertex program ---
-        const uint16_t inflDraw = sec->boneInfluences;
-        const uint32_t ovr = *reinterpret_cast<const uint32_t*>(
-            reinterpret_cast<const uint8_t*>(inst) + off::kOffInstSectionOverride);
+        const uint16 inflDraw = sec->boneInfluences;
+        const uint32 ovr = *reinterpret_cast<const uint32*>(
+            reinterpret_cast<const uint8*>(inst) + off::kOffInstSectionOverride);
 
         // --- which array is this section in: the shared runtime's own +0x18C copy, or somewhere else? ---
-        auto* copyBase = *reinterpret_cast<uint8_t**>(shared + off::kOffModelSubmeshBuf);
-        int32_t secIdx = -1;
+        auto* copyBase = *reinterpret_cast<uint8**>(shared + off::kOffModelSubmeshBuf);
+        int32 secIdx = -1;
         if (copyBase)
         {
-            const ptrdiff_t delta = reinterpret_cast<uint8_t*>(sec) - copyBase;
+            const ptrdiff_t delta = reinterpret_cast<uint8*>(sec) - copyBase;
             if (delta >= 0 && (delta % static_cast<ptrdiff_t>(sizeof(fmt::M2SkinSection))) == 0)
-                secIdx = static_cast<int32_t>(delta / static_cast<ptrdiff_t>(sizeof(fmt::M2SkinSection)));
+                secIdx = static_cast<int32>(delta / static_cast<ptrdiff_t>(sizeof(fmt::M2SkinSection)));
         }
         // ...and what the LIVE skin says at that same index, which is what FixSubmeshes patched.
-        uint16_t inflSkin = 0xFFFFu;
+        uint16 inflSkin = 0xFFFFu;
         auto* skin = static_cast<ModernM2::Client::M2SkinProfile*>(
             reinterpret_cast<off::M2Model*>(shared)->skin);
-        if (skin && skin->submeshes && secIdx >= 0 && static_cast<uint32_t>(secIdx) < skin->submeshCount)
+        if (skin && skin->submeshes && secIdx >= 0 && static_cast<uint32>(secIdx) < skin->submeshCount)
             inflSkin = skin->submeshes[secIdx].boneInfluences;
 
         // --- palette freshness AND space, in one check ---
-        const uint32_t lastAnim = inst->lastAnimFrame;
-        uint32_t frame = 0xFFFFFFFFu;
+        const uint32 lastAnim = inst->lastAnimFrame;
+        uint32 frame = 0xFFFFFFFFu;
         if (auto* scene = reinterpret_cast<off::M2SceneClock*>(inst->scene))
             frame = scene->frame;
         bool palMatchesRoot = true;
@@ -101,7 +102,7 @@ namespace
             ModernM2::Live::IsNativeLoaded(shared))
         {
             sec->boneInfluences = 1;
-            const uint32_t n = g_statInflFixed.fetch_add(1, std::memory_order_relaxed) + 1;
+            const uint32 n = g_statInflFixed.fetch_add(1, std::memory_order_relaxed) + 1;
             if (n <= 8)
             {
                 const char* stem = ModernM2::Client::M2Model(shared).GetPathStem();

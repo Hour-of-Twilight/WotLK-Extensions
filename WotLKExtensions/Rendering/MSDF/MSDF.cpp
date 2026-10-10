@@ -18,6 +18,79 @@ namespace {
     IDirect3DPixelShader9* s_cachedPS = nullptr;
     IDirect3DVertexShader9* s_cachedVS = nullptr;
 
+    // True whenever the GPU-side resources may be gone: before any device exists at all,
+    // and after every release or destroy.
+    //
+    // This is a flag rather than a comparison of device pointers because a recreated
+    // device is routinely allocated at the address the old one just freed - a gx restart
+    // was observed handing back the identical pointer, which made a pointer check read as
+    // "nothing changed" while every atlas page had in fact died with the old device.
+    //
+    // It starts true because MSDF sets itself up when the client initialises FreeType,
+    // which on a brand new config happens before the D3D device exists: the shaders fail
+    // to compile and every atlas page fails to create, and all of it has to be built again
+    // once a device turns up.
+    bool s_resourcesLost = true;
+
+
+    // Puts the MSDF shaders back on the client's font ShaderData, compiling them again if
+    // the device took them with it. Needed after every device event that can leave the
+    // client's own font shader in place: a reset, and a destroy/create from RestartGx.
+    //
+    // Unlike the first-time setup this never releases the pointer it overwrites - the
+    // device teardown has already freed it, and releasing it again would be a double free.
+    void AttachFontShaders() {
+        if (MSDF::g_FontPixelShader) {
+            if (!s_cachedPS) {
+                s_cachedPS = D3D::CompilePixelShader({
+                    .shaderCode = pixelShaderHLSL,
+                    .target = "ps_3_0"
+                    });
+            }
+            if (s_cachedPS) {
+                MSDF::g_FontPixelShader->pixel_shader = s_cachedPS;
+                MSDF::g_FontPixelShader->compilation_flags = 1;
+            }
+        }
+        if (MSDF::g_FontVertexShader) {
+            if (!s_cachedVS) {
+                s_cachedVS = D3D::CompileVertexShader({
+                    .shaderCode = vertexShaderHLSL,
+                    .target = "vs_3_0"
+                    });
+            }
+            if (s_cachedVS) {
+                MSDF::g_FontVertexShader->vertex_shader = s_cachedVS;
+                MSDF::g_FontVertexShader->compilation_flags = 1;
+            }
+        }
+    }
+
+    // Called whenever a device event says a device may now be available. Everything built
+    // against a different device - or against no device at all, which is what a fresh
+    // config does - is gone, so it is thrown away and rebuilt.
+    //
+    // The old objects are never released: either they died with their device, or they
+    // never existed. Clearing the glyph cache also bumps the font's eviction count, which
+    // is what makes the engine re-lay-out strings it has already built. Without that,
+    // text keeps its UVs into atlas pages that were never successfully created and draws
+    // nothing at all.
+    void RebuildForCurrentDevice() {
+        if (!D3D::GetDevice()) {
+            return;
+        }
+        if (!s_resourcesLost) {
+            AttachFontShaders();
+            return;
+        }
+
+        s_resourcesLost = false;
+        s_cachedPS = nullptr;
+        s_cachedVS = nullptr;
+        MSDFFont::ClearAllCache(/*releaseTextures*/ false);
+        AttachFontShaders();
+    }
+
     CLIENT_FUNCTION(CGxString__CheckGeometry_ProcessGeometryCallSite, 0x006C4B09, __cdecl, void, ())
     constexpr uintptr_t CGxString__CheckGeometry_ProcessGeometryCallSite_jmpback = 0x006C4B10;
 
@@ -534,10 +607,39 @@ namespace {
             DetourTransactionCommit();
 
             D3D::RegisterOnDestroy([]() {
+                s_resourcesLost = true;
                 if (s_cachedPS) { s_cachedPS->Release(); s_cachedPS = nullptr; }
                 if (s_cachedVS) { s_cachedVS->Release(); s_cachedVS = nullptr; }
                 MSDFFont::ClearAllCache();
                 });
+
+            // Any device event can leave the client's own font shader drawing the MSDF
+            // atlas, which renders every glyph black for the rest of the session.
+            // IShaderCreatePixel/Vertex only run again if the client rebuilds its font
+            // ShaderData, which it does not do for either of these:
+            //
+            //   release/restore - a device reset,
+            //   destroy/create  - a full gx restart, which is what RestartGx does when the
+            //                     player (or the first-run flow) changes the display mode.
+            D3D::RegisterOnRelease([]() {
+                s_resourcesLost = true;
+                // Drop the references without releasing them: the objects handed to the
+                // client's ShaderData are the ones its teardown is releasing, so calling
+                // Release here as well would be a double free.
+                s_cachedPS = nullptr;
+                s_cachedVS = nullptr;
+                });
+
+            D3D::RegisterOnRestore(RebuildForCurrentDevice);
+
+            // A device create means the previous device is gone, and with it the shaders
+            // and every atlas page. Nothing here is released: those objects died with the
+            // device, so releasing them again would be a use after free. Clearing the
+            // glyph cache also bumps the font's eviction count, which is what makes the
+            // engine re-lay-out strings it has already built - without that, cached text
+            // keeps its UVs into atlas pages that no longer exist and only the glyphs
+            // rasterised after the restart draw anything.
+            D3D::RegisterOnCreate(RebuildForCurrentDevice);
 
             D3D::RegisterPixelShaderInit([](CGxDevice::ShaderData* shaderData) {
                 if (shaderData != MSDF::g_FontPixelShader && MSDF::g_FontPixelShader != nullptr) return;
@@ -588,6 +690,12 @@ namespace {
                 MSDF::g_FontVertexShader->vertex_shader = s_cachedVS;
                 MSDF::g_FontVertexShader->compilation_flags = 1;
             }
+
+
+            // On an ordinary launch a device already exists and everything above built
+            // against it, so the next device event has no rebuilding to do. On a fresh
+            // config there is no device yet and the flag stays set.
+            s_resourcesLost = (D3D::GetDevice() == nullptr);
 
             s_prefetchPayload.reserve(16383);
 

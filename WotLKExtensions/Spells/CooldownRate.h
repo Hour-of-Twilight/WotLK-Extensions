@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <unordered_map>
 
@@ -28,7 +30,7 @@ public:
 	void SetRate(float rate, bool includeGcd);
 	void Forget();
 
-	void OnCooldownFrameSet(void* frame, int32_t startMs, int32_t durationMs);
+	void OnCooldownFrameSet(void* frame, int32 startMs, int32 durationMs);
 	void OnCooldownFrameUpdate(void* frame);
 
 	CooldownRate(const CooldownRate&) = delete;
@@ -37,7 +39,7 @@ public:
 private:
 	CooldownRate() = default;
 
-	enum Field : uint8_t
+	enum Field : uint8
 	{
 		FieldSpell,
 		FieldCategory,
@@ -46,21 +48,21 @@ private:
 
 	struct Tracked
 	{
-		uint32_t spellId;
-		uint32_t itemId;
+		uint32 spellId;
+		uint32 itemId;
 		Field field;
 	};
 
-	static void Handler_SMSG_COOLDOWN_RATE(void*, uint32_t, uint32_t, CDataStore* pkt);
+	static void Handler_SMSG_COOLDOWN_RATE(void*, uint32, uint32, CDataStore* pkt);
 	static int Script_GetCooldownRate(lua_State* L);
 
-	bool Match(int32_t startMs, int32_t durationMs, Tracked& out) const;
+	bool Match(int32 startMs, int32 durationMs, Tracked& out) const;
 
 	float m_rate = 1.0f;
 	bool m_includeGcd = false;
 	double m_carryMs = 0.0;
-	uint32_t m_lastTickMs = 0;
-	int32_t m_frameShiftMs = 0;
+	uint32 m_lastTickMs = 0;
+	int32 m_frameShiftMs = 0;
 	std::unordered_map<void*, Tracked> m_frames;
 };
 

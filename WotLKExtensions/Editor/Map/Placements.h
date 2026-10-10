@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <ClientData/MathTypes.h>
 #include <Editor/Map/MapClient.h>
 
@@ -26,10 +28,10 @@ namespace MapEditor::Placements
 	struct Ref
 	{
 		Kind kind = Kind::Doodad;
-		int32_t tileX = -1;
-		int32_t tileY = -1;
-		int32_t index = -1;
-		uint32_t uniqueId = 0;
+		int32 tileX = -1;
+		int32 tileY = -1;
+		int32 index = -1;
+		uint32 uniqueId = 0;
 
 		bool Valid() const
 		{
@@ -85,7 +87,7 @@ namespace MapEditor::Placements
 	// Everything with a live instance whose bounds come within radius, nearest first. Measured to
 	// the bounds rather than the origin, or a keep whose MODF origin sits hundreds of yards off
 	// would sort behind the shrubs in front of it.
-	int32_t ListNear(C3Vector const& center, float radius, std::vector<Info>& out);
+	int32 ListNear(C3Vector const& center, float radius, std::vector<Info>& out);
 
 	// Which list a file belongs in, from its extension. False for anything that is neither a model
 	// nor a WMO, since guessing would put a .blp in MMDX and lose the tile.
@@ -103,7 +105,7 @@ namespace MapEditor::Placements
 
 	// Distinct model paths in use near a point, nearest first. There is no listfile to browse, so
 	// what is already standing around you is the practical way to pick something to place.
-	int32_t ListModels(C3Vector const& center, float radius, std::vector<std::string>& out);
+	int32 ListModels(C3Vector const& center, float radius, std::vector<std::string>& out);
 
 	// Why a click picked what it picked: how many live defs of each kind the walk found, how many
 	// matched back to a file entry, and the nearest few the ray crossed. Purely diagnostic, nothing

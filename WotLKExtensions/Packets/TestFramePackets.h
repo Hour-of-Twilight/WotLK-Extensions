@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <vector>
 
@@ -19,7 +21,7 @@ public:
 private:
 	TestFramePackets() = default;
 
-	static void Handler_SMSG_CUSTOM_TEST_FRAME(void*, uint32_t, uint32_t, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TEST_FRAME(void*, uint32, uint32, CDataStore* a3);
 	static int GetTestFrameData(lua_State* L);
 	static int GetTestFrameAllowedStatGroups(lua_State* L);
 	static int SendTestFrameReply(lua_State* L);
@@ -27,9 +29,9 @@ private:
 	char m_testName[256] = {};
 	char m_testShortDesc[512] = {};
 	char m_testLongDesc[4096] = {};
-	uint32_t m_talentLevel = 0;
-	uint32_t m_avgItemLevel = 0;
-	std::vector<uint32_t> m_allowedStatGroups;
+	uint32 m_talentLevel = 0;
+	uint32 m_avgItemLevel = 0;
+	std::vector<uint32> m_allowedStatGroups;
 	bool m_hasData = false;
 };
 

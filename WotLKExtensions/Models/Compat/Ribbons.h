@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 /**
@@ -34,5 +36,5 @@ namespace ModernM2::Live::Ribbons
 	 * @param layerCount       Bound texture layers of the ribbon about to draw.
 	 * @param useMultiTexture  Receives the request.
 	 */
-	void OnRibbonDraw(uint32_t layerCount, bool* useMultiTexture);
+	void OnRibbonDraw(uint32 layerCount, bool* useMultiTexture);
 }

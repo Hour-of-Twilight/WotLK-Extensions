@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <ClientDetours.h>
 #include <Macros.h>
 
@@ -9,7 +10,7 @@ namespace
 {
 	constexpr uintptr_t GLYPH_PAGE_UPLOAD_BUFFER = 0xC7D328;
 	constexpr size_t GLYPH_PAGE_UPLOAD_BUFFER_SIZE = 256 * 256 * 2;
-	constexpr uint32_t GLYPH_PAGE_WIDTH = 256;
+	constexpr uint32 GLYPH_PAGE_WIDTH = 256;
 	constexpr int GXTEX_COMMAND_LATCH = 1;
 	constexpr int MAX_GEOMETRY_SETTLE_PASSES = 4;
 	constexpr uintptr_t STRING_PAGES_USED_OFFSET = 0x60;
@@ -27,16 +28,16 @@ namespace
 
 	struct GlyphRow
 	{
-		uint32_t widestFreeSlot;
-		uint32_t linkOffset;
+		uint32 widestFreeSlot;
+		uint32 linkOffset;
 		TSLink terminator;
 	};
 
 	struct GlyphDesc
 	{
-		uint8_t unused0[0x30];
-		uint32_t startPixel;
-		uint32_t endPixel;
+		uint8 unused0[0x30];
+		uint32 startPixel;
+		uint32 endPixel;
 	};
 
 	static_assert(sizeof(GlyphRow) == 0x10, "TEXTURECACHEROW layout");
@@ -47,7 +48,7 @@ namespace
 	template <typename T>
 	T& Field(void* object, uintptr_t offset)
 	{
-		return *reinterpret_cast<T*>(static_cast<uint8_t*>(object) + offset);
+		return *reinterpret_cast<T*>(static_cast<uint8*>(object) + offset);
 	}
 
 	bool IsListNode(void const* pointer)
@@ -55,15 +56,15 @@ namespace
 		return pointer != nullptr && (reinterpret_cast<uintptr_t>(pointer) & 1) == 0;
 	}
 
-	void* NextListNode(void* node, uint32_t linkOffset)
+	void* NextListNode(void* node, uint32 linkOffset)
 	{
 		return Field<TSLink>(node, linkOffset).next;
 	}
 
-	uint32_t ComputeWidestFreeSlot(GlyphRow* row)
+	uint32 ComputeWidestFreeSlot(GlyphRow* row)
 	{
-		uint32_t widest = 0;
-		uint32_t cursor = 0;
+		uint32 widest = 0;
+		uint32 cursor = 0;
 		for (void* node = row->terminator.next; IsListNode(node); node = NextListNode(node, row->linkOffset))
 		{
 			auto* desc = static_cast<GlyphDesc*>(node);
@@ -86,18 +87,18 @@ namespace
 	CLIENT_DETOUR_THISCALL_NOARGS(CGxString__ClearInstanceData, 0x006C6B90, void)
 	{
 		CGxString__ClearInstanceData(self);
-		Field<uint32_t>(self, STRING_PAGES_USED_OFFSET) = 0;
-		Field<uint32_t>(self, STRING_PAGE_EVICTED_OFFSET) = 0;
+		Field<uint32>(self, STRING_PAGES_USED_OFFSET) = 0;
+		Field<uint32>(self, STRING_PAGE_EVICTED_OFFSET) = 0;
 	}
 
 	bool RebuildGeometry(void* string)
 	{
-		if (Field<uint32_t>(string, STRING_PAGE_EVICTED_OFFSET) != 0)
+		if (Field<uint32>(string, STRING_PAGE_EVICTED_OFFSET) != 0)
 			CGxString__ClearInstanceDataDetour(string, nullptr);
 		CGxString__CreateGeometry(string);
-		Field<uint32_t>(string, STRING_PAGE_EVICTED_OFFSET) = 0;
-		Field<uint32_t>(string, STRING_IDLE_TICKS_OFFSET) = 0;
-		return Field<uint32_t>(string, STRING_LINE_COUNT_OFFSET) != 0;
+		Field<uint32>(string, STRING_PAGE_EVICTED_OFFSET) = 0;
+		Field<uint32>(string, STRING_IDLE_TICKS_OFFSET) = 0;
+		return Field<uint32>(string, STRING_LINE_COUNT_OFFSET) != 0;
 	}
 
 	CLIENT_DETOUR_THISCALL_NOARGS(CGxString__CheckGeometry, 0x006C7480, bool)
@@ -107,13 +108,13 @@ namespace
 
 	CLIENT_DETOUR_THISCALL_NOARGS(BATCHEDRENDERFONTDESC__RenderBatch, 0x006C4AD0, void)
 	{
-		uint32_t linkOffset = Field<uint32_t>(self, BATCH_STRING_LINK_OFFSET_OFFSET);
+		uint32 linkOffset = Field<uint32>(self, BATCH_STRING_LINK_OFFSET_OFFSET);
 		for (int pass = 0; pass < MAX_GEOMETRY_SETTLE_PASSES; ++pass)
 		{
 			bool rebuilt = false;
 			for (void* string = Field<void*>(self, BATCH_FIRST_STRING_OFFSET); IsListNode(string); string = NextListNode(string, linkOffset))
 			{
-				bool evicted = Field<uint32_t>(string, STRING_PAGE_EVICTED_OFFSET) != 0;
+				bool evicted = Field<uint32>(string, STRING_PAGE_EVICTED_OFFSET) != 0;
 				if (!evicted && pass > 0)
 					continue;
 				RebuildGeometry(string);
@@ -125,7 +126,7 @@ namespace
 		BATCHEDRENDERFONTDESC__RenderBatch(self);
 	}
 
-	CLIENT_DETOUR(TextureCallback, 0x006C9F50, __cdecl, void, (int command, int width, int height, int face, int level, void* userArg, uint32_t* stride, void** texels))
+	CLIENT_DETOUR(TextureCallback, 0x006C9F50, __cdecl, void, (int command, int width, int height, int face, int level, void* userArg, uint32* stride, void** texels))
 	{
 		if (command == GXTEX_COMMAND_LATCH)
 			std::memset(reinterpret_cast<void*>(GLYPH_PAGE_UPLOAD_BUFFER), 0, GLYPH_PAGE_UPLOAD_BUFFER_SIZE);

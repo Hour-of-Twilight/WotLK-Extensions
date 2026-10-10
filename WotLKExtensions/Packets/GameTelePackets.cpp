@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "GameTelePackets.h"
 #include "Packet.h"
 #include <CustomPacket.h>
@@ -11,7 +12,7 @@ GameTelePackets& GameTelePackets::Instance()
 	return instance;
 }
 
-void GameTelePackets::Handler_SMSG_GAME_TELE_LIST(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GameTelePackets::Handler_SMSG_GAME_TELE_LIST(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	char buffer[512];
@@ -19,9 +20,9 @@ void GameTelePackets::Handler_SMSG_GAME_TELE_LIST(void*, uint32_t, uint32_t, CDa
 	GameTelePackets& self = Instance();
 	self.m_teles.clear();
 
-	uint32_t count = r.GetUInt32();
+	uint32 count = r.GetUInt32();
 	self.m_teles.reserve(count);
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
 		TeleEntry entry;
 		entry.id = r.GetUInt32();
@@ -51,7 +52,7 @@ int GameTelePackets::GetGameTeleCount(lua_State* L)
 int GameTelePackets::GetGameTeleInfo(lua_State* L)
 {
 	GameTelePackets& self = Instance();
-	uint32_t index = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 index = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	if (!self.m_hasData || index < 1 || index > self.m_teles.size())
 	{
 		FrameScript::PushNil(L);

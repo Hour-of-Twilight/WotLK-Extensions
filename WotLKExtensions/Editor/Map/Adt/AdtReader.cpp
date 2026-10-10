@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <ClientData/SharedDefines.h>
 #include <Editor/Map/Adt/AdtDocument.h>
 #include <Editor/Map/MapClient.h>
@@ -12,18 +13,18 @@ namespace MapEditor::Adt
 	{
 		struct IffHeader
 		{
-			uint32_t id;
-			uint32_t size;
+			uint32 id;
+			uint32 size;
 		};
 
 		// MCNK sub-chunk offsets are measured from the start of the MCNK IFF header, not from its
 		// data. Confirmed against a real tile: ofsAlpha 0x4D0 equals 8 + 128 header + 588 MCVT
 		// + 456 MCNR + 40 MCLY + 12 MCRF.
-		constexpr uint32_t kIffSize = 8;
-		constexpr uint32_t kMcnkHeaderSize = 128;
+		constexpr uint32 kIffSize = 8;
+		constexpr uint32 kMcnkHeaderSize = 128;
 	}
 
-	std::string ChunkName(uint32_t id)
+	std::string ChunkName(uint32 id)
 	{
 		char text[5] = {};
 		text[0] = static_cast<char>((id >> 24) & 0xFF);
@@ -40,7 +41,7 @@ namespace MapEditor::Adt
 		return std::string(text);
 	}
 
-	SubChunk const* Mcnk::Find(uint32_t id) const
+	SubChunk const* Mcnk::Find(uint32 id) const
 	{
 		for (SubChunk const& sub : subs)
 		{
@@ -50,7 +51,7 @@ namespace MapEditor::Adt
 		return nullptr;
 	}
 
-	SubChunk* Mcnk::Find(uint32_t id)
+	SubChunk* Mcnk::Find(uint32 id)
 	{
 		for (SubChunk& sub : subs)
 		{
@@ -60,21 +61,21 @@ namespace MapEditor::Adt
 		return nullptr;
 	}
 
-	Mcnk* AdtDocument::ChunkAt(int32_t chunkX, int32_t chunkY)
+	Mcnk* AdtDocument::ChunkAt(int32 chunkX, int32 chunkY)
 	{
-		int32_t index = chunkY * 16 + chunkX;
-		if (chunkX < 0 || chunkX > 15 || chunkY < 0 || chunkY > 15 || index >= static_cast<int32_t>(chunks.size()))
+		int32 index = chunkY * 16 + chunkX;
+		if (chunkX < 0 || chunkX > 15 || chunkY < 0 || chunkY > 15 || index >= static_cast<int32>(chunks.size()))
 			return nullptr;
 
 		return &chunks[index];
 	}
 
-	Mcnk const* AdtDocument::ChunkAt(int32_t chunkX, int32_t chunkY) const
+	Mcnk const* AdtDocument::ChunkAt(int32 chunkX, int32 chunkY) const
 	{
 		return const_cast<AdtDocument*>(this)->ChunkAt(chunkX, chunkY);
 	}
 
-	std::string TilePath(char const* mapName, int32_t tileX, int32_t tileY)
+	std::string TilePath(char const* mapName, int32 tileX, int32 tileY)
 	{
 		char path[260] = {};
 		std::snprintf(path, sizeof(path), "World\\Maps\\%s\\%s_%d_%d.adt", mapName, mapName,
@@ -82,12 +83,12 @@ namespace MapEditor::Adt
 		return std::string(path);
 	}
 
-	std::string TilePath(int32_t tileX, int32_t tileY)
+	std::string TilePath(int32 tileX, int32 tileY)
 	{
 		return TilePath(Access::sMapName, tileX, tileY);
 	}
 
-	bool ReadFileBytes(char const* path, std::vector<uint8_t>& out, std::string& error)
+	bool ReadFileBytes(char const* path, std::vector<uint8>& out, std::string& error)
 	{
 		HANDLE file = nullptr;
 		if (!SFile::OpenFile(path, &file) || !file)
@@ -96,7 +97,7 @@ namespace MapEditor::Adt
 			return false;
 		}
 
-		uint32_t size = SFile::GetFileSize(file, nullptr);
+		uint32 size = SFile::GetFileSize(file, nullptr);
 		if (size == 0 || size == 0xFFFFFFFF)
 		{
 			SFile::CloseFile(file);
@@ -105,7 +106,7 @@ namespace MapEditor::Adt
 		}
 
 		out.assign(size, 0);
-		uint32_t read = 0;
+		uint32 read = 0;
 		bool ok = SFile::ReadFile(file, out.data(), size, &read, nullptr, 0);
 		SFile::CloseFile(file);
 
@@ -118,25 +119,25 @@ namespace MapEditor::Adt
 		return true;
 	}
 
-	bool Read(uint8_t const* bytes, uint32_t size, AdtDocument& out, std::string& error)
+	bool Read(uint8 const* bytes, uint32 size, AdtDocument& out, std::string& error)
 	{
 		out = AdtDocument();
 		out.chunks.resize(256);
 
-		uint32_t pos = 0;
-		int32_t mcnkSeen = 0;
+		uint32 pos = 0;
+		int32 mcnkSeen = 0;
 
 		// Tally of which MCIN size convention the file uses, settled by measuring against the
 		// MCNK chunks themselves rather than assuming.
-		int32_t sizeWithHeader = 0;
-		int32_t sizeWithoutHeader = 0;
+		int32 sizeWithHeader = 0;
+		int32 sizeWithoutHeader = 0;
 
 		while (pos + kIffSize <= size)
 		{
 			IffHeader head{};
 			std::memcpy(&head, bytes + pos, kIffSize);
 
-			if (static_cast<uint64_t>(pos) + kIffSize + head.size > size)
+			if (static_cast<uint64>(pos) + kIffSize + head.size > size)
 			{
 				char message[160];
 				std::snprintf(message, sizeof(message), "%s at 0x%X claims %u bytes, past the end",
@@ -145,7 +146,7 @@ namespace MapEditor::Adt
 				return false;
 			}
 
-			uint8_t const* data = bytes + pos + kIffSize;
+			uint8 const* data = bytes + pos + kIffSize;
 
 			if (head.id == kMCNK)
 			{
@@ -169,23 +170,23 @@ namespace MapEditor::Adt
 				// neighbouring chunks with identical sizeAlpha where one MCAL declares 8 and holds
 				// 8 bytes and the other declares 512 and holds none, so only the header's offset
 				// table can tell them apart.
-				uint32_t bounds[9] = {};
-				uint32_t boundCount = 0;
+				uint32 bounds[9] = {};
+				uint32 boundCount = 0;
 
-				uint32_t const fields[] = { chunk.header.ofsHeight, chunk.header.ofsMCCV,
+				uint32 const fields[] = { chunk.header.ofsHeight, chunk.header.ofsMCCV,
 					chunk.header.ofsNormal, chunk.header.ofsLayer, chunk.header.ofsRefs,
 					chunk.header.ofsAlpha, chunk.header.ofsShadow, chunk.header.ofsLiquid,
 					chunk.header.ofsSndEmitters };
 
-				for (uint32_t field : fields)
+				for (uint32 field : fields)
 				{
 					// Absent sub-chunks leave a 0 here, and an offset for one that is absent can
 					// also alias another's, so both are filtered out rather than trusted.
 					if (field < kIffSize + kMcnkHeaderSize)
 						continue;
 
-					uint32_t at = field - kIffSize;
-					if (static_cast<uint64_t>(at) + kIffSize > head.size)
+					uint32 at = field - kIffSize;
+					if (static_cast<uint64>(at) + kIffSize > head.size)
 						continue;
 
 					if (std::find(bounds, bounds + boundCount, at) == bounds + boundCount)
@@ -194,7 +195,7 @@ namespace MapEditor::Adt
 
 				std::sort(bounds, bounds + boundCount);
 
-				uint32_t sub = kMcnkHeaderSize;
+				uint32 sub = kMcnkHeaderSize;
 				while (sub + kIffSize <= head.size)
 				{
 					IffHeader subHead{};
@@ -203,8 +204,8 @@ namespace MapEditor::Adt
 					// The first boundary that leaves room for this sub-chunk's own header is its
 					// end. The last sub-chunk runs to the end of the MCNK, which also soaks up
 					// the handful of tiles carrying a few unaccounted trailing bytes.
-					uint32_t end = head.size;
-					uint32_t const* next = std::upper_bound(bounds, bounds + boundCount, sub + kIffSize - 1);
+					uint32 end = head.size;
+					uint32 const* next = std::upper_bound(bounds, bounds + boundCount, sub + kIffSize - 1);
 					if (next != bounds + boundCount)
 						end = *next;
 
@@ -212,7 +213,7 @@ namespace MapEditor::Adt
 					entry.id = subHead.id;
 					entry.declared = subHead.size;
 					entry.data.assign(data + sub + kIffSize, data + end);
-					entry.originalSize = static_cast<uint32_t>(entry.data.size());
+					entry.originalSize = static_cast<uint32>(entry.data.size());
 					chunk.subs.push_back(std::move(entry));
 
 					sub = end;
@@ -220,7 +221,7 @@ namespace MapEditor::Adt
 
 				if (out.hasInfo)
 				{
-					uint32_t stated = out.info[mcnkSeen].size;
+					uint32 stated = out.info[mcnkSeen].size;
 					if (stated == head.size + kIffSize)
 						++sizeWithHeader;
 					else if (stated == head.size)
@@ -275,20 +276,20 @@ namespace MapEditor::Adt
 		return true;
 	}
 
-	int32_t ChunkIndexAtOffset(AdtDocument const& doc, uint32_t offset)
+	int32 ChunkIndexAtOffset(AdtDocument const& doc, uint32 offset)
 	{
-		uint32_t pos = 0;
+		uint32 pos = 0;
 		for (TopChunk const& top : doc.order)
 		{
-			uint32_t body = static_cast<uint32_t>(top.data.size());
+			uint32 body = static_cast<uint32>(top.data.size());
 			if (top.mcnkIndex >= 0)
 			{
 				body = kMcnkHeaderSize;
 				for (SubChunk const& sub : doc.chunks[top.mcnkIndex].subs)
-					body += kIffSize + static_cast<uint32_t>(sub.data.size());
+					body += kIffSize + static_cast<uint32>(sub.data.size());
 			}
 
-			uint32_t total = kIffSize + body;
+			uint32 total = kIffSize + body;
 			if (offset < pos + total)
 				return top.mcnkIndex;
 
@@ -298,24 +299,24 @@ namespace MapEditor::Adt
 		return -1;
 	}
 
-	std::string DescribeOffset(AdtDocument const& doc, uint32_t offset)
+	std::string DescribeOffset(AdtDocument const& doc, uint32 offset)
 	{
-		uint32_t pos = 0;
+		uint32 pos = 0;
 		for (TopChunk const& top : doc.order)
 		{
-			uint32_t body = top.mcnkIndex >= 0 ? 0 : static_cast<uint32_t>(top.data.size());
+			uint32 body = top.mcnkIndex >= 0 ? 0 : static_cast<uint32>(top.data.size());
 			if (top.mcnkIndex >= 0)
 			{
 				Mcnk const& chunk = doc.chunks[top.mcnkIndex];
 				body = kMcnkHeaderSize;
 				for (SubChunk const& sub : chunk.subs)
-					body += kIffSize + static_cast<uint32_t>(sub.data.size());
+					body += kIffSize + static_cast<uint32>(sub.data.size());
 			}
 
-			uint32_t total = kIffSize + body;
+			uint32 total = kIffSize + body;
 			if (offset < pos + total)
 			{
-				uint32_t inner = offset - pos;
+				uint32 inner = offset - pos;
 				char message[192];
 
 				if (top.mcnkIndex < 0)
@@ -334,10 +335,10 @@ namespace MapEditor::Adt
 					return message;
 				}
 
-				uint32_t sub = kIffSize + kMcnkHeaderSize;
+				uint32 sub = kIffSize + kMcnkHeaderSize;
 				for (SubChunk const& entry : chunk.subs)
 				{
-					uint32_t span = kIffSize + static_cast<uint32_t>(entry.data.size());
+					uint32 span = kIffSize + static_cast<uint32>(entry.data.size());
 					if (inner < sub + span)
 					{
 						std::snprintf(message, sizeof(message), "MCNK %d (%d,%d) %s +0x%X",

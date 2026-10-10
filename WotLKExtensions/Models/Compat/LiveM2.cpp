@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Compat/LiveM2.h"
 
 #include "Models/Compat/AssetRegistry.h"
@@ -66,7 +67,7 @@ namespace ModernM2::Live
 
 		std::vector<bn::SplitSection> sections;
 		std::vector<bn::SplitRun> splitMap;
-		uint32_t splitCount = 0;
+		uint32 splitCount = 0;
 		const char* pathStem = wrapper.GetPathStem();
 		const bool split = bn::SplitSubmeshes(md, sk, sections, splitMap, splitCount,
 		                       pathStem ? pathStem : "") &&
@@ -79,7 +80,7 @@ namespace ModernM2::Live
 		else if (split)
 			bn::RepointBatchesAfterSplit(sk, splitMap);
 
-		if (const uint32_t clamped = bn::ClampBoneBudget(md, sk))
+		if (const uint32 clamped = bn::ClampBoneBudget(md, sk))
 			WLOG_WARN("modern-assets: '%s' had %u submesh(es) over the %u-bone draw budget, clamped",
 			    pathStem ? pathStem : "(no stem)", clamped, bn::kMaxBonesPerDraw);
 	}
@@ -89,7 +90,7 @@ namespace ModernM2::Live
 		return g_registry.Contains(model);
 	}
 
-	void OnSetupBatchAlpha(void* model, uint16_t blendMode)
+	void OnSetupBatchAlpha(void* model, uint16 blendMode)
 	{
 		// Alpha-key batches are a small minority of the scene; test the blend mode before paying
 		// the registry lookup, which otherwise costs a shared-lock + hash find on EVERY batch of
@@ -99,7 +100,7 @@ namespace ModernM2::Live
 		Particles::OnSetupBatchAlpha(blendMode, g_registry.Contains(model));
 	}
 
-	void OnRibbonDraw(uint32_t layerCount, bool* useMultiTexture)
+	void OnRibbonDraw(uint32 layerCount, bool* useMultiTexture)
 	{
 		Ribbons::OnRibbonDraw(layerCount, useMultiTexture);
 	}

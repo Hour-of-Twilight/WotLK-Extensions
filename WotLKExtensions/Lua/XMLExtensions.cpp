@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "XMLExtensions.h"
 #include "SharedDefines.h"
 #include "GroupFinderPackets.h"
@@ -136,14 +137,14 @@ bool FrameXMLExtensions::SignalEvent(const char* eventName, const char* format, 
 
 	va_list args;
 	va_start(args, format);
-	FrameScript::SignalEventV(static_cast<uint32_t>(eventId), format, args);
+	FrameScript::SignalEventV(static_cast<uint32>(eventId), format, args);
 	va_end(args);
 	return true;
 }
 
 namespace RCString_C
 {
-	inline uint32_t __stdcall hash(const char* str)
+	inline uint32 __stdcall hash(const char* str)
 	{
 		return ((decltype(&hash))0x0076F640)(str);
 	}
@@ -210,5 +211,5 @@ void GlueXML::RegisterFunctions()
 	sLua.RegisterFunction("TestGlueLua", TestGlueLua, LuaFunctionState::GLUE);
 	sLua.RegisterFunction("OverrideSlotDisplay", OverrideSlotDisplay, LuaFunctionState::GLUE);
 
-	Util::OverwriteUInt32AtAddress(0x4DA722, reinterpret_cast<uint32_t>(&RegisterGlueScriptMethodsEx) - 0x4DA726);
+	Util::OverwriteUInt32AtAddress(0x4DA722, reinterpret_cast<uint32>(&RegisterGlueScriptMethodsEx) - 0x4DA726);
 }

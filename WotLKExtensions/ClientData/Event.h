@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <Macros.h>
 
 #include <cstdint>
@@ -47,7 +49,23 @@ namespace ClientData
 		EVENTIDS = 36,
 	};
 
-	enum MouseButton : uint32_t
+	enum KeyCode : uint32
+	{
+		KEY_SPACE = 32,
+		KEY_MINUS = 45,
+		KEY_EQUALS = 61,
+		KEY_A = 65,
+		KEY_D = 68,
+		KEY_E = 69,
+		KEY_Q = 81,
+		KEY_S = 83,
+		KEY_W = 87,
+		KEY_X = 88,
+		KEY_NUMPAD_PLUS = 266,
+		KEY_NUMPAD_MINUS = 267,
+	};
+
+	enum MouseButton : uint32
 	{
 		MOUSE_BUTTON_NONE = 0x0,
 		MOUSE_BUTTON_LEFT = 0x1,
@@ -79,16 +97,16 @@ namespace ClientData
 	{
 		MouseMode mode;
 		MouseButton button;
-		uint32_t buttonState;
-		uint32_t metaKeyState;
-		uint32_t flags;
+		uint32 buttonState;
+		uint32 metaKeyState;
+		uint32 flags;
 		float x;
 		float y;
-		int32_t wheelDistance;
-		uint32_t time;
+		int32 wheelDistance;
+		uint32 time;
 	};
 
-	using EventHandlerFunc = int32_t (*)(const void*, void*);
+	using EventHandlerFunc = int32 (*)(const void*, void*);
 
 	CLIENT_FUNCTION(EventRegisterEx, 0x47D3C0, __cdecl, void, (EventId, EventHandlerFunc, void*, float))
 	CLIENT_FUNCTION(EventUnregister, 0x47D790, __cdecl, void, (EventId, EventHandlerFunc))

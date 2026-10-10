@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "DbcFromMpq.h"
 
 #include "ArchiveManifest.h"
@@ -20,26 +21,26 @@ namespace DbcFromMpq
 	{
 		struct DbcCopy
 		{
-			uint16_t structOff;
-			uint16_t fileOff;
-			uint16_t bytes;
+			uint16 structOff;
+			uint16 fileOff;
+			uint16 bytes;
 		};
 		struct DbcStr
 		{
-			uint16_t structOff;
-			uint16_t fileOff;
+			uint16 structOff;
+			uint16 fileOff;
 		};
 		struct DbcTransform
 		{
 			const char* name;
-			uint16_t structSize;
-			uint16_t fileRecordSize;
+			uint16 structSize;
+			uint16 fileRecordSize;
 			const DbcCopy* copies;
-			uint8_t copyCount;
+			uint8 copyCount;
 			const DbcStr* strings;
-			uint8_t strCount;
-			uint16_t idOff;      // struct offset the client keys m_recordsById off
-			uint8_t idGenerated; // 1: no ID column, the key is the 0-based row index
+			uint8 strCount;
+			uint16 idOff;      // struct offset the client keys m_recordsById off
+			uint8 idGenerated; // 1: no ID column, the key is the 0-based row index
 		};
 
 #include "DbcTransforms.inc"
@@ -83,10 +84,10 @@ namespace DbcFromMpq
 		struct WdbcHeader
 		{
 			char magic[4]; // 'WDBC'
-			uint32_t recordCount;
-			uint32_t fieldCount;
-			uint32_t recordSize;
-			uint32_t stringSize;
+			uint32 recordCount;
+			uint32 fieldCount;
+			uint32 recordSize;
+			uint32 stringSize;
 		};
 #pragma pack(pop)
 
@@ -94,7 +95,7 @@ namespace DbcFromMpq
 		void ApplyDbc(const char* mpqPath, const char* stem, size_t stemLen,
 		    const std::string* customName = nullptr)
 		{
-			std::vector<uint8_t> data;
+			std::vector<uint8> data;
 			if (!ClientData::Streaming::ReadWholeFile(nullptr, mpqPath, data))
 				return;
 			if (data.size() < sizeof(WdbcHeader))
@@ -108,7 +109,7 @@ namespace DbcFromMpq
 			if (sizeof(WdbcHeader) + recBytes + h.stringSize > data.size())
 				return; // truncated / malformed
 
-			const uint8_t* records = data.data() + sizeof(WdbcHeader);
+			const uint8* records = data.data() + sizeof(WdbcHeader);
 			const char* strBlock = reinterpret_cast<const char*>(records + recBytes);
 			std::string name = customName ? *customName : std::string(stem, stemLen);
 
@@ -119,10 +120,10 @@ namespace DbcFromMpq
 				// so it needs no transform - ApplyRecords hands these to its row writer.
 				if (GlobalCDBCMap.hasRowWriter(name))
 				{
-					std::vector<uint32_t> ids(h.recordCount);
-					for (uint32_t i = 0; i < h.recordCount; ++i)
+					std::vector<uint32> ids(h.recordCount);
+					for (uint32 i = 0; i < h.recordCount; ++i)
 						std::memcpy(&ids[i], records + static_cast<size_t>(i) * h.recordSize,
-						    sizeof(uint32_t));
+						    sizeof(uint32));
 					if (DBCPatch::ApplyRecords(name.c_str(), h.recordSize, {}, ids, records, nullptr, 0))
 						Util::DebugOutput("dbc: refreshed custom %s (%u records) from streamed mpq",
 						    name.c_str(), h.recordCount);
@@ -145,25 +146,25 @@ namespace DbcFromMpq
 			}
 
 			// Collapse each file record to the in-memory struct layout.
-			std::vector<uint8_t> images(static_cast<size_t>(h.recordCount) * t->structSize, 0);
-			std::vector<uint32_t> ids(h.recordCount);
-			for (uint32_t i = 0; i < h.recordCount; ++i)
+			std::vector<uint8> images(static_cast<size_t>(h.recordCount) * t->structSize, 0);
+			std::vector<uint32> ids(h.recordCount);
+			for (uint32 i = 0; i < h.recordCount; ++i)
 			{
-				const uint8_t* fileRec = records + static_cast<size_t>(i) * h.recordSize;
-				uint8_t* dst = images.data() + static_cast<size_t>(i) * t->structSize;
-				for (uint8_t c = 0; c < t->copyCount; ++c)
+				const uint8* fileRec = records + static_cast<size_t>(i) * h.recordSize;
+				uint8* dst = images.data() + static_cast<size_t>(i) * t->structSize;
+				for (uint8 c = 0; c < t->copyCount; ++c)
 					std::memcpy(dst + t->copies[c].structOff, fileRec + t->copies[c].fileOff,
 					    t->copies[c].bytes);
-				for (uint8_t s = 0; s < t->strCount; ++s)
+				for (uint8 s = 0; s < t->strCount; ++s)
 					std::memcpy(dst + t->strings[s].structOff, fileRec + t->strings[s].fileOff,
-					    sizeof(uint32_t)); // enUS offset into strBlock
+					    sizeof(uint32)); // enUS offset into strBlock
 				// No ID column: the client stamps the row index and keys off that.
 				if (t->idGenerated)
-					std::memcpy(dst + t->idOff, &i, sizeof(uint32_t));
-				std::memcpy(&ids[i], dst + t->idOff, sizeof(uint32_t));
+					std::memcpy(dst + t->idOff, &i, sizeof(uint32));
+				std::memcpy(&ids[i], dst + t->idOff, sizeof(uint32));
 			}
-			std::vector<uint16_t> strOffsets(t->strCount);
-			for (uint8_t s = 0; s < t->strCount; ++s)
+			std::vector<uint16> strOffsets(t->strCount);
+			for (uint8 s = 0; s < t->strCount; ++s)
 				strOffsets[s] = t->strings[s].structOff;
 
 			// Row index keys are positional, so the streamed file has to be the whole table.
@@ -224,7 +225,7 @@ namespace DbcFromMpq
 			}
 		}
 
-		void SplitLines(const std::vector<uint8_t>& text, std::vector<std::string>& out)
+		void SplitLines(const std::vector<uint8>& text, std::vector<std::string>& out)
 		{
 			const char* p = reinterpret_cast<const char*>(text.data());
 			const char* end = p + text.size();
@@ -244,7 +245,7 @@ namespace DbcFromMpq
 
 	void CollectArchiveNames(void* hMpq, std::vector<std::string>& out)
 	{
-		std::vector<uint8_t> bytes;
+		std::vector<uint8> bytes;
 		if (ClientData::Streaming::ReadWholeFile(hMpq, Streaming::ArchiveManifest::kFileName, bytes))
 		{
 			std::vector<Streaming::ArchiveEntry> entries;

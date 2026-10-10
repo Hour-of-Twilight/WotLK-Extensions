@@ -1,8 +1,10 @@
+#include <Defines.h>
 #include "UnitHealthPrediction.h"
 #include "AuraValuesCache.h"
 #include "Packet.h"
 
 #include <ClientData/Aura.h>
+#include <ClientData/WowObjects.h>
 #include <CustomLua.h>
 #include <CustomPacket.h>
 #include <Lua/XMLExtensions.h>
@@ -11,7 +13,7 @@
 
 using ClientData::Aura::MaxSpellEffects;
 
-static constexpr uint32_t kIncomingHealGraceMs = 1500;
+static constexpr uint32 kIncomingHealGraceMs = 1500;
 
 UnitHealthPrediction& UnitHealthPrediction::Instance()
 {
@@ -24,7 +26,7 @@ void UnitHealthPrediction::ClearAll()
 	m_incomingHeals.clear();
 }
 
-const UnitHealthPrediction::AbsorbEffects& UnitHealthPrediction::EffectsFor(uint32_t spellId)
+const UnitHealthPrediction::AbsorbEffects& UnitHealthPrediction::EffectsFor(uint32 spellId)
 {
 	auto it = m_spellEffects.find(spellId);
 	if (it != m_spellEffects.end())
@@ -34,81 +36,81 @@ const UnitHealthPrediction::AbsorbEffects& UnitHealthPrediction::EffectsFor(uint
 	SpellRow row;
 	if (ClientDB::GetSpellRow(spellId, row))
 	{
-		for (uint32_t i = 0; i < MaxSpellEffects; ++i)
+		for (uint32 i = 0; i < MaxSpellEffects; ++i)
 		{
-			uint32_t auraType = row.m_effectAura[i];
+			uint32 auraType = row.m_effectAura[i];
 			if (auraType == ClientData::Aura::SPELL_AURA_SCHOOL_ABSORB || auraType == ClientData::Aura::SPELL_AURA_MANA_SHIELD)
-				effects.absorbMask |= static_cast<uint8_t>(1u << i);
+				effects.absorbMask |= static_cast<uint8>(1u << i);
 			else if (auraType == ClientData::Aura::SPELL_AURA_SCHOOL_HEAL_ABSORB)
-				effects.healAbsorbMask |= static_cast<uint8_t>(1u << i);
+				effects.healAbsorbMask |= static_cast<uint8>(1u << i);
 		}
 	}
 
 	return m_spellEffects.emplace(spellId, effects).first->second;
 }
 
-uint32_t UnitHealthPrediction::SumAbsorbs(uint64_t guid, bool healAbsorb)
+uint32 UnitHealthPrediction::SumAbsorbs(uint64 guid, bool healAbsorb)
 {
 	if (!guid)
 		return 0;
 
-	CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT));
+	ClientData::WowUnit unit = ClientData::WowUnit::FromGuid(guid);
 	if (!unit)
 		return 0;
 
-	int count = CGUnit_C::GetAuraCount(unit);
+	int count = unit.AuraCount();
 	if (count > static_cast<int>(ClientData::Aura::MaxAuraSlots))
 		count = static_cast<int>(ClientData::Aura::MaxAuraSlots);
 
-	uint32_t total = 0;
+	uint32 total = 0;
 	for (int slot = 0; slot < count; ++slot)
 	{
-		AuraData* aura = CGUnit_C::GetAura(unit, static_cast<uint32_t>(slot));
+		AuraData* aura = unit.Aura(static_cast<uint32>(slot));
 		if (!aura || !aura->spellId)
 			continue;
 
 		const AbsorbEffects& effects = EffectsFor(aura->spellId);
-		uint8_t mask = healAbsorb ? effects.healAbsorbMask : effects.absorbMask;
+		uint8 mask = healAbsorb ? effects.healAbsorbMask : effects.absorbMask;
 		if (!mask)
 			continue;
 
 		AuraValuesCache::Values values;
-		if (!sAuraValuesCache.GetSlotValues(guid, static_cast<uint8_t>(slot), aura->spellId, values))
+		if (!sAuraValuesCache.GetSlotValues(guid, static_cast<uint8>(slot), aura->spellId, values))
 			continue;
 
-		for (uint32_t i = 0; i < MaxSpellEffects; ++i)
+		for (uint32 i = 0; i < MaxSpellEffects; ++i)
 		{
-			uint8_t bit = static_cast<uint8_t>(1u << i);
+			uint8 bit = static_cast<uint8>(1u << i);
 			if ((mask & bit) && (values.effectMask & bit) && values.amounts[i] > 0)
-				total += static_cast<uint32_t>(values.amounts[i]);
+				total += static_cast<uint32>(values.amounts[i]);
 		}
 	}
 
 	return total;
 }
 
-uint32_t UnitHealthPrediction::GetTotalAbsorbs(uint64_t guid)
+uint32 UnitHealthPrediction::GetTotalAbsorbs(uint64 guid)
 {
 	return SumAbsorbs(guid, false);
 }
 
-uint32_t UnitHealthPrediction::GetTotalHealAbsorbs(uint64_t guid)
+uint32 UnitHealthPrediction::GetTotalHealAbsorbs(uint64 guid)
 {
 	return SumAbsorbs(guid, true);
 }
 
-uint32_t UnitHealthPrediction::GetIncomingHeals(uint64_t guid, uint64_t healerGuid)
+uint32 UnitHealthPrediction::GetIncomingHeals(uint64 guid, uint64 healerGuid)
 {
 	auto it = m_incomingHeals.find(guid);
 	if (it == m_incomingHeals.end())
 		return 0;
 
-	uint32_t now = GetTickCount();
-	uint32_t total = 0;
+	uint32 now = GetTickCount();
+	uint32 total = 0;
 	std::vector<IncomingHeal>& heals = it->second;
 	for (auto heal = heals.begin(); heal != heals.end();)
 	{
-		if (static_cast<int32_t>(now - heal->expiresMs) >= 0)
+		if (static_cast<int32>(now - heal->expiresMs) >= 0)
 		{
 			heal = heals.erase(heal);
 			continue;
@@ -125,7 +127,7 @@ uint32_t UnitHealthPrediction::GetIncomingHeals(uint64_t guid, uint64_t healerGu
 	return total;
 }
 
-void UnitHealthPrediction::SignalUnitEvent(const char* eventName, uint64_t guid)
+void UnitHealthPrediction::SignalUnitEvent(const char* eventName, uint64 guid)
 {
 	int count = 0;
 	const char** tokens = Script_GetTokensFromGUID(&guid, &count);
@@ -136,7 +138,7 @@ void UnitHealthPrediction::SignalUnitEvent(const char* eventName, uint64_t guid)
 		FrameXMLExtensions::SignalEvent(eventName, "%s", tokens[i]);
 }
 
-void UnitHealthPrediction::OnAuraValuesReceived(uint64_t guid, uint32_t spellId)
+void UnitHealthPrediction::OnAuraValuesReceived(uint64 guid, uint32 spellId)
 {
 	const AbsorbEffects& effects = EffectsFor(spellId);
 	if (effects.absorbMask)
@@ -145,14 +147,14 @@ void UnitHealthPrediction::OnAuraValuesReceived(uint64_t guid, uint32_t spellId)
 		SignalUnitEvent("UNIT_HEAL_ABSORB_AMOUNT_CHANGED", guid);
 }
 
-void UnitHealthPrediction::Handler_SMSG_UNIT_HEAL_PREDICTION(void*, uint32_t, uint32_t, CDataStore* pkt)
+void UnitHealthPrediction::Handler_SMSG_UNIT_HEAL_PREDICTION(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint64_t caster = r.GetUInt64();
-	uint64_t target = r.GetUInt64();
-	uint32_t spellId = r.GetUInt32();
-	int32_t amount = r.GetInt32();
-	uint32_t remainingCastMs = r.GetUInt32();
+	uint64 caster = r.GetUInt64();
+	uint64 target = r.GetUInt64();
+	uint32 spellId = r.GetUInt32();
+	int32 amount = r.GetInt32();
+	uint32 remainingCastMs = r.GetUInt32();
 
 	if (!caster || !target)
 		return;
@@ -172,7 +174,7 @@ void UnitHealthPrediction::Handler_SMSG_UNIT_HEAL_PREDICTION(void*, uint32_t, ui
 		IncomingHeal heal;
 		heal.caster = caster;
 		heal.spellId = spellId;
-		heal.amount = static_cast<uint32_t>(amount);
+		heal.amount = static_cast<uint32>(amount);
 		heal.expiresMs = GetTickCount() + remainingCastMs + kIncomingHealGraceMs;
 		heals.push_back(heal);
 	}
@@ -183,7 +185,7 @@ void UnitHealthPrediction::Handler_SMSG_UNIT_HEAL_PREDICTION(void*, uint32_t, ui
 	SignalUnitEvent("UNIT_HEAL_PREDICTION", target);
 }
 
-static bool ResolveUnitToken(lua_State* L, int index, uint64_t& guid)
+static bool ResolveUnitToken(lua_State* L, int index, uint64& guid)
 {
 	guid = 0;
 	if (FrameScript::GetTop(L) < index)
@@ -199,7 +201,7 @@ static bool ResolveUnitToken(lua_State* L, int index, uint64_t& guid)
 
 int UnitHealthPrediction::Script_UnitGetTotalAbsorbs(lua_State* L)
 {
-	uint64_t guid = 0;
+	uint64 guid = 0;
 	if (!ResolveUnitToken(L, 1, guid))
 	{
 		FrameScript::PushNil(L);
@@ -212,7 +214,7 @@ int UnitHealthPrediction::Script_UnitGetTotalAbsorbs(lua_State* L)
 
 int UnitHealthPrediction::Script_UnitGetTotalHealAbsorbs(lua_State* L)
 {
-	uint64_t guid = 0;
+	uint64 guid = 0;
 	if (!ResolveUnitToken(L, 1, guid))
 	{
 		FrameScript::PushNil(L);
@@ -225,14 +227,14 @@ int UnitHealthPrediction::Script_UnitGetTotalHealAbsorbs(lua_State* L)
 
 int UnitHealthPrediction::Script_UnitGetIncomingHeals(lua_State* L)
 {
-	uint64_t guid = 0;
+	uint64 guid = 0;
 	if (!ResolveUnitToken(L, 1, guid))
 	{
 		FrameScript::PushNil(L);
 		return 1;
 	}
 
-	uint64_t healerGuid = 0;
+	uint64 healerGuid = 0;
 	if (FrameScript::GetTop(L) >= 2 && !ResolveUnitToken(L, 2, healerGuid))
 	{
 		FrameScript::PushNumber(L, 0);

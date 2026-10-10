@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Editor/Map/Adt/AdtStore.h>
 
 #include <Editor/Map/Adt/AdtDocument.h>
@@ -14,7 +15,7 @@ namespace MapEditor::Adt
 			return mapName && *mapName ? mapName : "";
 		}
 
-		bool WriteWholeFile(fs::path const& path, uint8_t const* data, size_t size,
+		bool WriteWholeFile(fs::path const& path, uint8 const* data, size_t size,
 		    std::string& error)
 		{
 			std::error_code ec;
@@ -40,7 +41,7 @@ namespace MapEditor::Adt
 			return true;
 		}
 
-		bool ReadWholeFile(fs::path const& path, std::vector<uint8_t>& out, std::string& error)
+		bool ReadWholeFile(fs::path const& path, std::vector<uint8>& out, std::string& error)
 		{
 			std::ifstream in(path, std::ios::binary | std::ios::ate);
 			if (!in)
@@ -71,7 +72,7 @@ namespace MapEditor::Adt
 		}
 	}
 
-	fs::path DiskTilePath(char const* mapName, int32_t tileX, int32_t tileY)
+	fs::path DiskTilePath(char const* mapName, int32 tileX, int32 tileY)
 	{
 		char leaf[128];
 		std::snprintf(leaf, sizeof(leaf), "%s_%d_%d.adt", Name(mapName), tileX, tileY);
@@ -79,15 +80,15 @@ namespace MapEditor::Adt
 		return Util::GetExeDir() / "World" / "Maps" / Name(mapName) / leaf;
 	}
 
-	fs::path BackupTilePath(char const* mapName, int32_t tileX, int32_t tileY)
+	fs::path BackupTilePath(char const* mapName, int32 tileX, int32 tileY)
 	{
 		fs::path path = DiskTilePath(mapName, tileX, tileY);
 		path += ".bak";
 		return path;
 	}
 
-	bool SaveTile(char const* mapName, int32_t tileX, int32_t tileY,
-	    std::vector<uint8_t> const& bytes, std::string& error)
+	bool SaveTile(char const* mapName, int32 tileX, int32 tileY,
+	    std::vector<uint8> const& bytes, std::string& error)
 	{
 		if (bytes.empty())
 		{
@@ -103,7 +104,7 @@ namespace MapEditor::Adt
 			// Read through SFile rather than off disk so the backup captures the tile as the
 			// client currently sees it, whether that is a loose override or the MPQ copy.
 			std::string archivePath = TilePath(mapName, tileX, tileY);
-			std::vector<uint8_t> pristine;
+			std::vector<uint8> pristine;
 			if (!ReadFileBytes(archivePath.c_str(), pristine, error))
 			{
 				error = "no backup taken, refusing to save (" + error + ")";
@@ -118,7 +119,7 @@ namespace MapEditor::Adt
 		    error);
 	}
 
-	bool RestoreTile(char const* mapName, int32_t tileX, int32_t tileY, std::string& error)
+	bool RestoreTile(char const* mapName, int32 tileX, int32 tileY, std::string& error)
 	{
 		fs::path backup = BackupTilePath(mapName, tileX, tileY);
 
@@ -129,7 +130,7 @@ namespace MapEditor::Adt
 			return false;
 		}
 
-		std::vector<uint8_t> pristine;
+		std::vector<uint8> pristine;
 		if (!ReadWholeFile(backup, pristine, error))
 			return false;
 

@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "ItemGenPackets.h"
 #include "Packet.h"
 #include <CustomPacket.h>
@@ -14,7 +15,7 @@ ItemGenPackets& ItemGenPackets::Instance()
 // SMSG_ITEMGEN_STAT_GROUPS: UInt32 count, then per group Int32 id, CString name, UInt32 mask,
 // UInt32 flags, UInt32 weight, Int32 trinketGroup. Then UInt32 maskCount and per bit
 // UInt32 bit, CString name.
-void ItemGenPackets::Handler_SMSG_ITEMGEN_STAT_GROUPS(void*, uint32_t, uint32_t, CDataStore* pkt)
+void ItemGenPackets::Handler_SMSG_ITEMGEN_STAT_GROUPS(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	char buffer[128];
@@ -23,9 +24,9 @@ void ItemGenPackets::Handler_SMSG_ITEMGEN_STAT_GROUPS(void*, uint32_t, uint32_t,
 	self.m_groups.clear();
 	self.m_maskBits.clear();
 
-	uint32_t count = r.GetUInt32();
+	uint32 count = r.GetUInt32();
 	self.m_groups.reserve(count);
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
 		StatGroupEntry entry;
 		entry.id = r.GetInt32();
@@ -38,9 +39,9 @@ void ItemGenPackets::Handler_SMSG_ITEMGEN_STAT_GROUPS(void*, uint32_t, uint32_t,
 		self.m_groups.push_back(entry);
 	}
 
-	uint32_t maskCount = r.GetUInt32();
+	uint32 maskCount = r.GetUInt32();
 	self.m_maskBits.reserve(maskCount);
-	for (uint32_t i = 0; i < maskCount; ++i)
+	for (uint32 i = 0; i < maskCount; ++i)
 	{
 		StatGroupMaskEntry entry;
 		entry.bit = r.GetUInt32();
@@ -53,7 +54,7 @@ void ItemGenPackets::Handler_SMSG_ITEMGEN_STAT_GROUPS(void*, uint32_t, uint32_t,
 	FrameXMLExtensions::SignalEvent("HOT_STAT_GROUPS", "");
 }
 
-void ItemGenPackets::Handler_SMSG_ITEMGEN_LEGENDARIES(void*, uint32_t, uint32_t, CDataStore* pkt)
+void ItemGenPackets::Handler_SMSG_ITEMGEN_LEGENDARIES(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	char buffer[256];
@@ -61,9 +62,9 @@ void ItemGenPackets::Handler_SMSG_ITEMGEN_LEGENDARIES(void*, uint32_t, uint32_t,
 	ItemGenPackets& self = Instance();
 	self.m_legendaries.clear();
 
-	uint32_t count = r.GetUInt32();
+	uint32 count = r.GetUInt32();
 	self.m_legendaries.reserve(count);
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
 		LegendaryEntry entry;
 		entry.id = r.GetUInt32();
@@ -88,7 +89,7 @@ void ItemGenPackets::Handler_SMSG_ITEMGEN_LEGENDARIES(void*, uint32_t, uint32_t,
 	FrameXMLExtensions::SignalEvent("HOT_LEGENDARIES", "");
 }
 
-void ItemGenPackets::Handler_SMSG_ITEMGEN_UNIQUES(void*, uint32_t, uint32_t, CDataStore* pkt)
+void ItemGenPackets::Handler_SMSG_ITEMGEN_UNIQUES(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	char buffer[1024];
@@ -96,9 +97,9 @@ void ItemGenPackets::Handler_SMSG_ITEMGEN_UNIQUES(void*, uint32_t, uint32_t, CDa
 	ItemGenPackets& self = Instance();
 	self.m_uniques.clear();
 
-	uint32_t count = r.GetUInt32();
+	uint32 count = r.GetUInt32();
 	self.m_uniques.reserve(count);
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
 		UniqueEntry entry;
 		entry.id = r.GetUInt32();
@@ -139,7 +140,7 @@ int ItemGenPackets::GetStatGroupCount(lua_State* L)
 int ItemGenPackets::GetStatGroupInfo(lua_State* L)
 {
 	ItemGenPackets& self = Instance();
-	uint32_t index = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 index = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	if (!self.m_hasData || index < 1 || index > self.m_groups.size())
 	{
 		FrameScript::PushNil(L);
@@ -167,7 +168,7 @@ int ItemGenPackets::GetStatGroupMaskCount(lua_State* L)
 int ItemGenPackets::GetStatGroupMaskInfo(lua_State* L)
 {
 	ItemGenPackets& self = Instance();
-	uint32_t index = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 index = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	if (!self.m_hasData || index < 1 || index > self.m_maskBits.size())
 	{
 		FrameScript::PushNil(L);
@@ -196,7 +197,7 @@ int ItemGenPackets::GetLegendaryCount(lua_State* L)
 int ItemGenPackets::GetLegendaryInfo(lua_State* L)
 {
 	ItemGenPackets& self = Instance();
-	uint32_t index = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 index = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	if (!self.m_hasLegendaries || index < 1 || index > self.m_legendaries.size())
 	{
 		FrameScript::PushNil(L);
@@ -236,7 +237,7 @@ int ItemGenPackets::GetUniqueItemCount(lua_State* L)
 int ItemGenPackets::GetUniqueItemInfo(lua_State* L)
 {
 	ItemGenPackets& self = Instance();
-	uint32_t index = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 index = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	if (!self.m_hasUniques || index < 1 || index > self.m_uniques.size())
 	{
 		FrameScript::PushNil(L);

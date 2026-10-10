@@ -1,16 +1,15 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <ClientData/ClientFunctions.h>
-#include <ClientData/Object.h>
 #include <ClientData/ObjectFields.h>
-#include <ClientData/ObjectManager.h>
+#include <ClientData/WowObjects.h>
 
 #include <cstdint>
 
 namespace ClientData::Containers
 {
-	constexpr uint32_t kContainerFieldNumSlots = 64;
-	constexpr uint32_t kPlayerBackpackOffset = 0x18F0;
 	constexpr int kBackpackFirstIndex = 23;
 	constexpr int kBackpackLastIndex = 38;
 	constexpr int kBankFirstIndex = 39;
@@ -19,33 +18,25 @@ namespace ClientData::Containers
 	constexpr int kKeyringLastIndex = 117;
 	constexpr int kMaxEquippedBags = 4;
 	constexpr int kMaxContainers = 10;
-	constexpr uint32_t kBagVTableSlot = 10;
-	constexpr uint32_t kItemLockFlagOffset = 0x394;
 
 	inline bool IsItemLocked(void* item)
 	{
-		return (*reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(item) + kItemLockFlagOffset) & 1) != 0;
+		return WowItem(item).IsLocked();
 	}
 
 	inline void* GetBackpack()
 	{
-		CGObject_C* player = ObjectManager::GetActivePlayerObject();
-		if (!player)
-			return nullptr;
-
-		return reinterpret_cast<uint8_t*>(player) + kPlayerBackpackOffset;
+		return WowPlayer::Active().Backpack();
 	}
 
 	inline void* GetBag(CGObject_C* container)
 	{
-		typedef void*(__fastcall * GetBagFn)(void* self, void* edx);
-		void** vtable = *reinterpret_cast<void***>(container);
-		return reinterpret_cast<GetBagFn>(vtable[kBagVTableSlot])(container, nullptr);
+		return WowContainer(container).Bag();
 	}
 
-	inline uint32_t GetNumSlots(CGObject_C* container)
+	inline uint32 GetNumSlots(CGObject_C* container)
 	{
-		return container->GetValue<uint32_t>(kContainerFieldNumSlots);
+		return WowContainer(container).NumSlots();
 	}
 
 	inline void* GetLuaContainerItem(int luaBag, int luaSlot)
@@ -88,22 +79,23 @@ namespace ClientData::Containers
 			if (luaBag > kMaxContainers)
 				return nullptr;
 
-			uint64_t bagGuid = CGContainerInfo::GetContainer(luaBag - 1);
-			if (!bagGuid)
+			WowContainer bag = WowContainer::FromGuid(CGContainerInfo::GetContainer(luaBag - 1));
+			if (!bag || index >= static_cast<int>(bag.NumSlots()))
 				return nullptr;
 
-			CGObject_C* bagObject = ObjectManager::ObjectPtr(bagGuid, TYPEMASK_CONTAINER);
-			if (!bagObject)
-				return nullptr;
-
-			if (index >= static_cast<int>(GetNumSlots(bagObject)))
-				return nullptr;
-
-			container = GetBag(bagObject);
+			container = bag.Bag();
 			if (!container)
 				return nullptr;
 		}
 
 		return CGBag_C::GetItemPointer(container, index);
+	}
+}
+
+namespace ClientData
+{
+	inline WowItem WowItem::FromBagSlot(int luaBag, int luaSlot)
+	{
+		return WowItem(Containers::GetLuaContainerItem(luaBag, luaSlot));
 	}
 }

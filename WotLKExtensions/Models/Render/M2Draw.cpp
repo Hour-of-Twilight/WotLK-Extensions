@@ -22,6 +22,7 @@
 // 0x008203B0 (the M2 batch draw) likewise carries exactly one detour, so the wide-index draw scope
 // (Models/Client/WideIndices.cpp) rides this file's detour instead of installing its own.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 #include "Models/Client/WideIndices.h"
 #include "Models/Compat/LiveM2.h"
@@ -166,7 +167,7 @@ namespace
 	 * @param emitter  ribbon emitter holding the texture handle array.
 	 * @return true when both layers resolved and bound.
 	 */
-	bool BindRibbonExtraSamplers(void* gxDev, const uint8_t* emitter)
+	bool BindRibbonExtraSamplers(void* gxDev, const uint8* emitter)
 	{
 		const void* const* arr = reinterpret_cast<const m2off::RibbonEmitter*>(emitter)->texHandles;
 		if (!arr)
@@ -198,17 +199,17 @@ namespace
 	{
 		g_ribbonModern = false;
 
-		uint8_t* emitter = static_cast<uint8_t*>(self);
+		uint8* emitter = static_cast<uint8*>(self);
 		bool bridged = false;
-		uint32_t savedLayers = 0;
-		uint32_t* layerCountPtr = nullptr;
+		uint32 savedLayers = 0;
+		uint32* layerCountPtr = nullptr;
 
 		if (emitter)
 		{
 			__try
 			{
 				layerCountPtr = &reinterpret_cast<m2off::RibbonEmitter*>(emitter)->layerCount;
-				uint32_t layers = *layerCountPtr;
+				uint32 layers = *layerCountPtr;
 
 				bool useMulti = false;
 				ModernM2::Live::OnRibbonDraw(layers, &useMulti);

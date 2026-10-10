@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include "SharedDefines.h"
 
 #include <cstdint>
@@ -10,14 +12,14 @@
 // only cares about the player can ignore all of them, they are here for the ones that do not.
 struct FormulaContext
 {
-	uint32_t opcode;
+	uint32 opcode;
 	float* valueStack;
-	SpellRow* spell;     // the spell being described, already retargeted by a $<spellid> prefix
-	int32_t spellLevel;  // caster level the description is being rendered at
-	int32_t pointsScale; // multiplier the parser folds into $m/$M/$s/$o
-	int32_t parseUnit;   // resolve against the inspect target rather than the player
-	int32_t parsePet;    // resolve against the active pet rather than the player
-	int32_t onlyOneOnAura;
+	SpellRow* spell;   // the spell being described, already retargeted by a $<spellid> prefix
+	int32 spellLevel;  // caster level the description is being rendered at
+	int32 pointsScale; // multiplier the parser folds into $m/$M/$s/$o
+	int32 parseUnit;   // resolve against the inspect target rather than the player
+	int32 parsePet;    // resolve against the active pet rather than the player
+	int32 onlyOneOnAura;
 };
 
 // Adds and replaces ${} variables in spell descriptions.
@@ -54,7 +56,7 @@ private:
 	void RegisterBuiltins();
 
 	std::vector<std::string> m_names; // backing storage for the names we appended
-	uint32_t m_count = 0;
+	uint32 m_count = 0;
 	bool m_captured = false;
 	bool m_applied = false;
 };

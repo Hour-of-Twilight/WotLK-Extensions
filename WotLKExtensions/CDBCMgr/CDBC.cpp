@@ -1,8 +1,9 @@
+#include <Defines.h>
 #include "CDBC.h"
 
 CDBC* CDBC::LoadDB(const char* name, bool optional)
 {
-	uint32_t Buffer = 0;
+	uint32 Buffer = 0;
 	void* FileBlock = 0;
 	int v26;
 	int v27;
@@ -58,6 +59,7 @@ CDBC* CDBC::LoadDB(const char* name, bool optional)
 		SErr::PrepareAppFatal(0x85100079, "Unable to read row data from %s", filePath);
 
 	this->stringTable = SMem::Alloc(len, filePath, -2, 0);
+	this->stringTableSize = len;
 
 	if (!SFile::ReadFile(FileBlock, this->stringTable, len, 0, 0, 0))
 		SErr::PrepareAppFatal(0x85100086, "%s: Cannot read string table", filePath);
@@ -79,6 +81,7 @@ void CDBC::UnloadDB()
 	// TODO: expose the CDBC() constructor to wipe here?
 	this->rows = 0;
 	this->stringTable = 0;
+	this->stringTableSize = 0;
 	this->numRows = 0;
 	this->minIndex = 0;
 	this->maxIndex = 0;

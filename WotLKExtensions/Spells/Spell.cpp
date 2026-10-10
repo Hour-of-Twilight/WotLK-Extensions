@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "Spell.h"
 #include "SharedDefines.h"
 #include <string>
@@ -7,24 +8,20 @@
 #include <ClientData/ClientFunctions.h>
 #include <ClientData/GameEnums.h>
 #include <ClientData/ObjectManager.h>
+#include <ClientData/WowObjects.h>
 #include "../CDBCMgr/CDBCDefs/SpellCustomAttr.h"
 
 namespace
 {
-	constexpr uint32_t kPlayerBackpackOffset = 0x18F0;
-	constexpr int kMainhandEquipmentSlot = 15;
-	constexpr int kOffhandEquipmentSlot = 16;
-	constexpr uint32_t kSpellFailedEquippedItemClassMainhand = 30;
-	constexpr uint32_t kSpellFailedEquippedItemClassOffhand = 31;
 	constexpr uintptr_t kTooltipColorWhite = 0x00AD2D30;
 	constexpr uintptr_t kTooltipColorRed = 0x00AD2D34;
-	constexpr uint32_t kMeleeWeaponSubclassMask =
-		(1u << ClientData::ITEM_SUBCLASS_WEAPON_AXE) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_AXE2) |
-		(1u << ClientData::ITEM_SUBCLASS_WEAPON_MACE) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_MACE2) |
-		(1u << ClientData::ITEM_SUBCLASS_WEAPON_POLEARM) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_SWORD) |
-		(1u << ClientData::ITEM_SUBCLASS_WEAPON_SWORD2) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_STAFF) |
-		(1u << ClientData::ITEM_SUBCLASS_WEAPON_FIST) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_DAGGER) |
-		(1u << ClientData::ITEM_SUBCLASS_WEAPON_SPEAR);
+	constexpr uint32 kMeleeWeaponSubclassMask =
+	    (1u << ClientData::ITEM_SUBCLASS_WEAPON_AXE) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_AXE2) |
+	    (1u << ClientData::ITEM_SUBCLASS_WEAPON_MACE) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_MACE2) |
+	    (1u << ClientData::ITEM_SUBCLASS_WEAPON_POLEARM) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_SWORD) |
+	    (1u << ClientData::ITEM_SUBCLASS_WEAPON_SWORD2) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_STAFF) |
+	    (1u << ClientData::ITEM_SUBCLASS_WEAPON_FIST) | (1u << ClientData::ITEM_SUBCLASS_WEAPON_DAGGER) |
+	    (1u << ClientData::ITEM_SUBCLASS_WEAPON_SPEAR);
 }
 
 static bool __cdecl SpellIgnoresMovementGate(SpellRow* spell)
@@ -39,18 +36,18 @@ bool Spells::RelaxEquippedItemRequirements(SpellRow* spell)
 	if (!spell)
 		return false;
 
-	int32_t itemClass = (int32_t)spell->m_equippedItemClass;
+	int32 itemClass = (int32)spell->m_equippedItemClass;
 	bool hasRequirement = itemClass >= 0 && itemClass < 32 && spell->m_equippedItemSubclass != 0;
 
 	// these pin the check to a single equipment slot rather than scanning all of them, and the
 	// client enforces them on their own, so waiving the weapon class has to drop them too
-	uint32_t attr0Slot = spell->m_attributes & SPELL_ATTR0_REQ_AMMO;
-	uint32_t attr3Slot = spell->m_attributesExC & (SPELL_ATTR3_MAIN_HAND | SPELL_ATTR3_REQ_OFFHAND);
+	uint32 attr0Slot = spell->m_attributes & SPELL_ATTR0_REQ_AMMO;
+	uint32 attr3Slot = spell->m_attributesExC & (SPELL_ATTR3_MAIN_HAND | SPELL_ATTR3_REQ_OFFHAND);
 
 	if (!hasRequirement && !attr0Slot && !attr3Slot)
 		return false;
 
-	uint32_t weaponClassMod = sPlayer.GetSpellModMask(spell, SPELLMOD_IGNORE_WEAPON_ITEM_CLASS);
+	uint32 weaponClassMod = sPlayer.GetSpellModMask(spell, SPELLMOD_IGNORE_WEAPON_ITEM_CLASS);
 	if (!(weaponClassMod & (1u << ITEM_CLASS_WEAPON)))
 	{
 		attr0Slot = 0;
@@ -58,8 +55,8 @@ bool Spells::RelaxEquippedItemRequirements(SpellRow* spell)
 	}
 
 	bool ignoreClass = false;
-	uint32_t ignoreSubclass = 0;
-	uint32_t ignoreInvType = 0;
+	uint32 ignoreSubclass = 0;
+	uint32 ignoreInvType = 0;
 	if (hasRequirement)
 	{
 		if (itemClass == ITEM_CLASS_WEAPON)
@@ -79,7 +76,7 @@ bool Spells::RelaxEquippedItemRequirements(SpellRow* spell)
 		return false;
 
 	if (ignoreClass)
-		spell->m_equippedItemClass = (uint32_t)-1;
+		spell->m_equippedItemClass = (uint32)-1;
 	spell->m_equippedItemSubclass &= ~ignoreSubclass;
 	spell->m_equippedItemInvTypes &= ~ignoreInvType;
 	spell->m_attributes &= ~attr0Slot;
@@ -95,21 +92,21 @@ bool Spells::ApplyPowerTypeMod(SpellRow* spell)
 	if (!spell)
 		return false;
 
-	int32_t powerType = 0;
-	if (!sPlayer.GetSpellPowerType(spell, powerType) || (uint32_t)powerType == spell->m_powerType)
+	int32 powerType = 0;
+	if (!sPlayer.GetSpellPowerType(spell, powerType) || (uint32)powerType == spell->m_powerType)
 		return false;
 
-	spell->m_powerType = (uint32_t)powerType;
+	spell->m_powerType = (uint32)powerType;
 	return true;
 }
 
-uint32_t Spells::GetCustomAttributes(uint32_t spellId)
+uint32 Spells::GetCustomAttributes(uint32 spellId)
 {
 	auto* row = GlobalCDBCMap.getRow<SpellCustomAttrRow>("SpellCustomAttr", spellId);
 	return row ? row->attributes : 0;
 }
 
-uint32_t Spells::GetCustomAttributes2(uint32_t spellId)
+uint32 Spells::GetCustomAttributes2(uint32 spellId)
 {
 	auto* row = GlobalCDBCMap.getRow<SpellCustomAttrRow>("SpellCustomAttr", spellId);
 	return row ? row->attributes2 : 0;
@@ -117,37 +114,36 @@ uint32_t Spells::GetCustomAttributes2(uint32_t spellId)
 
 static bool IsWeaponEquipped(int slot)
 {
-	CGObject_C* player = ClientData::ObjectManager::GetActivePlayerObject();
+	ClientData::WowPlayer player = ClientData::WowPlayer::Active();
 	if (!player)
 		return false;
 
-	void* backpack = reinterpret_cast<uint8_t*>(player) + kPlayerBackpackOffset;
-	void* item = CGBag_C::GetItemPointer(backpack, slot);
-	return item && CGItem_C::GetClassID(item) == ClientData::ITEM_CLASS_WEAPON;
+	ClientData::WowItem item(CGBag_C::GetItemPointer(player.Backpack(), slot));
+	return item.ClassId() == ClientData::ITEM_CLASS_WEAPON;
 }
 
 bool Spells::IsDualWielding()
 {
-	return IsWeaponEquipped(kMainhandEquipmentSlot) && IsWeaponEquipped(kOffhandEquipmentSlot);
+	return IsWeaponEquipped(ClientData::EQUIPMENT_SLOT_MAINHAND) && IsWeaponEquipped(ClientData::EQUIPMENT_SLOT_OFFHAND);
 }
 
-bool Spells::MeetsCustomAttributeRequirements(SpellRow* spell, int32_t reportError, void* spellCast)
+bool Spells::MeetsCustomAttributeRequirements(SpellRow* spell, int32 reportError, void* spellCast)
 {
 	if (!spell || !(GetCustomAttributes(spell->m_ID) & SPELL_ATTR0_CU_REQ_DUAL_WIELD))
 		return true;
 
-	bool mainhand = IsWeaponEquipped(kMainhandEquipmentSlot);
-	if (mainhand && IsWeaponEquipped(kOffhandEquipmentSlot))
+	bool mainhand = IsWeaponEquipped(ClientData::EQUIPMENT_SLOT_MAINHAND);
+	if (mainhand && IsWeaponEquipped(ClientData::EQUIPMENT_SLOT_OFFHAND))
 		return true;
 
 	if (reportError)
 	{
-		int32_t subclassMask = static_cast<int32_t>(kMeleeWeaponSubclassMask);
+		int32 subclassMask = static_cast<int32>(kMeleeWeaponSubclassMask);
 		if (spell->m_equippedItemClass == ClientData::ITEM_CLASS_WEAPON && spell->m_equippedItemSubclass)
-			subclassMask = static_cast<int32_t>(spell->m_equippedItemSubclass);
+			subclassMask = static_cast<int32>(spell->m_equippedItemSubclass);
 
-		Spell_C::SpellFailed(spellCast, spell, mainhand ? kSpellFailedEquippedItemClassOffhand : kSpellFailedEquippedItemClassMainhand,
-			ClientData::ITEM_CLASS_WEAPON, subclassMask, 0);
+		Spell_C::SpellFailed(spellCast, spell, mainhand ? ClientData::SPELL_FAILED_EQUIPPED_ITEM_CLASS_OFFHAND : ClientData::SPELL_FAILED_EQUIPPED_ITEM_CLASS_MAINHAND,
+		    ClientData::ITEM_CLASS_WEAPON, subclassMask, 0);
 	}
 	return false;
 }
@@ -158,9 +154,9 @@ static void __cdecl RelaxStackSpellRow(SpellRow* spell)
 }
 
 // the cast handlers run for everyone's spells, and the mods we hold only describe our own
-static void __cdecl PatchStackSpellRowPowerType(SpellRow* spell, uint32_t guidLow, uint32_t guidHigh)
+static void __cdecl PatchStackSpellRowPowerType(SpellRow* spell, uint32 guidLow, uint32 guidHigh)
 {
-	uint64_t caster = ((uint64_t)guidHigh << 32) | guidLow;
+	uint64 caster = ((uint64)guidHigh << 32) | guidLow;
 	if (caster != ClntObjMgr::GetActivePlayer())
 		return;
 
@@ -325,12 +321,12 @@ __declspec(naked) void CGUnit_C__MovementGate()
 // jmp rel32 to hook, nops out to len so nothing lands mid instruction
 static void WriteJumpPatch(uintptr_t at, void* hook, size_t len)
 {
-	uint8_t patch[16];
-	int32_t rel = static_cast<int32_t>(reinterpret_cast<uintptr_t>(hook) - (at + 5));
+	uint8 patch[16];
+	int32 rel = static_cast<int32>(reinterpret_cast<uintptr_t>(hook) - (at + 5));
 	patch[0] = 0xE9;
 	std::memcpy(&patch[1], &rel, sizeof(rel));
 	std::memset(&patch[5], 0x90, len - 5);
-	Util::OverwriteBytesAtAddress(static_cast<uint32_t>(at), patch, len);
+	Util::OverwriteBytesAtAddress(static_cast<uint32>(at), patch, len);
 }
 
 void Spells::Apply()

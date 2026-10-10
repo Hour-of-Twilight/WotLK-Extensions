@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <Macros.h>
 
 #include <Windows.h>
@@ -8,12 +10,12 @@ namespace fs = std::filesystem;
 class Util
 {
 public:
-	static void SetByteAtAddress(void* address, uint8_t byte);
-	static void OverwriteBytesAtAddress(uint32_t address, uint8_t byteArray[], size_t arraySize);
-	static void OverwriteBytesAtAddress(void* address, uint8_t byte, size_t numRepeats);
-	static void OverwriteUInt32AtAddress(uint32_t address, uint32_t newVal);
+	static void SetByteAtAddress(void* address, uint8 byte);
+	static void OverwriteBytesAtAddress(uint32 address, uint8 byteArray[], size_t arraySize);
+	static void OverwriteBytesAtAddress(void* address, uint8 byte, size_t numRepeats);
+	static void OverwriteUInt32AtAddress(uint32 address, uint32 newVal);
 	template <typename T>
-	static void OverwriteValue(uint32_t address, const T& value)
+	static void OverwriteValue(uint32 address, const T& value)
 	{
 		DWORD oldProtect;
 		void* ptr = reinterpret_cast<void*>(address);
@@ -23,7 +25,7 @@ public:
 	}
 
 	static void PercToScreenPos(float x, float y, float* resX, float* resY);
-	static uint32_t CalculateAddress(uint32_t address1, uint32_t address2, bool backwards = false);
+	static uint32 CalculateAddress(uint32 address1, uint32 address2, bool backwards = false);
 	static void SetDebugOutput(bool enabled);
 	static void DebugOutput(const char* fmt, ...);
 	static fs::path GetExeDir();

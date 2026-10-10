@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 namespace ClientData
@@ -25,14 +27,14 @@ namespace ClientData
 
 	struct CiRange
 	{
-		int32_t l;
-		int32_t h;
+		int32 l;
+		int32 h;
 	};
 
 	struct C2iVector
 	{
-		int32_t x;
-		int32_t y;
+		int32 x;
+		int32 y;
 	};
 
 	struct C4Vector
@@ -49,13 +51,13 @@ namespace ClientData
 		{
 			struct
 			{
-				uint8_t b;
-				uint8_t g;
-				uint8_t r;
-				uint8_t a;
+				uint8 b;
+				uint8 g;
+				uint8 r;
+				uint8 a;
 			};
 
-			uint32_t value;
+			uint32 value;
 		};
 	};
 
@@ -69,10 +71,10 @@ namespace ClientData
 
 	struct CiRect
 	{
-		int32_t minY;
-		int32_t minX;
-		int32_t maxY;
-		int32_t maxX;
+		int32 minY;
+		int32 minX;
+		int32 maxY;
+		int32 maxX;
 	};
 
 	struct CBoundingBox

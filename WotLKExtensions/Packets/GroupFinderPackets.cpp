@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "GroupFinderPackets.h"
 #include "Packet.h"
 #include <CustomPacket.h>
@@ -6,7 +7,7 @@
 #include <SharedDefines.h>
 
 // Long enough for the server side limits (title 63, comment 191) plus the terminator.
-static constexpr uint32_t GF_STRING_BUFFER = 256;
+static constexpr uint32 GF_STRING_BUFFER = 256;
 
 static const char* LuaOptString(lua_State* L, int index)
 {
@@ -17,12 +18,12 @@ static const char* LuaOptString(lua_State* L, int index)
 	return value ? value : "";
 }
 
-static uint32_t LuaOptNumber(lua_State* L, int index, uint32_t fallback = 0)
+static uint32 LuaOptNumber(lua_State* L, int index, uint32 fallback = 0)
 {
 	if (FrameScript::GetTop(L) < index || !FrameScript::IsNumber(L, index))
 		return fallback;
 
-	return static_cast<uint32_t>(FrameScript::GetNumber(L, index));
+	return static_cast<uint32>(FrameScript::GetNumber(L, index));
 }
 
 GroupFinderPackets& GroupFinderPackets::Instance()
@@ -31,7 +32,7 @@ GroupFinderPackets& GroupFinderPackets::Instance()
 	return instance;
 }
 
-const GroupFinderPackets::Activity* GroupFinderPackets::FindActivity(uint16_t activityId) const
+const GroupFinderPackets::Activity* GroupFinderPackets::FindActivity(uint16 activityId) const
 {
 	for (const Activity& activity : m_activities)
 		if (activity.id == activityId)
@@ -40,7 +41,7 @@ const GroupFinderPackets::Activity* GroupFinderPackets::FindActivity(uint16_t ac
 	return nullptr;
 }
 
-const GroupFinderPackets::SearchResult* GroupFinderPackets::FindSearchResult(uint32_t searchResultId) const
+const GroupFinderPackets::SearchResult* GroupFinderPackets::FindSearchResult(uint32 searchResultId) const
 {
 	for (const SearchResult& result : m_searchResults)
 		if (result.searchResultId == searchResultId)
@@ -49,7 +50,7 @@ const GroupFinderPackets::SearchResult* GroupFinderPackets::FindSearchResult(uin
 	return nullptr;
 }
 
-void GroupFinderPackets::SetApplicationStatus(uint32_t searchResultId, uint8_t status)
+void GroupFinderPackets::SetApplicationStatus(uint32 searchResultId, uint8 status)
 {
 	// Status 0 means the application is gone, so drop it rather than keeping a dead row.
 	for (size_t i = 0; i < m_applications.size(); ++i)
@@ -96,13 +97,13 @@ void GroupFinderPackets::ReadSearchResult(Packet& r, SearchResult& out)
 	out.numHealers = r.GetUInt8();
 	out.numDamage = r.GetUInt8();
 
-	uint8_t tallyCount = r.GetUInt8();
+	uint8 tallyCount = r.GetUInt8();
 	out.subClassTally.clear();
 	out.subClassTally.reserve(tallyCount);
-	for (uint8_t i = 0; i < tallyCount; ++i)
+	for (uint8 i = 0; i < tallyCount; ++i)
 	{
-		uint8_t subClass = r.GetUInt8();
-		uint8_t count = r.GetUInt8();
+		uint8 subClass = r.GetUInt8();
+		uint8 count = r.GetUInt8();
 		out.subClassTally.emplace_back(subClass, count);
 	}
 
@@ -121,10 +122,10 @@ void GroupFinderPackets::ReadApplicant(Packet& r, Applicant& out)
 	r.GetString(buffer, sizeof(buffer));
 	out.comment = buffer;
 
-	uint8_t memberCount = r.GetUInt8();
+	uint8 memberCount = r.GetUInt8();
 	out.members.clear();
 	out.members.reserve(memberCount);
-	for (uint8_t i = 0; i < memberCount; ++i)
+	for (uint8 i = 0; i < memberCount; ++i)
 	{
 		ApplicantMember member;
 		r.GetString(buffer, sizeof(buffer));
@@ -138,7 +139,7 @@ void GroupFinderPackets::ReadApplicant(Packet& r, Applicant& out)
 	}
 }
 
-void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVITY_CACHE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVITY_CACHE(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	char buffer[GF_STRING_BUFFER];
@@ -148,9 +149,9 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVITY_CACHE(void*, uint32_t, u
 	self.m_activityGroups.clear();
 	self.m_activities.clear();
 
-	uint32_t groupCount = r.GetUInt32();
+	uint32 groupCount = r.GetUInt32();
 	self.m_activityGroups.reserve(groupCount);
-	for (uint32_t i = 0; i < groupCount; ++i)
+	for (uint32 i = 0; i < groupCount; ++i)
 	{
 		ActivityGroup group;
 		group.id = r.GetUInt16();
@@ -161,9 +162,9 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVITY_CACHE(void*, uint32_t, u
 		self.m_activityGroups.push_back(std::move(group));
 	}
 
-	uint32_t activityCount = r.GetUInt32();
+	uint32 activityCount = r.GetUInt32();
 	self.m_activities.reserve(activityCount);
-	for (uint32_t i = 0; i < activityCount; ++i)
+	for (uint32 i = 0; i < activityCount; ++i)
 	{
 		Activity activity;
 		activity.id = r.GetUInt16();
@@ -187,7 +188,7 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVITY_CACHE(void*, uint32_t, u
 	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_ACTIVITIES_UPDATE", "");
 }
 
-void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVE_ENTRY(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVE_ENTRY(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	char buffer[GF_STRING_BUFFER];
@@ -218,22 +219,22 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_ACTIVE_ENTRY(void*, uint32_t, uin
 	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_ACTIVE_ENTRY_UPDATE", "");
 }
 
-void GroupFinderPackets::Handler_SMSG_LFG_LIST_ENTRY_RESULT(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GroupFinderPackets::Handler_SMSG_LFG_LIST_ENTRY_RESULT(void*, uint32, uint32, CDataStore* pkt)
 {
-	uint8_t result = Packet(pkt).GetUInt8();
-	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_ENTRY_RESULT", "%u", (uint32_t)result);
+	uint8 result = Packet(pkt).GetUInt8();
+	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_ENTRY_RESULT", "%u", (uint32)result);
 }
 
-void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULTS(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULTS(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 
 	GroupFinderPackets& self = Instance();
-	uint32_t count = r.GetUInt32();
+	uint32 count = r.GetUInt32();
 	self.m_searchResults.clear();
 	self.m_searchResults.reserve(count);
 
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
 		SearchResult result;
 		ReadSearchResult(r, result);
@@ -243,16 +244,16 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULTS(void*, uint32_t, u
 	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_SEARCH_RESULTS_RECEIVED", "%u", count);
 }
 
-void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULT_UPDATE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULT_UPDATE(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint8_t delisted = r.GetUInt8();
+	uint8 delisted = r.GetUInt8();
 
 	SearchResult result;
 	ReadSearchResult(r, result);
 
 	GroupFinderPackets& self = Instance();
-	uint32_t searchResultId = result.searchResultId;
+	uint32 searchResultId = result.searchResultId;
 
 	for (size_t i = 0; i < self.m_searchResults.size(); ++i)
 	{
@@ -265,7 +266,7 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULT_UPDATE(void*, uint3
 			self.m_searchResults[i] = std::move(result);
 
 		FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_SEARCH_RESULT_UPDATED",
-		    "%u%u", searchResultId, (uint32_t)delisted);
+		    "%u%u", searchResultId, (uint32)delisted);
 		return;
 	}
 
@@ -274,15 +275,15 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_SEARCH_RESULT_UPDATE(void*, uint3
 
 	self.m_searchResults.push_back(std::move(result));
 	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_SEARCH_RESULT_UPDATED",
-	    "%u%u", searchResultId, (uint32_t)0);
+	    "%u%u", searchResultId, (uint32)0);
 }
 
-void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICATION_UPDATE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICATION_UPDATE(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint32_t searchResultId = r.GetUInt32();
-	uint8_t status = r.GetUInt8();
-	uint8_t listingRemoved = r.GetUInt8();
+	uint32 searchResultId = r.GetUInt32();
+	uint8 status = r.GetUInt8();
+	uint8 listingRemoved = r.GetUInt8();
 
 	GroupFinderPackets& self = Instance();
 	self.SetApplicationStatus(searchResultId, status);
@@ -302,19 +303,19 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICATION_UPDATE(void*, uint32_
 	}
 
 	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_APPLICATION_STATUS_UPDATED",
-	    "%u%u%u", searchResultId, (uint32_t)status, (uint32_t)listingRemoved);
+	    "%u%u%u", searchResultId, (uint32)status, (uint32)listingRemoved);
 }
 
-void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICANT_LIST(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICANT_LIST(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 
 	GroupFinderPackets& self = Instance();
-	uint32_t count = r.GetUInt32();
+	uint32 count = r.GetUInt32();
 	self.m_applicants.clear();
 	self.m_applicants.reserve(count);
 
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
 		Applicant applicant;
 		ReadApplicant(r, applicant);
@@ -324,7 +325,7 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICANT_LIST(void*, uint32_t, u
 	FrameXMLExtensions::SignalEvent("HOT_LFG_LIST_APPLICANT_LIST_UPDATED", "%u", count);
 }
 
-void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICANT_UPDATE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICANT_UPDATE(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 
@@ -332,8 +333,8 @@ void GroupFinderPackets::Handler_SMSG_LFG_LIST_APPLICANT_UPDATE(void*, uint32_t,
 	ReadApplicant(r, applicant);
 
 	GroupFinderPackets& self = Instance();
-	uint32_t applicantId = applicant.applicantId;
-	uint32_t status = applicant.status;
+	uint32 applicantId = applicant.applicantId;
+	uint32 status = applicant.status;
 
 	bool found = false;
 	for (Applicant& existing : self.m_applicants)
@@ -380,7 +381,7 @@ int GroupFinderPackets::GetNumActivityGroups(lua_State* L)
 int GroupFinderPackets::GetActivityGroupInfo(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	uint32_t index = LuaOptNumber(L, 1);
+	uint32 index = LuaOptNumber(L, 1);
 
 	if (index == 0 || index > self.m_activityGroups.size())
 	{
@@ -406,7 +407,7 @@ int GroupFinderPackets::GetNumActivities(lua_State* L)
 int GroupFinderPackets::GetActivityInfo(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	uint32_t index = LuaOptNumber(L, 1);
+	uint32 index = LuaOptNumber(L, 1);
 
 	if (index == 0 || index > self.m_activities.size())
 	{
@@ -435,7 +436,7 @@ int GroupFinderPackets::GetActivityInfo(lua_State* L)
 int GroupFinderPackets::GetActivityInfoByID(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	const Activity* activity = self.FindActivity(static_cast<uint16_t>(LuaOptNumber(L, 1)));
+	const Activity* activity = self.FindActivity(static_cast<uint16>(LuaOptNumber(L, 1)));
 
 	if (!activity)
 	{
@@ -462,13 +463,13 @@ int GroupFinderPackets::GetActivityInfoByID(lua_State* L)
 // Our own listing
 // ---------------------------------------------------------------------------
 
-static void SendListing(lua_State* L, uint32_t opcode)
+static void SendListing(lua_State* L, uint32 opcode)
 {
-	uint16_t activityId = static_cast<uint16_t>(LuaOptNumber(L, 1));
+	uint16 activityId = static_cast<uint16>(LuaOptNumber(L, 1));
 	const char* title = LuaOptString(L, 2);
 	const char* comment = LuaOptString(L, 3);
-	uint16_t requiredItemLevel = static_cast<uint16_t>(LuaOptNumber(L, 4));
-	uint8_t autoAccept = FrameScript::ToBoolean(L, 5) ? 1 : 0;
+	uint16 requiredItemLevel = static_cast<uint16>(LuaOptNumber(L, 4));
+	uint8 autoAccept = FrameScript::ToBoolean(L, 5) ? 1 : 0;
 
 	Packet(opcode)
 	    .PutUInt16(activityId)
@@ -525,10 +526,10 @@ int GroupFinderPackets::GetActiveEntryInfo(lua_State* L)
 
 int GroupFinderPackets::Search(lua_State* L)
 {
-	uint8_t categoryId = static_cast<uint8_t>(LuaOptNumber(L, 1));
-	uint16_t activityId = static_cast<uint16_t>(LuaOptNumber(L, 2));
+	uint8 categoryId = static_cast<uint8>(LuaOptNumber(L, 1));
+	uint16 activityId = static_cast<uint16>(LuaOptNumber(L, 2));
 	const char* text = LuaOptString(L, 3);
-	uint8_t filterMask = static_cast<uint8_t>(LuaOptNumber(L, 4));
+	uint8 filterMask = static_cast<uint8>(LuaOptNumber(L, 4));
 
 	Packet(CMSG_LFG_LIST_SEARCH)
 	    .PutUInt8(categoryId)
@@ -550,7 +551,7 @@ int GroupFinderPackets::GetNumSearchResults(lua_State* L)
 int GroupFinderPackets::GetSearchResultInfo(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	uint32_t index = LuaOptNumber(L, 1);
+	uint32 index = LuaOptNumber(L, 1);
 
 	if (index == 0 || index > self.m_searchResults.size())
 	{
@@ -577,7 +578,7 @@ int GroupFinderPackets::GetSearchResultInfo(lua_State* L)
 int GroupFinderPackets::GetSearchResultMemberCounts(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	uint32_t index = LuaOptNumber(L, 1);
+	uint32 index = LuaOptNumber(L, 1);
 
 	if (index == 0 || index > self.m_searchResults.size())
 	{
@@ -597,7 +598,7 @@ int GroupFinderPackets::GetSearchResultMemberCounts(lua_State* L)
 int GroupFinderPackets::GetNumSearchResultSubClasses(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	uint32_t index = LuaOptNumber(L, 1);
+	uint32 index = LuaOptNumber(L, 1);
 
 	if (index == 0 || index > self.m_searchResults.size())
 	{
@@ -613,8 +614,8 @@ int GroupFinderPackets::GetNumSearchResultSubClasses(lua_State* L)
 int GroupFinderPackets::GetSearchResultSubClassInfo(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	uint32_t index = LuaOptNumber(L, 1);
-	uint32_t tallyIndex = LuaOptNumber(L, 2);
+	uint32 index = LuaOptNumber(L, 1);
+	uint32 tallyIndex = LuaOptNumber(L, 2);
 
 	if (index == 0 || index > self.m_searchResults.size())
 	{
@@ -640,9 +641,9 @@ int GroupFinderPackets::GetSearchResultSubClassInfo(lua_State* L)
 
 int GroupFinderPackets::ApplyToGroup(lua_State* L)
 {
-	uint32_t searchResultId = LuaOptNumber(L, 1);
+	uint32 searchResultId = LuaOptNumber(L, 1);
 	const char* comment = LuaOptString(L, 2);
-	uint8_t roleMask = static_cast<uint8_t>(LuaOptNumber(L, 3));
+	uint8 roleMask = static_cast<uint8>(LuaOptNumber(L, 3));
 
 	Packet(CMSG_LFG_LIST_APPLY)
 	    .PutUInt32(searchResultId)
@@ -661,7 +662,7 @@ int GroupFinderPackets::CancelApplication(lua_State* L)
 int GroupFinderPackets::GetApplicationStatus(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	uint32_t searchResultId = LuaOptNumber(L, 1);
+	uint32 searchResultId = LuaOptNumber(L, 1);
 
 	for (const Application& application : self.m_applications)
 	{
@@ -686,7 +687,7 @@ int GroupFinderPackets::GetNumApplications(lua_State* L)
 int GroupFinderPackets::GetApplicationInfo(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	uint32_t index = LuaOptNumber(L, 1);
+	uint32 index = LuaOptNumber(L, 1);
 
 	if (index == 0 || index > self.m_applications.size())
 	{
@@ -719,7 +720,7 @@ int GroupFinderPackets::GetNumApplicants(lua_State* L)
 int GroupFinderPackets::GetApplicantInfo(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	uint32_t index = LuaOptNumber(L, 1);
+	uint32 index = LuaOptNumber(L, 1);
 
 	if (index == 0 || index > self.m_applicants.size())
 	{
@@ -740,8 +741,8 @@ int GroupFinderPackets::GetApplicantInfo(lua_State* L)
 int GroupFinderPackets::GetApplicantMemberInfo(lua_State* L)
 {
 	GroupFinderPackets& self = Instance();
-	uint32_t index = LuaOptNumber(L, 1);
-	uint32_t memberIndex = LuaOptNumber(L, 2);
+	uint32 index = LuaOptNumber(L, 1);
+	uint32 memberIndex = LuaOptNumber(L, 2);
 
 	if (index == 0 || index > self.m_applicants.size())
 	{
@@ -770,16 +771,16 @@ int GroupFinderPackets::GetApplicantMemberInfo(lua_State* L)
 // in the order GetApplicantMemberInfo returns them. Omitted roles keep what they applied as.
 int GroupFinderPackets::InviteApplicant(lua_State* L)
 {
-	uint32_t applicantId = LuaOptNumber(L, 1);
+	uint32 applicantId = LuaOptNumber(L, 1);
 
 	int top = FrameScript::GetTop(L);
-	uint8_t roleCount = top > 1 ? static_cast<uint8_t>(top - 1) : 0;
+	uint8 roleCount = top > 1 ? static_cast<uint8>(top - 1) : 0;
 
 	Packet packet(CMSG_LFG_LIST_INVITE_APPLICANT);
 	packet.PutUInt32(applicantId);
 	packet.PutUInt8(roleCount);
-	for (uint8_t i = 0; i < roleCount; ++i)
-		packet.PutUInt8(static_cast<uint8_t>(LuaOptNumber(L, 2 + i)));
+	for (uint8 i = 0; i < roleCount; ++i)
+		packet.PutUInt8(static_cast<uint8>(LuaOptNumber(L, 2 + i)));
 
 	packet.Send();
 	return 0;

@@ -22,6 +22,7 @@
 // After this pass the body carries exactly one record shape, which is why the walk and every consumer
 // past it can use a single stride whatever era the model came from.
 
+#include <Defines.h>
 #include "Models/Load/M2NativeInternal.h"
 
 #include <cstdint>
@@ -39,10 +40,10 @@ namespace ModernM2::Reader::Detail
      * @return false when a record, or an array nested in one, does not fit the body -- the caller must
      *         treat that as a failed load, never as a partially normalized array.
      */
-    bool NormalizeRecords(uint8_t* base, uint32_t size, fmt::M2Header* h, NormalizeReport& report)
+    bool NormalizeRecords(uint8* base, uint32 size, fmt::M2Header* h, NormalizeReport& report)
     {
         const NormalizeCtx ctx{ base, size, h };
-        for (uint32_t e = 0; e < kRecordNormalizerCount; ++e)
+        for (uint32 e = 0; e < kRecordNormalizerCount; ++e)
         {
             const RecordNormalizer& entry = kRecordNormalizers[e];
             report.records[e] = 0;
@@ -56,9 +57,9 @@ namespace ModernM2::Reader::Detail
             if (!array.count || !array.offset) continue;
             if (!FitsInBody(size, array.offset, array.count, entry.sourceStride)) return false;
 
-            const uint8_t* src = base + array.offset;
-            uint8_t*       dst = base + array.offset;
-            for (uint32_t i = 0; i < array.count; ++i)
+            const uint8* src = base + array.offset;
+            uint8*       dst = base + array.offset;
+            for (uint32 i = 0; i < array.count; ++i)
             {
                 if (!entry.rewrite(ctx, src, dst)) return false;
                 src += entry.sourceStride;

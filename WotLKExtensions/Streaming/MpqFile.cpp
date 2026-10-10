@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "MpqFile.h"
 
 #include "ArchiveManifest.h"
@@ -15,76 +16,76 @@ namespace Streaming::MpqFile
 {
 	namespace
 	{
-		constexpr uint32_t kMagic = 0x1A51504D;
-		constexpr uint32_t kHashEmpty = 0xFFFFFFFF;
-		constexpr uint32_t kHashDeleted = 0xFFFFFFFE;
-		constexpr uint32_t kMaxHashTableSize = 0x80000;
+		constexpr uint32 kMagic = 0x1A51504D;
+		constexpr uint32 kHashEmpty = 0xFFFFFFFF;
+		constexpr uint32 kHashDeleted = 0xFFFFFFFE;
+		constexpr uint32 kMaxHashTableSize = 0x80000;
 		constexpr long long kHeaderScanLimit = 1 << 20;
 
-		constexpr uint32_t kFlagImplode = 0x00000100;
-		constexpr uint32_t kFlagCompress = 0x00000200;
-		constexpr uint32_t kFlagEncrypted = 0x00010000;
-		constexpr uint32_t kFlagFixKey = 0x00020000;
-		constexpr uint32_t kFlagPatch = 0x00100000;
-		constexpr uint32_t kFlagSingleUnit = 0x01000000;
-		constexpr uint32_t kFlagDeleteMarker = 0x02000000;
-		constexpr uint32_t kFlagSectorCrc = 0x04000000;
-		constexpr uint32_t kFlagExists = 0x80000000;
+		constexpr uint32 kFlagImplode = 0x00000100;
+		constexpr uint32 kFlagCompress = 0x00000200;
+		constexpr uint32 kFlagEncrypted = 0x00010000;
+		constexpr uint32 kFlagFixKey = 0x00020000;
+		constexpr uint32 kFlagPatch = 0x00100000;
+		constexpr uint32 kFlagSingleUnit = 0x01000000;
+		constexpr uint32 kFlagDeleteMarker = 0x02000000;
+		constexpr uint32 kFlagSectorCrc = 0x04000000;
+		constexpr uint32 kFlagExists = 0x80000000;
 
 #pragma pack(push, 1)
 		struct Header
 		{
-			uint32_t magic;
-			uint32_t headerSize;
-			uint32_t archiveSize;
-			uint16_t formatVersion;
-			uint16_t sectorShift;
-			uint32_t hashTablePos;
-			uint32_t blockTablePos;
-			uint32_t hashTableSize;
-			uint32_t blockTableSize;
+			uint32 magic;
+			uint32 headerSize;
+			uint32 archiveSize;
+			uint16 formatVersion;
+			uint16 sectorShift;
+			uint32 hashTablePos;
+			uint32 blockTablePos;
+			uint32 hashTableSize;
+			uint32 blockTableSize;
 		};
 
 		struct HeaderV2
 		{
-			uint64_t hiBlockTablePos;
-			uint16_t hashTableHi;
-			uint16_t blockTableHi;
+			uint64 hiBlockTablePos;
+			uint16 hashTableHi;
+			uint16 blockTableHi;
 		};
 
 		struct HashEntry
 		{
-			uint32_t name1;
-			uint32_t name2;
-			uint16_t locale;
-			uint16_t platform;
-			uint32_t blockIndex;
+			uint32 name1;
+			uint32 name2;
+			uint16 locale;
+			uint16 platform;
+			uint32 blockIndex;
 		};
 
 		struct BlockEntry
 		{
-			uint32_t filePos;
-			uint32_t compSize;
-			uint32_t fileSize;
-			uint32_t flags;
+			uint32 filePos;
+			uint32 compSize;
+			uint32 fileSize;
+			uint32 flags;
 		};
 #pragma pack(pop)
 
 		struct CryptTable
 		{
-			uint32_t v[0x500];
+			uint32 v[0x500];
 
 			CryptTable()
 			{
-				uint32_t seed = 0x00100001;
-				for (uint32_t index1 = 0; index1 < 0x100; ++index1)
+				uint32 seed = 0x00100001;
+				for (uint32 index1 = 0; index1 < 0x100; ++index1)
 				{
-					for (uint32_t index2 = index1, i = 0; i < 5; ++i, index2 += 0x100)
+					for (uint32 index2 = index1, i = 0; i < 5; ++i, index2 += 0x100)
 					{
 						seed = (seed * 125 + 3) % 0x2AAAAB;
-						uint32_t temp1 = (seed & 0xFFFF) << 0x10;
+						uint32 temp1 = (seed & 0xFFFF) << 0x10;
 						seed = (seed * 125 + 3) % 0x2AAAAB;
-						uint32_t temp2 = (seed & 0xFFFF);
+						uint32 temp2 = (seed & 0xFFFF);
 						v[index2] = temp1 | temp2;
 					}
 				}
@@ -97,14 +98,14 @@ namespace Streaming::MpqFile
 			return table;
 		}
 
-		uint32_t HashString(const char* s, uint32_t type)
+		uint32 HashString(const char* s, uint32 type)
 		{
 			const CryptTable& t = Crypt();
-			uint32_t seed1 = 0x7FED7FED;
-			uint32_t seed2 = 0xEEEEEEEE;
+			uint32 seed1 = 0x7FED7FED;
+			uint32 seed2 = 0xEEEEEEEE;
 			for (; *s; ++s)
 			{
-				uint32_t ch = (unsigned char)*s;
+				uint32 ch = (unsigned char)*s;
 				if (ch == '/')
 					ch = '\\';
 				if (ch >= 'a' && ch <= 'z')
@@ -115,14 +116,14 @@ namespace Streaming::MpqFile
 			return seed1;
 		}
 
-		void Decrypt(uint32_t* data, size_t count, uint32_t key)
+		void Decrypt(uint32* data, size_t count, uint32 key)
 		{
 			const CryptTable& t = Crypt();
-			uint32_t seed = 0xEEEEEEEE;
+			uint32 seed = 0xEEEEEEEE;
 			for (size_t i = 0; i < count; ++i)
 			{
 				seed += t.v[0x400 + (key & 0xFF)];
-				uint32_t ch = data[i] ^ (key + seed);
+				uint32 ch = data[i] ^ (key + seed);
 				key = ((~key << 0x15) + 0x11111111) | (key >> 0x0B);
 				seed = ch + seed + (seed << 5) + 3;
 				data[i] = ch;
@@ -175,7 +176,7 @@ namespace Streaming::MpqFile
 			{
 				if (offset < 0 || n > 0x7FFFFFFF || offset + (long long)n > size)
 					return false;
-				uint8_t* dst = static_cast<uint8_t*>(out);
+				uint8* dst = static_cast<uint8*>(out);
 				while (n > 0)
 				{
 					OVERLAPPED ov{};
@@ -252,14 +253,14 @@ namespace Streaming::MpqFile
 		std::vector<HashEntry> hashes(hdr.hashTableSize);
 		if (!r.ReadAt(hashPos, hashes.data(), hashBytes))
 			return Fail(error, "cannot read hash table");
-		Decrypt(reinterpret_cast<uint32_t*>(hashes.data()), hashBytes / 4, HashString("(hash table)", 3));
+		Decrypt(reinterpret_cast<uint32*>(hashes.data()), hashBytes / 4, HashString("(hash table)", 3));
 
-		const uint32_t mask = hdr.hashTableSize - 1;
-		const uint32_t start = HashString(name, 0) & mask;
-		const uint32_t nameA = HashString(name, 1);
-		const uint32_t nameB = HashString(name, 2);
-		uint32_t blockIndex = kHashEmpty;
-		for (uint32_t i = 0; i < hdr.hashTableSize; ++i)
+		const uint32 mask = hdr.hashTableSize - 1;
+		const uint32 start = HashString(name, 0) & mask;
+		const uint32 nameA = HashString(name, 1);
+		const uint32 nameB = HashString(name, 2);
+		uint32 blockIndex = kHashEmpty;
+		for (uint32 i = 0; i < hdr.hashTableSize; ++i)
 		{
 			const HashEntry& e = hashes[(start + i) & mask];
 			if (e.blockIndex == kHashEmpty)
@@ -281,7 +282,7 @@ namespace Streaming::MpqFile
 		std::vector<BlockEntry> blocks(hdr.blockTableSize);
 		if (!r.ReadAt(blockPos, blocks.data(), blockBytes))
 			return Fail(error, "cannot read block table");
-		Decrypt(reinterpret_cast<uint32_t*>(blocks.data()), blockBytes / 4, HashString("(block table)", 3));
+		Decrypt(reinterpret_cast<uint32*>(blocks.data()), blockBytes / 4, HashString("(block table)", 3));
 
 		const BlockEntry b = blocks[blockIndex];
 		if (!(b.flags & kFlagExists) || (b.flags & kFlagDeleteMarker))
@@ -292,7 +293,7 @@ namespace Streaming::MpqFile
 		long long filePos = headerOff + b.filePos;
 		if (hdr.formatVersion == 1 && v2.hiBlockTablePos != 0)
 		{
-			uint16_t hi = 0;
+			uint16 hi = 0;
 			if (!r.ReadAt(headerOff + (long long)v2.hiBlockTablePos + (long long)blockIndex * 2, &hi, sizeof(hi)))
 				return Fail(error, "cannot read hi-block table");
 			filePos += (long long)hi << 32;
@@ -302,13 +303,13 @@ namespace Streaming::MpqFile
 		if (b.fileSize == 0)
 			return true;
 
-		std::vector<uint8_t> comp(b.compSize);
+		std::vector<uint8> comp(b.compSize);
 		if (!r.ReadAt(filePos, comp.data(), b.compSize))
 			return Fail(error, "cannot read file data");
 
 		const bool encrypted = (b.flags & kFlagEncrypted) != 0;
 		const bool compressed = (b.flags & kFlagCompress) != 0;
-		uint32_t key = 0;
+		uint32 key = 0;
 		if (encrypted)
 		{
 			key = HashString(PlainName(name), 3);
@@ -317,15 +318,15 @@ namespace Streaming::MpqFile
 		}
 
 		out.resize(b.fileSize);
-		uint8_t* dst = reinterpret_cast<uint8_t*>(out.data());
+		uint8* dst = reinterpret_cast<uint8*>(out.data());
 
 		if (b.flags & kFlagSingleUnit)
 		{
 			if (encrypted)
-				Decrypt(reinterpret_cast<uint32_t*>(comp.data()), comp.size() / 4, key);
+				Decrypt(reinterpret_cast<uint32*>(comp.data()), comp.size() / 4, key);
 			if (compressed)
 			{
-				uint32_t outSize = b.fileSize;
+				uint32 outSize = b.fileSize;
 				if (!ClientData::Streaming::DecompressSector(dst, &outSize, comp.data(), b.compSize) || outSize != b.fileSize)
 					return Fail(error, "cannot decompress file");
 			}
@@ -338,8 +339,8 @@ namespace Streaming::MpqFile
 			return true;
 		}
 
-		const uint32_t sectorSize = 0x200u << hdr.sectorShift;
-		const uint32_t sectors = (uint32_t)(((uint64_t)b.fileSize + sectorSize - 1) / sectorSize);
+		const uint32 sectorSize = 0x200u << hdr.sectorShift;
+		const uint32 sectors = (uint32)(((uint64)b.fileSize + sectorSize - 1) / sectorSize);
 
 		if (!compressed)
 		{
@@ -347,36 +348,36 @@ namespace Streaming::MpqFile
 				return Fail(error, "file data is truncated");
 			std::memcpy(dst, comp.data(), b.fileSize);
 			if (encrypted)
-				for (uint32_t s = 0; s < sectors; ++s)
+				for (uint32 s = 0; s < sectors; ++s)
 				{
-					uint32_t off = s * sectorSize;
-					uint32_t n = std::min(sectorSize, b.fileSize - off);
-					Decrypt(reinterpret_cast<uint32_t*>(dst + off), n / 4, key + s);
+					uint32 off = s * sectorSize;
+					uint32 n = std::min(sectorSize, b.fileSize - off);
+					Decrypt(reinterpret_cast<uint32*>(dst + off), n / 4, key + s);
 				}
 			return true;
 		}
 
-		const uint32_t offCount = sectors + 1 + ((b.flags & kFlagSectorCrc) ? 1 : 0);
-		if ((uint64_t)offCount * 4 > b.compSize)
+		const uint32 offCount = sectors + 1 + ((b.flags & kFlagSectorCrc) ? 1 : 0);
+		if ((uint64)offCount * 4 > b.compSize)
 			return Fail(error, "sector table is truncated");
-		std::vector<uint32_t> offs(offCount);
+		std::vector<uint32> offs(offCount);
 		std::memcpy(offs.data(), comp.data(), (size_t)offCount * 4);
 		if (encrypted)
 			Decrypt(offs.data(), offCount, key - 1);
 
-		for (uint32_t s = 0; s < sectors; ++s)
+		for (uint32 s = 0; s < sectors; ++s)
 		{
-			uint32_t begin = offs[s];
-			uint32_t end = offs[s + 1];
+			uint32 begin = offs[s];
+			uint32 end = offs[s + 1];
 			if (begin > end || end > b.compSize)
 				return Fail(error, "sector table is corrupt");
-			uint32_t rawOff = s * sectorSize;
-			uint32_t rawSize = std::min(sectorSize, b.fileSize - rawOff);
-			uint32_t compLen = end - begin;
-			uint8_t* in = comp.data() + begin;
+			uint32 rawOff = s * sectorSize;
+			uint32 rawSize = std::min(sectorSize, b.fileSize - rawOff);
+			uint32 compLen = end - begin;
+			uint8* in = comp.data() + begin;
 			if (encrypted)
-				Decrypt(reinterpret_cast<uint32_t*>(in), compLen / 4, key + s);
-			uint32_t outSize = rawSize;
+				Decrypt(reinterpret_cast<uint32*>(in), compLen / 4, key + s);
+			uint32 outSize = rawSize;
 			if (!ClientData::Streaming::DecompressSector(dst + rawOff, &outSize, in, compLen) || outSize != rawSize)
 				return Fail(error, "cannot decompress sector");
 		}

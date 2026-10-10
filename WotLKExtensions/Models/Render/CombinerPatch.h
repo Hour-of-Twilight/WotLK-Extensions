@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 namespace ModernM2::Combiner
@@ -28,10 +30,10 @@ namespace ModernM2::Combiner
      * @param skin        The live skin profile the batch belongs to (ModernM2::Client::M2SkinProfile*).
      * @param batchIndex  The batch's final position in that skin's batch array.
      */
-    void MarkAddAlphaBatch(void* skin, uint32_t batchIndex);
+    void MarkAddAlphaBatch(void* skin, uint32 batchIndex);
 
     /** @brief True if MarkAddAlphaBatch tagged this exact (skin, batchIndex) pair. */
-    bool IsAddAlphaBatch(void* skin, uint32_t batchIndex);
+    bool IsAddAlphaBatch(void* skin, uint32 batchIndex);
 
     /**
      * @brief Arms the very next Shader.EffectBind call to substitute the patched pixel shader.

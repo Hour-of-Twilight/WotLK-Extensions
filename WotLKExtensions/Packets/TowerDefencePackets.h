@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -21,17 +23,17 @@ public:
 private:
 	TowerDefencePackets() = default;
 
-	static constexpr uint32_t MAX_SCOREBOARD_ROWS = 64;
-	static constexpr uint32_t MAX_SAVED_GAME_ROWS = 32;
-	static constexpr uint32_t MAX_TOWER_ROWS = 64;
+	static constexpr uint32 MAX_SCOREBOARD_ROWS = 64;
+	static constexpr uint32 MAX_SAVED_GAME_ROWS = 32;
+	static constexpr uint32 MAX_TOWER_ROWS = 64;
 
 	struct ScoreboardRow
 	{
 		std::string name;
-		uint32_t score = 0;
-		uint32_t wave = 0;
-		uint32_t money = 0;
-		uint32_t lives = 0;
+		uint32 score = 0;
+		uint32 wave = 0;
+		uint32 money = 0;
+		uint32 lives = 0;
 		std::string difficulty;
 		std::string playDate;
 		bool highlight = false;
@@ -39,30 +41,30 @@ private:
 
 	struct SavedGameRow
 	{
-		uint32_t id = 0;
-		uint32_t mode = 0;
-		uint32_t wave = 0;
-		uint32_t lives = 0;
-		uint32_t difficulty = 0;
+		uint32 id = 0;
+		uint32 mode = 0;
+		uint32 wave = 0;
+		uint32 lives = 0;
+		uint32 difficulty = 0;
 	};
 
 	struct TowerRow
 	{
-		uint32_t towerSet = 0;
-		uint32_t towerId = 0;
-		uint32_t cost = 0;
+		uint32 towerSet = 0;
+		uint32 towerId = 0;
+		uint32 cost = 0;
 		std::string name;
 		std::string icon;
 	};
 
-	static void Handler_SMSG_TOWERDEFENCE_SCOREBOARD(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_TOWERDEFENCE_SAVED_GAMES(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_TOWERDEFENCE_MONEY(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_TOWERDEFENCE_WAVE(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_TOWERDEFENCE_LIVES(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_TOWERDEFENCE_SCORE(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_TOWERDEFENCE_GAME_END(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_TOWERDEFENCE_TOWER_LIST(void*, uint32_t, uint32_t, CDataStore* pkt);
+	static void Handler_SMSG_TOWERDEFENCE_SCOREBOARD(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_TOWERDEFENCE_SAVED_GAMES(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_TOWERDEFENCE_MONEY(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_TOWERDEFENCE_WAVE(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_TOWERDEFENCE_LIVES(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_TOWERDEFENCE_SCORE(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_TOWERDEFENCE_GAME_END(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_TOWERDEFENCE_TOWER_LIST(void*, uint32, uint32, CDataStore* pkt);
 
 	static void SignalCounter(CDataStore* pkt, const char* eventName);
 
@@ -82,7 +84,7 @@ private:
 	static int GetTowerDefenceTowers(lua_State* L);
 
 	std::vector<ScoreboardRow> m_rows;
-	uint32_t m_mode = 0;
+	uint32 m_mode = 0;
 	bool m_hasData = false;
 
 	std::vector<SavedGameRow> m_saves;

@@ -36,6 +36,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Load/LodModelVariant.h"
 #include "Models/Common/ModelHooks.h"
 
@@ -82,7 +83,7 @@ namespace
                 const char d1 = hit[kMarkerTagLen + 1];
                 if (d0 >= '0' && d0 <= '9' && d1 >= '0' && d1 <= '9')
                 {
-                    const uint32_t tier      = static_cast<uint32_t>((d0 - '0') * 10 + (d1 - '0'));
+                    const uint32 tier      = static_cast<uint32>((d0 - '0') * 10 + (d1 - '0'));
                     const size_t   beforeLen = static_cast<size_t>(hit - name);
                     const char*    after     = hit + kMarkerTotalLen;
                     const size_t   afterLen  = std::strlen(after);
@@ -109,7 +110,7 @@ namespace
         return false;
     }
 
-    int __stdcall hkFileOpen(void* archive, const char* name, uint32_t flags, void** out)
+    int __stdcall hkFileOpen(void* archive, const char* name, uint32 flags, void** out)
     {
         char real[m2::kSkinPathBufSize];
         if (name && BuildRedirect(name, real, sizeof real))
@@ -124,7 +125,7 @@ namespace
 
 namespace ModernM2::LodVariant
 {
-    bool BuildVariantName(const char* realModelPath, uint32_t tier, char* outBuf, size_t outBufSize)
+    bool BuildVariantName(const char* realModelPath, uint32 tier, char* outBuf, size_t outBufSize)
     {
         if (!realModelPath || !outBuf || tier == 0 || tier > 99) return false;
         const char* ext     = std::strrchr(realModelPath, '.');

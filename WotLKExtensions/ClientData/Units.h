@@ -1,11 +1,14 @@
 #pragma once
 
+#include <Defines.h>
+
+#include <cstddef>
 #include <cstdint>
 #include <ClientData/MathTypes.h>
 
 namespace ClientData
 {
-	enum Field : uint32_t
+	enum Field : uint32
 	{
 		CURRENT_HP = 18,
 		CURRENT_MANA = 19,
@@ -27,88 +30,99 @@ namespace ClientData
 
 	struct MovementInfo
 	{
-		uint32_t padding[2];
-		uint64_t moverGUID;
+		uint32 padding[2];
+		uint64 moverGUID;
 		C3Vector position;
 		float padding1C;
 		float orientation;
 		float pitch;
-		uint32_t padding28[7];
-		uint32_t movementFlags;
-		uint32_t movementFlags2;
-		uint32_t padding4C[65];
+		uint32 padding28[7];
+		uint32 movementFlags;
+		uint32 movementFlags2;
+		C3Vector anchor;
+		uint32 padding58[14];
+		float walkSpeed;
+		uint32 padding94[9];
+		float jumpVelocity;
+		uint32 paddingBC[37];
 		// TODO: add rest, probably when needed
 	};
 
+	static_assert(offsetof(MovementInfo, movementFlags) == 0x44, "MovementInfo layout mismatch");
+	static_assert(offsetof(MovementInfo, anchor) == 0x4C, "MovementInfo layout mismatch");
+	static_assert(offsetof(MovementInfo, walkSpeed) == 0x90, "MovementInfo layout mismatch");
+	static_assert(offsetof(MovementInfo, jumpVelocity) == 0xB8, "MovementInfo layout mismatch");
+	static_assert(sizeof(MovementInfo) == 0x150, "MovementInfo layout mismatch");
+
 	struct UnitBytes0
 	{
-		uint8_t raceID;
-		uint8_t classID;
-		uint8_t genderID;
-		uint8_t powerTypeID;
+		uint8 raceID;
+		uint8 classID;
+		uint8 genderID;
+		uint8 powerTypeID;
 	};
 
 	struct UnitBytes1
 	{
-		uint8_t standState;
-		uint8_t petTalents;
-		uint8_t visFlags;
-		uint8_t animTier;
+		uint8 standState;
+		uint8 petTalents;
+		uint8 visFlags;
+		uint8 animTier;
 	};
 
 	struct UnitBytes2
 	{
-		uint8_t sheathState;
-		uint8_t pvpFlag;
-		uint8_t petFlags;
-		uint8_t shapeshift;
+		uint8 sheathState;
+		uint8 pvpFlag;
+		uint8 petFlags;
+		uint8 shapeshift;
 	};
 
 	struct UnitFields
 	{
-		uint64_t charm;
-		uint64_t summon;
-		uint64_t critter;
-		uint64_t charmedBy;
-		uint64_t summonedBy;
-		uint64_t createdBy;
-		uint64_t target;
-		uint64_t channelObject;
-		uint32_t channelSpell;
+		uint64 charm;
+		uint64 summon;
+		uint64 critter;
+		uint64 charmedBy;
+		uint64 summonedBy;
+		uint64 createdBy;
+		uint64 target;
+		uint64 channelObject;
+		uint32 channelSpell;
 		UnitBytes0 unitBytes0;
-		uint32_t unitCurrHealth;
-		uint32_t unitCurrPowers[7];
-		uint32_t unitMaxHealth;
-		uint32_t unitMaxPowers[7];
+		uint32 unitCurrHealth;
+		uint32 unitCurrPowers[7];
+		uint32 unitMaxHealth;
+		uint32 unitMaxPowers[7];
 		float padding0x88[14];
-		uint32_t level;
-		uint32_t factionTemplate;
-		uint32_t virtualItemSlotID[3];
-		uint32_t unitFlags;
-		uint32_t unitFlags2;
-		uint32_t auraState;
-		uint32_t baseAttackTime[3];
+		uint32 level;
+		uint32 factionTemplate;
+		uint32 virtualItemSlotID[3];
+		uint32 unitFlags;
+		uint32 unitFlags2;
+		uint32 auraState;
+		uint32 baseAttackTime[3];
 		float boundingRadius;
 		float combatReach;
-		uint32_t displayId;
-		uint32_t nativeDisplayId;
-		uint32_t mountDisplayId;
+		uint32 displayId;
+		uint32 nativeDisplayId;
+		uint32 mountDisplayId;
 		float mainHandMinDamage;
 		float mainHandMaxDamage;
 		float offHandMinDamage;
 		float offHandMaxDamage;
 		UnitBytes1 unitBytes1;
-		uint32_t petNumber;
-		uint32_t padding0x011C[4];
+		uint32 petNumber;
+		uint32 padding0x011C[4];
 		float modCastSpell;
-		uint32_t createdBySpell;
-		uint32_t npcFlags;
-		uint32_t emoteState;
-		int32_t strength;
-		int32_t agility;
-		int32_t stamina;
-		int32_t intellect;
-		int32_t spirit;
+		uint32 createdBySpell;
+		uint32 npcFlags;
+		uint32 emoteState;
+		int32 strength;
+		int32 agility;
+		int32 stamina;
+		int32 intellect;
+		int32 spirit;
 		float strengthPos;
 		float agilityPos;
 		float staminaPos;
@@ -119,25 +133,25 @@ namespace ClientData
 		float staminaNeg;
 		float intellectNeg;
 		float spiritNeg;
-		uint32_t resistances[7];
-		uint32_t resistancesPos[7];
-		uint32_t resistancesNeg[7];
-		uint32_t baseMana;
-		uint32_t basehealth;
+		uint32 resistances[7];
+		uint32 resistancesPos[7];
+		uint32 resistancesNeg[7];
+		uint32 baseMana;
+		uint32 basehealth;
 		UnitBytes2 unitBytes2;
-		uint32_t AP;
-		uint16_t APMods[2];
+		uint32 AP;
+		uint16 APMods[2];
 		float APMult;
-		uint32_t RAP;
-		uint16_t RAPMods[2];
+		uint32 RAP;
+		uint16 RAPMods[2];
 		float RAPMult;
 		float minRangedDamage;
 		float maxRangedDamage;
-		uint32_t powerCostModifier[7];
+		uint32 powerCostModifier[7];
 		float powerCostMultiplier[7];
 		float maxHealthModifier;
 		float hoverHeight;
-		uint32_t padding;
+		uint32 padding;
 		// TODO: add rest at some point, most likely when needed
 	};
 }

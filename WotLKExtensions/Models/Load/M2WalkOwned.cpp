@@ -23,10 +23,14 @@
 //  - a track slot belonging to a sequence whose keyframes live in a companion file is left
 //    file-relative, because it is that file's arrival -- not this walk -- that gives it a base.
 
+#include <Defines.h>
 #include "Models/Load/M2NativeInternal.h"
 #include "Models/Load/M2WalkLayout.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
 namespace fmt = ModernM2::Format;
 
@@ -34,91 +38,91 @@ namespace ModernM2::Reader::Detail
 {
     namespace
     {
-        constexpr uint32_t kSeqKeysInline    = 0x20; ///< keyframes live in this file, not a companion one
-        constexpr uint32_t kSeqPlaysOnce     = 0x01; ///< runs to its end instead of looping
-        constexpr uint32_t kSeqPlayOnceReady = 0x80; ///< load-time twin of kSeqPlaysOnce
-        constexpr int16_t  kNoGlobalLoop     = -1;   ///< track is keyed per sequence, not to a global loop
+        constexpr uint32 kSeqKeysInline    = 0x20; ///< keyframes live in this file, not a companion one
+        constexpr uint32 kSeqPlaysOnce     = 0x01; ///< runs to its end instead of looping
+        constexpr uint32 kSeqPlayOnceReady = 0x80; ///< load-time twin of kSeqPlaysOnce
+        constexpr int16  kNoGlobalLoop     = -1;   ///< track is keyed per sequence, not to a global loop
 
         /// Sequences that must loop whatever their record asks for -- the movement/idle set the pose
         /// system expects to be able to hold indefinitely.
-        constexpr uint16_t kAlwaysLoopingIds[] = {
+        constexpr uint16 kAlwaysLoopingIds[] = {
             0x00, 0x04, 0x05, 0x0D, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x45, 0x77, 0x78, 0x8F, 0xDF,
         };
 
-        bool AlwaysLoops(uint16_t id)
+        bool AlwaysLoops(uint16 id)
         {
-            for (uint16_t looping : kAlwaysLoopingIds)
+            for (uint16 looping : kAlwaysLoopingIds)
                 if (looping == id) return true;
             return false;
         }
 
         /// Turns one count+offset pair into a pointer, rejecting anything that does not fit the body.
         /// An empty array resolves to null so a consumer cannot walk stale bytes.
-        bool Resolve(uint8_t* base, uint32_t size, fmt::M2Array& array, uint32_t stride)
+        bool Resolve(uint8* base, uint32 size, fmt::M2Array& array, uint32 stride)
         {
-            const uint32_t offset = array.offset;
+            const uint32 offset = array.offset;
             if (!FitsInBody(size, offset, array.count, stride)) return false;
             array.offset = array.count
-                ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(base) + offset) : 0;
+                ? static_cast<uint32>(reinterpret_cast<uintptr_t>(base) + offset) : 0;
             return true;
         }
 
         /// An array of arrays: the outer slot list plus every inner list, each bounds-checked.
-        bool ResolveNested(uint8_t* base, uint32_t size, fmt::M2Array& outer, uint32_t innerStride)
+        bool ResolveNested(uint8* base, uint32 size, fmt::M2Array& outer, uint32 innerStride)
         {
             if (!Resolve(base, size, outer, sizeof(fmt::M2Array))) return false;
             if (!outer.count) return true;
             auto* slot = reinterpret_cast<fmt::M2Array*>(static_cast<uintptr_t>(outer.offset));
-            for (uint32_t i = 0; i < outer.count; ++i)
+            for (uint32 i = 0; i < outer.count; ++i)
                 if (!Resolve(base, size, slot[i], innerStride)) return false;
             return true;
         }
 
         /// A per-sequence slot list: one slot per sequence, and only the slots whose sequence keeps its
         /// keyframes in this file get a base now. The rest stay file-relative for their own arrival.
-        void ResolvePerSequence(uint8_t* base, fmt::M2Array& outer, uint32_t slots,
+        void ResolvePerSequence(uint8* base, fmt::M2Array& outer, uint32 slots,
                                 const fmt::M2Sequence* sequences)
         {
             outer.offset = outer.count
-                ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(base) + outer.offset) : 0;
+                ? static_cast<uint32>(reinterpret_cast<uintptr_t>(base) + outer.offset) : 0;
             if (!slots) return;
             auto* slot = reinterpret_cast<fmt::M2Array*>(static_cast<uintptr_t>(outer.offset));
-            for (uint32_t i = 0; i < slots; ++i)
+            for (uint32 i = 0; i < slots; ++i)
             {
                 if (!(sequences[i].flags & kSeqKeysInline)) continue;
                 slot[i].offset = slot[i].count
-                    ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(base) + slot[i].offset) : 0;
+                    ? static_cast<uint32>(reinterpret_cast<uintptr_t>(base) + slot[i].offset) : 0;
             }
         }
 
         /// One animation track. Both halves of a per-sequence track are indexed by the SAME slot count
         /// (the timestamp list's) -- the two lists describe one key set, so they are walked in lockstep.
-        bool ResolveTrack(uint8_t* base, uint32_t size, uint8_t* at, uint32_t valueStride,
+        bool ResolveTrack(uint8* base, uint32 size, uint8* at, uint32 valueStride,
                           const fmt::M2Sequence* sequences)
         {
             auto* track = reinterpret_cast<fmt::M2TrackHeader*>(at);
             if (track->globalSequence == kNoGlobalLoop)
             {
-                const uint32_t slots = track->timestamps.count;
+                const uint32 slots = track->timestamps.count;
                 ResolvePerSequence(base, track->timestamps, slots, sequences);
                 if (valueStride) ResolvePerSequence(base, track->values, slots, sequences);
                 return true;
             }
-            if (!ResolveNested(base, size, track->timestamps, sizeof(uint32_t))) return false;
+            if (!ResolveNested(base, size, track->timestamps, sizeof(uint32))) return false;
             return !valueStride || ResolveNested(base, size, track->values, valueStride);
         }
 
         /// Applies one header entry's record map to every record it holds.
-        bool ResolveRecords(uint8_t* base, uint32_t size, const fmt::M2Array& array, uint32_t stride,
+        bool ResolveRecords(uint8* base, uint32 size, const fmt::M2Array& array, uint32 stride,
                             const HeaderArray& entry, const fmt::M2Sequence* sequences)
         {
             if (!array.count) return true;
-            auto* record = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(array.offset));
-            for (uint32_t i = 0; i < array.count; ++i, record += stride)
-                for (uint32_t s = 0; s < entry.stepCount; ++s)
+            auto* record = reinterpret_cast<uint8*>(static_cast<uintptr_t>(array.offset));
+            for (uint32 i = 0; i < array.count; ++i, record += stride)
+                for (uint32 s = 0; s < entry.stepCount; ++s)
                 {
                     const RecordStep& step = entry.steps[s];
-                    uint8_t* at = record + step.at;
+                    uint8* at = record + step.at;
                     if (step.kind == kStepArray)
                     {
                         if (!Resolve(base, size, *reinterpret_cast<fmt::M2Array*>(at), step.stride))
@@ -138,9 +142,9 @@ namespace ModernM2::Reader::Detail
         {
             if (!array.count) return;
             auto* sequences = reinterpret_cast<fmt::M2Sequence*>(static_cast<uintptr_t>(array.offset));
-            for (uint32_t i = 0; i < array.count; ++i)
+            for (uint32 i = 0; i < array.count; ++i)
             {
-                uint32_t flags = sequences[i].flags;
+                uint32 flags = sequences[i].flags;
                 if (flags & kSeqPlaysOnce) flags |= kSeqPlayOnceReady;
                 if (AlwaysLoops(sequences[i].id)) flags &= ~kSeqPlaysOnce;
                 sequences[i].flags = flags;
@@ -156,7 +160,7 @@ namespace ModernM2::Reader::Detail
      * @return true when every array fit the body; false leaves the walk abandoned mid-way, which is
      *         why the caller must treat a false as a failed load rather than a partial model.
      */
-    bool WalkHeaderArrays(uint8_t* base, uint32_t size, fmt::M2Header* h)
+    bool WalkHeaderArrays(uint8* base, uint32 size, fmt::M2Header* h)
     {
         for (const HeaderArray& entry : kHeaderArrays)
         {
@@ -174,6 +178,31 @@ namespace ModernM2::Reader::Detail
             const auto* sequences =
                 reinterpret_cast<const fmt::M2Sequence*>(static_cast<uintptr_t>(h->sequences.offset));
             if (!ResolveRecords(base, size, array, entry.stride, entry, sequences)) return false;
+        }
+        return true;
+    }
+
+    bool FreeCombinerSlot(uint8* base, uint32 size, fmt::M2Header* h, Outcome& out)
+    {
+        if (h->globalFlags & fmt::kFlagUseTextureCombinerCombos) return true;
+        const uint32 slotAt = static_cast<uint32>(offsetof(fmt::M2Header, textureCombinerCombos));
+        if (size < slotAt + sizeof(fmt::M2Array)) return true;
+        const uintptr_t slotBegin = reinterpret_cast<uintptr_t>(base) + slotAt;
+        const uintptr_t slotEnd   = slotBegin + sizeof(fmt::M2Array);
+        for (const HeaderArray& entry : kHeaderArrays)
+        {
+            if (entry.traits & kArrayCombinerGated) continue;
+            auto& array = *reinterpret_cast<fmt::M2Array*>(h->base() + entry.at);
+            if (!array.count || !array.offset) continue;
+            const uintptr_t begin = array.offset;
+            const size_t    bytes = static_cast<size_t>(array.count) * entry.stride;
+            if (begin + bytes <= slotBegin || begin >= slotEnd) continue;
+            void* copy = std::malloc(bytes);
+            if (!copy) return false;
+            std::memcpy(copy, reinterpret_cast<const void*>(begin), bytes);
+            array.offset = static_cast<uint32>(reinterpret_cast<uintptr_t>(copy));
+            out.combinerSlotArray = entry.at;
+            out.combinerSlotBytes = static_cast<uint32>(bytes);
         }
         return true;
     }

@@ -29,6 +29,7 @@
 // 0 leave the emitter in identical states -- only the record can still tell them apart, and the
 // emitter's back-pointer to its own record is wired up during that same construction.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 
 #include "Models/Format/M2Format.h"
@@ -49,20 +50,20 @@ namespace
     T Read(const void* base, size_t at)
     {
         T v{};
-        std::memcpy(&v, static_cast<const uint8_t*>(base) + at, sizeof v);
+        std::memcpy(&v, static_cast<const uint8*>(base) + at, sizeof v);
         return v;
     }
 
     template <typename T>
     void Write(void* base, size_t at, T value)
     {
-        std::memcpy(static_cast<uint8_t*>(base) + at, &value, sizeof value);
+        std::memcpy(static_cast<uint8*>(base) + at, &value, sizeof value);
     }
 
     /// The emitter's own record, recovered from the back-pointer construction leaves in it.
-    const uint8_t* RecordOf(const void* emitter)
+    const uint8* RecordOf(const void* emitter)
     {
-        const auto* headCells = Read<const uint8_t*>(emitter, off::kOffEmitterHeadCellBlock);
+        const auto* headCells = Read<const uint8*>(emitter, off::kOffEmitterHeadCellBlock);
         return headCells ? headCells - off::kParticleRecHeadCells : nullptr;
     }
 
@@ -70,14 +71,14 @@ namespace
     /// @return true when this emitter needed the correction.
     bool ResolveBlendState(void* emitter)
     {
-        const uint8_t* record = RecordOf(emitter);
+        const uint8* record = RecordOf(emitter);
         if (!record) return false;
         if (record[off::kParticleRecBlendMode] <= off::kParticleBlendModeMax) return false;
 
-        Write<uint32_t>(emitter, off::kOffEmitterBlendState, gx::kBlendStateScreenAdd);
+        Write<uint32>(emitter, off::kOffEmitterBlendState, gx::kBlendStateScreenAdd);
         // Alpha testing belongs to the two modes that do not blend at all; the default arm left it on.
-        Write<uint32_t>(emitter, off::kOffEmitterMaterialFlags,
-                        Read<uint32_t>(emitter, off::kOffEmitterMaterialFlags) &
+        Write<uint32>(emitter, off::kOffEmitterMaterialFlags,
+                        Read<uint32>(emitter, off::kOffEmitterMaterialFlags) &
                             ~off::kEmitterMaterialAlphaTest);
         return true;
     }
@@ -86,19 +87,19 @@ namespace
      * @brief Re-resolves every emitter of a model once construction has built and wired them all.
      * @return construction's own result, untouched.
      */
-    uint32_t __fastcall hkInitializeLoaded(void* model, void* edx)
+    uint32 __fastcall hkInitializeLoaded(void* model, void* edx)
     {
-        const uint32_t result = g_origInitializeLoaded(model, edx);
+        const uint32 result = g_origInitializeLoaded(model, edx);
 
-        const auto* shared = reinterpret_cast<const uint8_t*>(static_cast<off::M2Instance*>(model)->model);
+        const auto* shared = reinterpret_cast<const uint8*>(static_cast<off::M2Instance*>(model)->model);
         auto* const* emitters = Read<void* const*>(model, off::kOffInstEmitterArray);
         if (!shared || !emitters) return result;
         const auto* header = reinterpret_cast<const ModernM2::Format::M2Header*>(
             reinterpret_cast<const off::M2Model*>(shared)->header);
         if (!header) return result;
 
-        const uint32_t count = header->particleEmitters.count;
-        for (uint32_t i = 0; i < count; ++i)
+        const uint32 count = header->particleEmitters.count;
+        for (uint32 i = 0; i < count; ++i)
             if (emitters[i]) ResolveBlendState(emitters[i]);
         return result;
     }

@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Editor/Map/Sculpt.h>
 
 #include <Editor/Map/Adt/AdtDocument.h>
@@ -14,8 +15,8 @@ namespace MapEditor::Sculpt
 {
 	namespace
 	{
-		constexpr int32_t kVerts = Access::kVertsPerChunk;
-		constexpr int32_t kSide = Access::kChunksPerTileSide;
+		constexpr int32 kVerts = Access::kVertsPerChunk;
+		constexpr int32 kSide = Access::kChunksPerTileSide;
 
 		float Weight(float distance, float radius, Falloff falloff)
 		{
@@ -39,10 +40,10 @@ namespace MapEditor::Sculpt
 		// because the normals pass has to name chunks the stroke never touched.
 		struct ChunkRef
 		{
-			int32_t tileX = 0;
-			int32_t tileY = 0;
-			int32_t chunkX = 0;
-			int32_t chunkY = 0;
+			int32 tileX = 0;
+			int32 tileY = 0;
+			int32 chunkX = 0;
+			int32 chunkY = 0;
 
 			bool operator==(ChunkRef const& other) const
 			{
@@ -62,7 +63,7 @@ namespace MapEditor::Sculpt
 		// Steps a chunk index by one, rolling over into the neighbouring tile. Chunk and tile
 		// indices count the same way on each axis, so stepping off one end lands on index 0 of
 		// the next tile.
-		ChunkRef Step(ChunkRef ref, int32_t dChunkX, int32_t dChunkY)
+		ChunkRef Step(ChunkRef ref, int32 dChunkX, int32 dChunkY)
 		{
 			ref.chunkX += dChunkX;
 			ref.chunkY += dChunkY;
@@ -105,9 +106,9 @@ namespace MapEditor::Sculpt
 		{
 			Neighborhood out;
 
-			for (int32_t dy = -1; dy <= 1; ++dy)
+			for (int32 dy = -1; dy <= 1; ++dy)
 			{
-				for (int32_t dx = -1; dx <= 1; ++dx)
+				for (int32 dx = -1; dx <= 1; ++dx)
 					out.chunk[dy + 1][dx + 1] = Resolve(Step(center, dx, dy));
 			}
 
@@ -116,10 +117,10 @@ namespace MapEditor::Sculpt
 
 		// Vertex rows run along the same axis as chunkY and columns along chunkX, so a row or
 		// column outside 0..8 resolves into the neighbour on that axis.
-		bool OuterAt(Neighborhood const& hood, int32_t row, int32_t col, C3Vector& out)
+		bool OuterAt(Neighborhood const& hood, int32 row, int32 col, C3Vector& out)
 		{
-			int32_t dy = 0;
-			int32_t dx = 0;
+			int32 dy = 0;
+			int32 dx = 0;
 
 			if (row < 0)
 			{
@@ -151,10 +152,10 @@ namespace MapEditor::Sculpt
 			return true;
 		}
 
-		bool InnerAt(Neighborhood const& hood, int32_t row, int32_t col, C3Vector& out)
+		bool InnerAt(Neighborhood const& hood, int32 row, int32 col, C3Vector& out)
 		{
-			int32_t dy = 0;
-			int32_t dx = 0;
+			int32 dy = 0;
+			int32 dx = 0;
 
 			if (row < 0)
 			{
@@ -187,7 +188,7 @@ namespace MapEditor::Sculpt
 		}
 
 		// Index of a vertex within the centre chunk, or -1 when it belongs to a neighbour.
-		int32_t OuterIndex(int32_t row, int32_t col)
+		int32 OuterIndex(int32 row, int32 col)
 		{
 			if (row < 0 || row > 8 || col < 0 || col > 8)
 				return -1;
@@ -195,7 +196,7 @@ namespace MapEditor::Sculpt
 			return Coords::EncodeOuterVertex(row, col);
 		}
 
-		int32_t InnerIndex(int32_t row, int32_t col)
+		int32 InnerIndex(int32 row, int32 col)
 		{
 			if (row < 0 || row > 7 || col < 0 || col > 7)
 				return -1;
@@ -207,12 +208,12 @@ namespace MapEditor::Sculpt
 		// fanning out from its inner vertex, so a vertex normal is the normalized sum of the face
 		// normals of every triangle touching it, and a face pointing down just means that
 		// triangle's winding came out backwards.
-		void RecomputeNormals(Neighborhood const& hood, int8_t* out)
+		void RecomputeNormals(Neighborhood const& hood, int8* out)
 		{
 			C3Vector sum[kVerts] = {};
 
-			auto addFace = [&](C3Vector const& a, C3Vector const& b, C3Vector const& c, int32_t ia,
-			                   int32_t ib, int32_t ic)
+			auto addFace = [&](C3Vector const& a, C3Vector const& b, C3Vector const& c, int32 ia,
+			                   int32 ib, int32 ic)
 			{
 				C3Vector u{ b.x - a.x, b.y - a.y, b.z - a.z };
 				C3Vector v{ c.x - a.x, c.y - a.y, c.z - a.z };
@@ -225,7 +226,7 @@ namespace MapEditor::Sculpt
 					face.z = -face.z;
 				}
 
-				for (int32_t index : { ia, ib, ic })
+				for (int32 index : { ia, ib, ic })
 				{
 					if (index < 0)
 						continue;
@@ -239,9 +240,9 @@ namespace MapEditor::Sculpt
 			// Cells from -1 to 8 on each axis, so every vertex of the centre chunk, border rows
 			// included, sees all of the cells that actually surround it. The ones outside 0..7
 			// contribute to this chunk's border vertices without owning any of their own.
-			for (int32_t row = -1; row <= 8; ++row)
+			for (int32 row = -1; row <= 8; ++row)
 			{
-				for (int32_t col = -1; col <= 8; ++col)
+				for (int32 col = -1; col <= 8; ++col)
 				{
 					C3Vector inner{};
 					C3Vector tl{};
@@ -255,11 +256,11 @@ namespace MapEditor::Sculpt
 					if (!InnerAt(hood, row, col, inner) || !OuterAt(hood, row, col, tl) || !OuterAt(hood, row, col + 1, tr) || !OuterAt(hood, row + 1, col + 1, br) || !OuterAt(hood, row + 1, col, bl))
 						continue;
 
-					int32_t ii = InnerIndex(row, col);
-					int32_t itl = OuterIndex(row, col);
-					int32_t itr = OuterIndex(row, col + 1);
-					int32_t ibr = OuterIndex(row + 1, col + 1);
-					int32_t ibl = OuterIndex(row + 1, col);
+					int32 ii = InnerIndex(row, col);
+					int32 itl = OuterIndex(row, col);
+					int32 itr = OuterIndex(row, col + 1);
+					int32 ibr = OuterIndex(row + 1, col + 1);
+					int32 ibl = OuterIndex(row + 1, col);
 
 					addFace(inner, tl, tr, ii, itl, itr);
 					addFace(inner, tr, br, ii, itr, ibr);
@@ -272,7 +273,7 @@ namespace MapEditor::Sculpt
 			// straight into the vertex normal's x, y and z, each scaled by flt_A40360 = 1/127, on
 			// the same axes it just wrote the position on. So this is plain signed 8 bit, no axis
 			// swap and no reordering.
-			for (int32_t i = 0; i < kVerts; ++i)
+			for (int32 i = 0; i < kVerts; ++i)
 			{
 				C3Vector n = sum[i];
 				float length = std::sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
@@ -285,7 +286,7 @@ namespace MapEditor::Sculpt
 				auto encode = [](float value)
 				{
 					float scaled = std::floor(value * 127.0f + 0.5f);
-					return static_cast<int8_t>(std::min(std::max(scaled, -127.0f), 127.0f));
+					return static_cast<int8>(std::min(std::max(scaled, -127.0f), 127.0f));
 				};
 
 				out[i * 3 + 0] = encode(n.x / length);
@@ -296,12 +297,12 @@ namespace MapEditor::Sculpt
 
 		// World height averaged over the vertices immediately around one vertex. Outer and inner
 		// vertices interleave, so each one's nearest neighbours are all of the other kind.
-		bool NeighborAverage(Neighborhood const& hood, int32_t index, float& out)
+		bool NeighborAverage(Neighborhood const& hood, int32 index, float& out)
 		{
 			Coords::VertexCoord coord = Coords::DecodeVertex(index);
 
-			int32_t rows[4];
-			int32_t cols[4];
+			int32 rows[4];
+			int32 cols[4];
 
 			if (coord.inner)
 			{
@@ -331,9 +332,9 @@ namespace MapEditor::Sculpt
 			}
 
 			float total = 0.0f;
-			int32_t count = 0;
+			int32 count = 0;
 
-			for (int32_t i = 0; i < 4; ++i)
+			for (int32 i = 0; i < 4; ++i)
 			{
 				C3Vector at{};
 				bool ok = coord.inner ? OuterAt(hood, rows[i], cols[i], at)
@@ -355,14 +356,14 @@ namespace MapEditor::Sculpt
 		// Keyed on the vertex's place in the map-wide lattice, doubled so inner vertices get their
 		// own keys. Two chunks sharing a border vertex therefore jitter it identically and the
 		// seam stays closed, which a per-call random number generator could not manage.
-		float Jitter(ChunkRef const& ref, int32_t index)
+		float Jitter(ChunkRef const& ref, int32 index)
 		{
 			Coords::VertexCoord coord = Coords::DecodeVertex(index);
 
-			int32_t row = ((ref.tileY * kSide + ref.chunkY) * 8 + coord.row) * 2 + (coord.inner ? 1 : 0);
-			int32_t col = ((ref.tileX * kSide + ref.chunkX) * 8 + coord.col) * 2 + (coord.inner ? 1 : 0);
+			int32 row = ((ref.tileY * kSide + ref.chunkY) * 8 + coord.row) * 2 + (coord.inner ? 1 : 0);
+			int32 col = ((ref.tileX * kSide + ref.chunkX) * 8 + coord.col) * 2 + (coord.inner ? 1 : 0);
 
-			uint32_t h = static_cast<uint32_t>(row) * 73856093u ^ static_cast<uint32_t>(col) * 19349663u;
+			uint32 h = static_cast<uint32>(row) * 73856093u ^ static_cast<uint32>(col) * 19349663u;
 			h ^= h >> 13;
 			h *= 0x5bd1e995u;
 			h ^= h >> 15;
@@ -396,7 +397,7 @@ namespace MapEditor::Sculpt
 			tile.dirty = true;
 		}
 
-		void MirrorNormals(Session::OpenTile& tile, ChunkRef const& ref, int8_t const* normals)
+		void MirrorNormals(Session::OpenTile& tile, ChunkRef const& ref, int8 const* normals)
 		{
 			Adt::Mcnk* mcnk = tile.doc.ChunkAt(ref.chunkX, ref.chunkY);
 			if (!mcnk)
@@ -420,7 +421,7 @@ namespace MapEditor::Sculpt
 			if (!chunk || !chunk->vertices || !chunk->normals)
 				return;
 
-			int8_t normals[kVerts * 3];
+			int8 normals[kVerts * 3];
 			RecomputeNormals(Gather(ref), normals);
 
 			if (std::memcmp(chunk->normals, normals, sizeof(normals)) == 0)
@@ -439,7 +440,7 @@ namespace MapEditor::Sculpt
 		}
 	}
 
-	int32_t Apply(Stroke const& stroke)
+	int32 Apply(Stroke const& stroke)
 	{
 		if (stroke.radius <= 0.0f)
 			return 0;
@@ -451,23 +452,23 @@ namespace MapEditor::Sculpt
 		C3Vector lo{ stroke.center.x - stroke.radius, stroke.center.y - stroke.radius, 0.0f };
 		C3Vector hi{ stroke.center.x + stroke.radius, stroke.center.y + stroke.radius, 0.0f };
 
-		int32_t tileX0 = std::min(Coords::TileX(lo), Coords::TileX(hi));
-		int32_t tileX1 = std::max(Coords::TileX(lo), Coords::TileX(hi));
-		int32_t tileY0 = std::min(Coords::TileY(lo), Coords::TileY(hi));
-		int32_t tileY1 = std::max(Coords::TileY(lo), Coords::TileY(hi));
+		int32 tileX0 = std::min(Coords::TileX(lo), Coords::TileX(hi));
+		int32 tileX1 = std::max(Coords::TileX(lo), Coords::TileX(hi));
+		int32 tileY0 = std::min(Coords::TileY(lo), Coords::TileY(hi));
+		int32 tileY1 = std::max(Coords::TileY(lo), Coords::TileY(hi));
 
 		std::vector<Target> targets;
 
-		for (int32_t tileY = tileY0; tileY <= tileY1; ++tileY)
+		for (int32 tileY = tileY0; tileY <= tileY1; ++tileY)
 		{
-			for (int32_t tileX = tileX0; tileX <= tileX1; ++tileX)
+			for (int32 tileX = tileX0; tileX <= tileX1; ++tileX)
 			{
 				if (!Access::IsAreaReady(Access::GetArea(tileX, tileY)))
 					continue;
 
-				for (int32_t chunkY = 0; chunkY < kSide; ++chunkY)
+				for (int32 chunkY = 0; chunkY < kSide; ++chunkY)
 				{
-					for (int32_t chunkX = 0; chunkX < kSide; ++chunkX)
+					for (int32 chunkX = 0; chunkX < kSide; ++chunkX)
 					{
 						ChunkRef ref{ tileX, tileY, chunkX, chunkY };
 						CMapChunk* chunk = Resolve(ref);
@@ -487,7 +488,7 @@ namespace MapEditor::Sculpt
 			}
 		}
 
-		int32_t moved = 0;
+		int32 moved = 0;
 
 		for (Target& target : targets)
 		{
@@ -495,7 +496,7 @@ namespace MapEditor::Sculpt
 			if (stroke.mode == Mode::Smooth)
 				hood = Gather(target.ref);
 
-			for (int32_t i = 0; i < kVerts; ++i)
+			for (int32 i = 0; i < kVerts; ++i)
 			{
 				C3Vector world = Coords::VertexWorldPos(target.chunk, i);
 				float weight = Weight(Coords::Distance2D(world, stroke.center), stroke.radius,
@@ -569,9 +570,9 @@ namespace MapEditor::Sculpt
 
 			// A moved chunk changes the normals of its neighbours' border vertices too, so they
 			// have to be rebuilt even though none of their own heights moved.
-			for (int32_t dy = -1; dy <= 1; ++dy)
+			for (int32 dy = -1; dy <= 1; ++dy)
 			{
-				for (int32_t dx = -1; dx <= 1; ++dx)
+				for (int32 dx = -1; dx <= 1; ++dx)
 				{
 					ChunkRef ref = Step(target.ref, dx, dy);
 					if (std::find(needNormals.begin(), needNormals.end(), ref) == needNormals.end())

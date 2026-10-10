@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Editor/Map/TileSession.h>
 
 #include <Editor/Map/Adt/AdtStore.h>
@@ -46,7 +47,7 @@ namespace MapEditor::Session
 		CurrentMap().clear();
 	}
 
-	OpenTile* Find(int32_t tileX, int32_t tileY)
+	OpenTile* Find(int32 tileX, int32 tileY)
 	{
 		DropIfMapChanged();
 
@@ -59,14 +60,14 @@ namespace MapEditor::Session
 		return nullptr;
 	}
 
-	OpenTile* Open(int32_t tileX, int32_t tileY, std::string& error)
+	OpenTile* Open(int32 tileX, int32 tileY, std::string& error)
 	{
 		if (OpenTile* existing = Find(tileX, tileY))
 			return existing;
 
 		std::string path = Adt::TilePath(CurrentMap().c_str(), tileX, tileY);
 
-		std::vector<uint8_t> bytes;
+		std::vector<uint8> bytes;
 		if (!Adt::ReadFileBytes(path.c_str(), bytes, error))
 			return nullptr;
 
@@ -74,7 +75,7 @@ namespace MapEditor::Session
 		tile->tileX = tileX;
 		tile->tileY = tileY;
 
-		if (!Adt::Read(bytes.data(), static_cast<uint32_t>(bytes.size()), tile->doc, error))
+		if (!Adt::Read(bytes.data(), static_cast<uint32>(bytes.size()), tile->doc, error))
 			return nullptr;
 
 		Tiles().push_back(std::move(tile));
@@ -93,16 +94,16 @@ namespace MapEditor::Session
 		return out;
 	}
 
-	int32_t DirtyCount()
+	int32 DirtyCount()
 	{
-		int32_t count = 0;
+		int32 count = 0;
 		for (std::unique_ptr<OpenTile> const& tile : Tiles())
 			count += tile->dirty ? 1 : 0;
 
 		return count;
 	}
 
-	bool SaveDirty(int32_t& saved, std::string& error)
+	bool SaveDirty(int32& saved, std::string& error)
 	{
 		saved = 0;
 
@@ -111,7 +112,7 @@ namespace MapEditor::Session
 			if (!tile->dirty)
 				continue;
 
-			std::vector<uint8_t> bytes;
+			std::vector<uint8> bytes;
 			if (!Adt::Write(tile->doc, bytes, error))
 				return false;
 
@@ -125,7 +126,7 @@ namespace MapEditor::Session
 		return true;
 	}
 
-	bool SaveOne(int32_t tileX, int32_t tileY, std::string& error)
+	bool SaveOne(int32 tileX, int32 tileY, std::string& error)
 	{
 		OpenTile* tile = Find(tileX, tileY);
 		if (!tile)
@@ -134,7 +135,7 @@ namespace MapEditor::Session
 			return false;
 		}
 
-		std::vector<uint8_t> bytes;
+		std::vector<uint8> bytes;
 		if (!Adt::Write(tile->doc, bytes, error))
 			return false;
 
@@ -145,9 +146,9 @@ namespace MapEditor::Session
 		return true;
 	}
 
-	int32_t RevertAll()
+	int32 RevertAll()
 	{
-		int32_t reverted = 0;
+		int32 reverted = 0;
 		std::string error;
 
 		for (std::unique_ptr<OpenTile> const& tile : Tiles())

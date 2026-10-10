@@ -18,6 +18,7 @@
 // once_flag and is built only by the entry point that needs it. Resolving a model's textures touches
 // the texture table alone, and BeginWarm moves even that onto a worker thread.
 
+#include <Defines.h>
 #include "Models/Db2/FileDataId.h"
 
 #include "Models/Db2/DB2File.h"
@@ -37,15 +38,15 @@ namespace ModernM2::Fdid
 		// Both *FilePath.db2 decode to {uint32 id; int32 path}.
 		struct PathRow
 		{
-			uint32_t id;
-			int32_t path;
+			uint32 id;
+			int32 path;
 		};
 
 		struct Tables
 		{
 			Db2::DB2Table<PathRow> tex;
 			Db2::DB2Table<PathRow> model;
-			std::unordered_map<std::string, uint32_t> modelIdByStem;
+			std::unordered_map<std::string, uint32> modelIdByStem;
 
 			std::once_flag onceTex;
 			std::once_flag onceModel;
@@ -56,8 +57,8 @@ namespace ModernM2::Fdid
 			// fdid -> path, an empty string being a cached miss. Node pointers survive rehash, which
 			// is what lets a resolved c_str() be handed straight to the client.
 			std::mutex cacheMutex;
-			std::unordered_map<uint32_t, std::string> texCache;
-			std::unordered_map<uint32_t, std::string> modelCache;
+			std::unordered_map<uint32, std::string> texCache;
+			std::unordered_map<uint32, std::string> modelCache;
 		};
 
 		/// Leaked on purpose: BeginWarm's thread can still be loading at process teardown.
@@ -111,12 +112,12 @@ namespace ModernM2::Fdid
 				return;
 			const long long t0 = TickNow();
 			T().modelIdByStem.reserve(T().model.RowCount());
-			for (uint32_t i = 0; i < T().model.RowCount(); ++i)
+			for (uint32 i = 0; i < T().model.RowCount(); ++i)
 			{
 				const PathRow* r = T().model.At(i);
 				if (!r)
 					continue;
-				const char* path = T().model.Str(static_cast<uint32_t>(r->path));
+				const char* path = T().model.Str(static_cast<uint32>(r->path));
 				// First spelling wins: two rows collapsing to one stem differ only by container
 				// extension, and either id resolves to the same asset for every consumer here.
 				if (path && *path)
@@ -126,22 +127,22 @@ namespace ModernM2::Fdid
 			    T().modelIdByStem.size(), TickMs(t0, TickNow()));
 		}
 
-		bool LookupTexPath(uint32_t fileDataId, std::string& outPath)
+		bool LookupTexPath(uint32 fileDataId, std::string& outPath)
 		{
-			const PathRow* r = T().tex.Find(static_cast<int32_t>(fileDataId));
-			const char* path = r ? T().tex.Str(static_cast<uint32_t>(r->path)) : nullptr;
+			const PathRow* r = T().tex.Find(static_cast<int32>(fileDataId));
+			const char* path = r ? T().tex.Str(static_cast<uint32>(r->path)) : nullptr;
 			if (!path || !*path)
 				return false;
 			outPath = path;
 			return true;
 		}
 
-		bool LookupModelPath(uint32_t fileDataId, std::string& outPath)
+		bool LookupModelPath(uint32 fileDataId, std::string& outPath)
 		{
 			if (T().modelReady)
 			{
-				const PathRow* r = T().model.Find(static_cast<int32_t>(fileDataId));
-				const char* path = r ? T().model.Str(static_cast<uint32_t>(r->path)) : nullptr;
+				const PathRow* r = T().model.Find(static_cast<int32>(fileDataId));
+				const char* path = r ? T().model.Str(static_cast<uint32>(r->path)) : nullptr;
 				if (path && *path)
 				{
 					outPath = path;
@@ -151,8 +152,8 @@ namespace ModernM2::Fdid
 			return T().texReady && LookupTexPath(fileDataId, outPath);
 		}
 
-		const char* Cached(std::unordered_map<uint32_t, std::string>& cache, uint32_t fdid,
-		    bool (*lookup)(uint32_t, std::string&))
+		const char* Cached(std::unordered_map<uint32, std::string>& cache, uint32 fdid,
+		    bool (*lookup)(uint32, std::string&))
 		{
 			std::lock_guard<std::mutex> lock(T().cacheMutex);
 			auto it = cache.find(fdid);
@@ -192,7 +193,7 @@ namespace ModernM2::Fdid
 		});
 	}
 
-	const char* ResolveTexture(uint32_t fileDataId)
+	const char* ResolveTexture(uint32 fileDataId)
 	{
 		if (fileDataId == 0)
 			return nullptr;
@@ -202,7 +203,7 @@ namespace ModernM2::Fdid
 		return Cached(T().texCache, fileDataId, LookupTexPath);
 	}
 
-	const char* ResolveModel(uint32_t fileDataId)
+	const char* ResolveModel(uint32 fileDataId)
 	{
 		if (fileDataId == 0)
 			return nullptr;
@@ -213,7 +214,7 @@ namespace ModernM2::Fdid
 		return Cached(T().modelCache, fileDataId, LookupModelPath);
 	}
 
-	uint32_t ResolveModelId(const char* modelPath)
+	uint32 ResolveModelId(const char* modelPath)
 	{
 		if (!modelPath || !*modelPath)
 			return 0;
@@ -229,7 +230,7 @@ namespace ModernM2::Fdid
 
 namespace ModernM2
 {
-	const char* ResolveTexture(uint32_t fileDataId)
+	const char* ResolveTexture(uint32 fileDataId)
 	{
 		return Fdid::ResolveTexture(fileDataId);
 	}

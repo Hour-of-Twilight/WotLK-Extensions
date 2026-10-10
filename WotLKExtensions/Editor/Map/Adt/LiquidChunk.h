@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <Editor/Map/Adt/AdtDocument.h>
 #include <Editor/Map/MapClient.h>
 
@@ -9,26 +11,26 @@
 
 namespace MapEditor::Adt
 {
-	constexpr int32_t kLiquidCellSide = 8;
-	constexpr int32_t kLiquidCells = kLiquidCellSide * kLiquidCellSide;
-	constexpr int32_t kLiquidVertSide = 9;
-	constexpr int32_t kLiquidVerts = kLiquidVertSide * kLiquidVertSide;
+	constexpr int32 kLiquidCellSide = 8;
+	constexpr int32 kLiquidCells = kLiquidCellSide * kLiquidCellSide;
+	constexpr int32 kLiquidVertSide = 9;
+	constexpr int32 kLiquidVerts = kLiquidVertSide * kLiquidVertSide;
 
 	// SMLiquidInstance::vertexFormat. A 3 turns up in later builds, but every WotLK accessor
 	// falls through to zero on it, so the editor never writes one.
-	constexpr uint16_t kLiquidHeightDepth = 0;
-	constexpr uint16_t kLiquidHeightUv = 1;
-	constexpr uint16_t kLiquidDepthOnly = 2;
+	constexpr uint16 kLiquidHeightDepth = 0;
+	constexpr uint16 kLiquidHeightUv = 1;
+	constexpr uint16 kLiquidDepthOnly = 2;
 
 	// Liquid grids run on the same axes as MCVT, only transposed in the file, so liquid vertex (x,
 	// y) sits on MCVT outer vertex Coords::EncodeOuterVertex(y, x). CChunkLiquid::CreateVertXY
 	// (0x007CDF80) is where that comes from.
-	inline int32_t LiquidCell(int32_t x, int32_t y)
+	inline int32 LiquidCell(int32 x, int32 y)
 	{
 		return y * kLiquidCellSide + x;
 	}
 
-	inline int32_t LiquidVert(int32_t x, int32_t y)
+	inline int32 LiquidVert(int32 x, int32 y)
 	{
 		return y * kLiquidVertSide + x;
 	}
@@ -38,15 +40,15 @@ namespace MapEditor::Adt
 	// rectangle again on the way out.
 	struct LiquidLayer
 	{
-		uint16_t type = 0;
-		uint16_t format = kLiquidHeightDepth;
+		uint16 type = 0;
+		uint16 format = kLiquidHeightDepth;
 
-		bool exists[kLiquidCells] = {};   // per cell, LiquidCell(x, y)
-		float height[kLiquidVerts] = {};  // per vertex, absolute world height
-		uint8_t depth[kLiquidVerts] = {}; // 0 is a dry shoreline, 255 is fully deep
-		uint16_t uv[kLiquidVerts * 2] = {};
+		bool exists[kLiquidCells] = {};  // per cell, LiquidCell(x, y)
+		float height[kLiquidVerts] = {}; // per vertex, absolute world height
+		uint8 depth[kLiquidVerts] = {};  // 0 is a dry shoreline, 255 is fully deep
+		uint16 uv[kLiquidVerts * 2] = {};
 
-		int32_t CellCount() const;
+		int32 CellCount() const;
 
 		bool Any() const
 		{
@@ -60,8 +62,8 @@ namespace MapEditor::Adt
 	struct ChunkLiquid
 	{
 		std::vector<LiquidLayer> layers;
-		uint64_t fishable = 0;
-		uint64_t fatigue = 0;
+		uint64 fishable = 0;
+		uint64 fatigue = 0;
 	};
 
 	// A whole tile's liquid, indexed chunkY * 16 + chunkX exactly as AdtDocument::ChunkAt is.

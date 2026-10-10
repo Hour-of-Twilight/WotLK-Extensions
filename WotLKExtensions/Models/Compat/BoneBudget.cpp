@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Compat/BoneBudget.h"
 
 #include "Models/Common/ModelHooks.h"
@@ -33,20 +34,21 @@ namespace ModernM2::Bones
 
     namespace
     {
-        constexpr uint32_t kSkinU16Max         = 0xFFFF;  // u16 ceiling of the skin arrays
-        constexpr uint32_t kSplitMaxBoneCombos = 0x10000; // boneCombos upper bound, rejected before bulk copy
+        constexpr uint32 kSkinU16Max         = 0xFFFF;  // u16 ceiling of the skin arrays
+        constexpr uint32 kSplitMaxBoneCombos = 0x10000; // boneCombos upper bound, rejected before bulk copy
     }
 
     bool UsesExtendedIndexStart(std::string_view name)
     {
         return text::StartsWithCI(name, "character\\") ||
+               text::StartsWithCI(name, "characterhd\\") ||
                text::StartsWithCI(name, "item\\objectcomponents\\");
     }
 
-    uint32_t FullIndexStart(const fmt::M2SkinSection& section, bool extended)
+    uint32 FullIndexStart(const fmt::M2SkinSection& section, bool extended)
     {
-        return extended ? ((static_cast<uint32_t>(section.level) << 16) | section.indexStart)
-                        : static_cast<uint32_t>(section.indexStart);
+        return extended ? ((static_cast<uint32>(section.level) << 16) | section.indexStart)
+                        : static_cast<uint32>(section.indexStart);
     }
 
     /**
@@ -60,19 +62,19 @@ namespace ModernM2::Bones
      * @param name        Model path, used for logging.
      * @return true on commit; false (no commit) on any overflow, allocation failure, or missing array.
      */
-    uint32_t ClampBoneBudget(const fmt::M2Header* md, Skin* skin)
+    uint32 ClampBoneBudget(const fmt::M2Header* md, Skin* skin)
     {
         if (!md || !skin || !skin->submeshes)
             return 0;
 
-        uint32_t clamped = 0;
-        const uint32_t count = std::min<uint32_t>(skin->submeshCount, kMaxBatches);
-        for (uint32_t i = 0; i < count; ++i)
+        uint32 clamped = 0;
+        const uint32 count = std::min<uint32>(skin->submeshCount, kMaxBatches);
+        for (uint32 i = 0; i < count; ++i)
         {
             fmt::M2SkinSection& s = skin->submeshes[i];
-            uint16_t cap = kMaxBonesPerDraw;
-            const uint16_t byCombo = md->boneCombos.count > s.boneComboIndex
-                ? static_cast<uint16_t>(md->boneCombos.count - s.boneComboIndex)
+            uint16 cap = kMaxBonesPerDraw;
+            const uint16 byCombo = md->boneCombos.count > s.boneComboIndex
+                ? static_cast<uint16>(md->boneCombos.count - s.boneComboIndex)
                 : 1;
             if (byCombo < cap) cap = byCombo;
             if (cap < 1)       cap = 1;
@@ -82,13 +84,13 @@ namespace ModernM2::Bones
         return clamped;
     }
 
-    bool SplitSubmeshes(fmt::M2Header* md, Skin* skin, std::vector<SplitSection>& outSections, std::vector<SplitRun>& splitMap, uint32_t& splitCount, const char* name)
+    bool SplitSubmeshes(fmt::M2Header* md, Skin* skin, std::vector<SplitSection>& outSections, std::vector<SplitRun>& splitMap, uint32& splitCount, const char* name)
     {
         if (!md->boneCombos.count || !md->boneCombos.offset) return false;
         if (!skin->vertexLookup || !skin->indices || !skin->bones) return false;
 
-        uint32_t boneComboCount = md->boneCombos.count;
-        auto* boneCombos = reinterpret_cast<uint16_t*>(static_cast<uintptr_t>(md->boneCombos.offset));
+        uint32 boneComboCount = md->boneCombos.count;
+        auto* boneCombos = reinterpret_cast<uint16*>(static_cast<uintptr_t>(md->boneCombos.offset));
         if (boneComboCount > kSplitMaxBoneCombos || !boneCombos)
         {
             WLOG_WARN("modern-assets: '%s' boneCombos count=%u out of range, skipping bone split", name, boneComboCount);
@@ -97,7 +99,7 @@ namespace ModernM2::Bones
 
         bool needsSplit = false;
         const bool extendedIndexStart = UsesExtendedIndexStart(name);
-        for (uint32_t si = 0; si < skin->submeshCount; ++si)
+        for (uint32 si = 0; si < skin->submeshCount; ++si)
         {
             const fmt::M2SkinSection& s = skin->submeshes[si];
             if ((extendedIndexStart || s.level == 0) && s.boneCount > kMaxBonesPerDraw)
@@ -105,17 +107,17 @@ namespace ModernM2::Bones
         }
         if (!needsSplit) return false;
 
-        std::vector<uint16_t> newVtxLookup;
-        std::vector<uint8_t>  newBones;
-        std::vector<uint16_t> newIndices;
-        std::vector<uint16_t> newBoneCombos(boneCombos, boneCombos + boneComboCount);
+        std::vector<uint16> newVtxLookup;
+        std::vector<uint8>  newBones;
+        std::vector<uint16> newIndices;
+        std::vector<uint16> newBoneCombos(boneCombos, boneCombos + boneComboCount);
         newVtxLookup.reserve(skin->vertexCount);
         newBones.reserve(skin->vertexCount * 4);
         newIndices.reserve(skin->indexCount);
 
         splitCount = 0;
 
-        for (uint32_t si = 0; si < skin->submeshCount; ++si)
+        for (uint32 si = 0; si < skin->submeshCount; ++si)
         {
             fmt::M2SkinSection s = skin->submeshes[si];
 
@@ -125,66 +127,66 @@ namespace ModernM2::Bones
             {
                 s.level = 0; s.vertexStart = 0; s.vertexCount = 0; s.indexStart = 0;
                 s.indexCount = 0; s.boneComboIndex = 0; s.centerBoneIndex = 0; s.boneCount = 1;
-                reinterpret_cast<uint8_t*>(&s)[0x11] = 0;
-                outSections.push_back({ s, static_cast<uint16_t>(si) });
+                reinterpret_cast<uint8*>(&s)[0x11] = 0;
+                outSections.push_back({ s, static_cast<uint16>(si) });
                 continue;
             }
 
-            const uint32_t sourceIndexStart = FullIndexStart(s, extendedIndexStart);
+            const uint32 sourceIndexStart = FullIndexStart(s, extendedIndexStart);
             if (sourceIndexStart > skin->indexCount || s.indexCount > skin->indexCount - sourceIndexStart)
             {
                 WLOG_WARN("modern-assets: '%s' submesh %u index window past skin indexCount, skipping bone split", name, si);
                 return false;
             }
 
-            uint32_t triCount = s.indexCount / 3;
-            uint32_t comboBase = s.boneComboIndex;
+            uint32 triCount = s.indexCount / 3;
+            uint32 comboBase = s.boneComboIndex;
 
-            std::vector<uint16_t> curGlobals;
-            uint32_t curTriStart = 0;
-            uint32_t emittedSections = 0;
+            std::vector<uint16> curGlobals;
+            uint32 curTriStart = 0;
+            uint32 emittedSections = 0;
 
             // Emit triangles [triFrom, triTo) as one sub-section: a sorted boneCombos slice, a deduplicated
             // vertex block with bones[] remapped to the slice, and a global-indexed triangle block.
-            auto emit = [&](uint32_t triFrom, uint32_t triTo, std::vector<uint16_t>& globals) -> bool
+            auto emit = [&](uint32 triFrom, uint32 triTo, std::vector<uint16>& globals) -> bool
             {
                 if (triFrom >= triTo) return true;
                 std::sort(globals.begin(), globals.end());
-                uint32_t comboIndex = static_cast<uint32_t>(newBoneCombos.size());
+                uint32 comboIndex = static_cast<uint32>(newBoneCombos.size());
                 if (comboIndex > kSkinU16Max) return false;
-                for (uint16_t g : globals) newBoneCombos.push_back(g);
+                for (uint16 g : globals) newBoneCombos.push_back(g);
 
-                uint32_t secVertStart  = static_cast<uint32_t>(newVtxLookup.size());
-                uint32_t secIndexStart = static_cast<uint32_t>(newIndices.size());
+                uint32 secVertStart  = static_cast<uint32>(newVtxLookup.size());
+                uint32 secIndexStart = static_cast<uint32>(newIndices.size());
                 if (secVertStart > kSkinU16Max) return false;
                 if (!extendedIndexStart && secIndexStart > kSkinU16Max) return false;
                 if (extendedIndexStart && (secIndexStart >> 16) > kSkinU16Max) return false;
 
-                std::unordered_map<uint16_t, uint16_t> vmap;
-                for (uint32_t t = triFrom; t < triTo; ++t)
+                std::unordered_map<uint16, uint16> vmap;
+                for (uint32 t = triFrom; t < triTo; ++t)
                 {
-                    for (uint32_t k = 0; k < 3; ++k)
+                    for (uint32 k = 0; k < 3; ++k)
                     {
-                        uint16_t lv = skin->indices[sourceIndexStart + t * 3 + k];
+                        uint16 lv = skin->indices[sourceIndexStart + t * 3 + k];
                         if (lv >= skin->vertexCount) return false;
                         auto it = vmap.find(lv);
-                        uint16_t nv;
+                        uint16 nv;
                         if (it == vmap.end())
                         {
-                            uint32_t idx = static_cast<uint32_t>(newVtxLookup.size());
+                            uint32 idx = static_cast<uint32>(newVtxLookup.size());
                             if (idx > kSkinU16Max) return false;
-                            nv = static_cast<uint16_t>(idx);
+                            nv = static_cast<uint16>(idx);
                             vmap.emplace(lv, nv);
                             newVtxLookup.push_back(skin->vertexLookup[lv]);
-                            const uint8_t* infl = skin->bones + lv * 4;
-                            for (uint32_t j = 0; j < 4; ++j)
+                            const uint8* infl = skin->bones + lv * 4;
+                            for (uint32 j = 0; j < 4; ++j)
                             {
-                                uint32_t comboIdx = comboBase + infl[j];
-                                uint16_t g = comboIdx < boneComboCount ? boneCombos[comboIdx] : globals[0];
+                                uint32 comboIdx = comboBase + infl[j];
+                                uint16 g = comboIdx < boneComboCount ? boneCombos[comboIdx] : globals[0];
                                 auto lo = std::lower_bound(globals.begin(), globals.end(), g);
-                                uint16_t local = (lo != globals.end() && *lo == g)
-                                               ? static_cast<uint16_t>(lo - globals.begin()) : 0;
-                                newBones.push_back(static_cast<uint8_t>(local));
+                                uint16 local = (lo != globals.end() && *lo == g)
+                                               ? static_cast<uint16>(lo - globals.begin()) : 0;
+                                newBones.push_back(static_cast<uint8>(local));
                             }
                         }
                         else nv = it->second;
@@ -192,35 +194,35 @@ namespace ModernM2::Bones
                     }
                 }
 
-                uint32_t secVertCount  = static_cast<uint32_t>(newVtxLookup.size()) - secVertStart;
-                uint32_t secIndexCount = static_cast<uint32_t>(newIndices.size()) - secIndexStart;
+                uint32 secVertCount  = static_cast<uint32>(newVtxLookup.size()) - secVertStart;
+                uint32 secIndexCount = static_cast<uint32>(newIndices.size()) - secIndexStart;
                 if (secVertCount > kSkinU16Max || secIndexCount > kSkinU16Max) return false;
 
                 fmt::M2SkinSection sec = s;
-                sec.vertexStart    = static_cast<uint16_t>(secVertStart);
-                sec.vertexCount    = static_cast<uint16_t>(secVertCount);
-                sec.level          = extendedIndexStart ? static_cast<uint16_t>(secIndexStart >> 16) : 0;
-                sec.indexStart     = static_cast<uint16_t>(secIndexStart & kSkinU16Max);
-                sec.indexCount     = static_cast<uint16_t>(secIndexCount);
-                sec.boneCount      = static_cast<uint16_t>(globals.size());
-                sec.boneComboIndex = static_cast<uint16_t>(comboIndex);
-                outSections.push_back({ sec, static_cast<uint16_t>(si) });
+                sec.vertexStart    = static_cast<uint16>(secVertStart);
+                sec.vertexCount    = static_cast<uint16>(secVertCount);
+                sec.level          = extendedIndexStart ? static_cast<uint16>(secIndexStart >> 16) : 0;
+                sec.indexStart     = static_cast<uint16>(secIndexStart & kSkinU16Max);
+                sec.indexCount     = static_cast<uint16>(secIndexCount);
+                sec.boneCount      = static_cast<uint16>(globals.size());
+                sec.boneComboIndex = static_cast<uint16>(comboIndex);
+                outSections.push_back({ sec, static_cast<uint16>(si) });
                 ++emittedSections;
                 return true;
             };
 
-            for (uint32_t t = 0; t < triCount; ++t)
+            for (uint32 t = 0; t < triCount; ++t)
             {
-                uint16_t g[12]; int gn = 0;
-                for (uint32_t k = 0; k < 3; ++k)
+                uint16 g[12]; int gn = 0;
+                for (uint32 k = 0; k < 3; ++k)
                 {
-                    uint16_t lv = skin->indices[sourceIndexStart + t * 3 + k];
+                    uint16 lv = skin->indices[sourceIndexStart + t * 3 + k];
                     if (lv >= skin->vertexCount) return false;
-                    const uint8_t* infl = skin->bones + lv * 4;
-                    for (uint32_t j = 0; j < 4; ++j)
+                    const uint8* infl = skin->bones + lv * 4;
+                    for (uint32 j = 0; j < 4; ++j)
                     {
-                        uint32_t comboIdx = comboBase + infl[j];
-                        uint16_t gg = comboIdx < boneComboCount ? boneCombos[comboIdx] : 0;
+                        uint32 comboIdx = comboBase + infl[j];
+                        uint16 gg = comboIdx < boneComboCount ? boneCombos[comboIdx] : 0;
                         bool seen = false;
                         for (int e = 0; e < gn; ++e) if (g[e] == gg) { seen = true; break; }
                         if (!seen && gn < 12) g[gn++] = gg;
@@ -246,7 +248,7 @@ namespace ModernM2::Bones
             {
                 fmt::M2SkinSection sec = s;
                 sec.vertexCount = 0; sec.indexCount = 0; sec.boneCount = 1;
-                outSections.push_back({ sec, static_cast<uint16_t>(si) });
+                outSections.push_back({ sec, static_cast<uint16>(si) });
             }
             else if (emittedSections > 1)
             {
@@ -257,9 +259,9 @@ namespace ModernM2::Bones
         if (newVtxLookup.size() > kSkinU16Max || outSections.size() > kMaxBatches) return false;
 
         splitMap.assign(skin->submeshCount, SplitRun{ 0, 0 });
-        for (uint16_t i = 0; i < outSections.size(); ++i)
+        for (uint16 i = 0; i < outSections.size(); ++i)
         {
-            uint16_t orig = outSections[i].origSubmesh;
+            uint16 orig = outSections[i].origSubmesh;
             if (orig >= splitMap.size()) continue;
             if (splitMap[orig].count == 0) splitMap[orig].first = i;
             ++splitMap[orig].count;
@@ -267,33 +269,33 @@ namespace ModernM2::Bones
 
         // Commit the rebuilt geometry into owned buffers (leaked for the model's lifetime; the engine never
         // per-array frees the file-mapped skin arrays).
-        auto* vl = static_cast<uint16_t*>(std::malloc(newVtxLookup.size() * sizeof(uint16_t)));
-        auto* bn = static_cast<uint8_t*>(std::malloc(newBones.size()));
-        auto* ix = static_cast<uint16_t*>(std::malloc(newIndices.size() * sizeof(uint16_t)));
-        auto* bc = static_cast<uint16_t*>(std::malloc(newBoneCombos.size() * sizeof(uint16_t)));
+        auto* vl = static_cast<uint16*>(std::malloc(newVtxLookup.size() * sizeof(uint16)));
+        auto* bn = static_cast<uint8*>(std::malloc(newBones.size()));
+        auto* ix = static_cast<uint16*>(std::malloc(newIndices.size() * sizeof(uint16)));
+        auto* bc = static_cast<uint16*>(std::malloc(newBoneCombos.size() * sizeof(uint16)));
         auto* sm = static_cast<fmt::M2SkinSection*>(std::malloc(outSections.size() * sizeof(fmt::M2SkinSection)));
         if (!vl || !bn || !ix || !bc || !sm)
         {
             std::free(vl); std::free(bn); std::free(ix); std::free(bc); std::free(sm);
             return false;
         }
-        std::memcpy(vl, newVtxLookup.data(), newVtxLookup.size() * sizeof(uint16_t));
+        std::memcpy(vl, newVtxLookup.data(), newVtxLookup.size() * sizeof(uint16));
         std::memcpy(bn, newBones.data(), newBones.size());
-        std::memcpy(ix, newIndices.data(), newIndices.size() * sizeof(uint16_t));
-        std::memcpy(bc, newBoneCombos.data(), newBoneCombos.size() * sizeof(uint16_t));
+        std::memcpy(ix, newIndices.data(), newIndices.size() * sizeof(uint16));
+        std::memcpy(bc, newBoneCombos.data(), newBoneCombos.size() * sizeof(uint16));
         for (size_t i = 0; i < outSections.size(); ++i) sm[i] = outSections[i].section;
 
         skin->vertexLookup = vl;
-        skin->vertexCount  = static_cast<uint32_t>(newVtxLookup.size());
+        skin->vertexCount  = static_cast<uint32>(newVtxLookup.size());
         skin->bones        = bn;
-        skin->boneCount    = static_cast<uint32_t>(newVtxLookup.size());
+        skin->boneCount    = static_cast<uint32>(newVtxLookup.size());
         skin->indices      = ix;
-        skin->indexCount   = static_cast<uint32_t>(newIndices.size());
+        skin->indexCount   = static_cast<uint32>(newIndices.size());
         skin->submeshes    = sm;
-        skin->submeshCount = static_cast<uint32_t>(outSections.size());
+        skin->submeshCount = static_cast<uint32>(outSections.size());
 
-        md->boneCombos.count  = static_cast<uint32_t>(newBoneCombos.size());
-        md->boneCombos.offset = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(bc));
+        md->boneCombos.count  = static_cast<uint32>(newBoneCombos.size());
+        md->boneCombos.offset = static_cast<uint32>(reinterpret_cast<uintptr_t>(bc));
         return true;
     }
 
@@ -309,15 +311,15 @@ namespace ModernM2::Bones
 
         std::vector<fmt::M2Batch> out;
         out.reserve(skin->batchCount);
-        for (uint32_t i = 0; i < skin->batchCount; ++i)
+        for (uint32 i = 0; i < skin->batchCount; ++i)
         {
             const fmt::M2Batch& b = skin->batches[i];
             SplitRun run{ b.skinSectionIndex, 1 };
             if (b.skinSectionIndex < splitMap.size()) run = splitMap[b.skinSectionIndex];
-            for (uint16_t s = 0; s < run.count; ++s)
+            for (uint16 s = 0; s < run.count; ++s)
             {
                 fmt::M2Batch nb = b;
-                nb.skinSectionIndex = static_cast<uint16_t>(run.first + s);
+                nb.skinSectionIndex = static_cast<uint16>(run.first + s);
                 out.push_back(nb);
             }
         }
@@ -328,6 +330,6 @@ namespace ModernM2::Bones
         if (!buf) return;
         std::memcpy(buf, out.data(), out.size() * sizeof(fmt::M2Batch));
         skin->batches    = buf;
-        skin->batchCount = static_cast<uint32_t>(out.size());
+        skin->batchCount = static_cast<uint32>(out.size());
     }
 }

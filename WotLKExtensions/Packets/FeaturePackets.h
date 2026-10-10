@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 struct lua_State;
@@ -8,11 +10,12 @@ struct CDataStore;
 class FeaturePackets
 {
 public:
-	enum Feature : uint32_t
+	enum Feature : uint32
 	{
 		GEM_SYSTEM = 0,
 		AOE_LOOT = 1,
-		TRANSMOG = 2
+		TRANSMOG = 2,
+		PET_AUTO_LOOT = 3
 	};
 
 	static FeaturePackets& Instance();
@@ -21,17 +24,17 @@ public:
 	FeaturePackets& operator=(const FeaturePackets&) = delete;
 
 	void Apply();
-	bool IsEnabled(uint32_t featureId) const;
+	bool IsEnabled(uint32 featureId) const;
 
 private:
 	FeaturePackets() = default;
 
-	static void Handler_SMSG_FEATURE_TOGGLE(void*, uint32_t, uint32_t, CDataStore* pkt);
+	static void Handler_SMSG_FEATURE_TOGGLE(void*, uint32, uint32, CDataStore* pkt);
 	static int RequestFeatureFlags(lua_State* L);
 	static int HasFeatureFlags(lua_State* L);
 	static int IsFeatureEnabled(lua_State* L);
 
-	uint32_t m_mask = 0;
+	uint32 m_mask = 0;
 	bool m_hasData = false;
 };
 

@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Editor/EditorRuntime.h>
 
 #include <ClientData/Draw.h>
@@ -15,6 +16,8 @@
 #include <Input/ActionRepeat.h>
 
 #include <Character/MovementForce.h>
+#include <Character/PlayerRenderLimit.h>
+#include <Entities/LootWindow.h>
 #include <Packets/CraftingPackets.h>
 #include <Spells/CooldownRate.h>
 #include <SharedDefines.h>
@@ -71,7 +74,7 @@ namespace EditorRuntime
 			return true;
 		}
 
-		int32_t OnMouseDown(const void* rawData, void*)
+		int32 OnMouseDown(const void* rawData, void*)
 		{
 			if (!Enabled())
 				return 1;
@@ -125,7 +128,7 @@ namespace EditorRuntime
 			return 1;
 		}
 
-		int32_t OnMouseUp(const void* rawData, void*)
+		int32 OnMouseUp(const void* rawData, void*)
 		{
 			auto const* data = static_cast<EventDataMouse const*>(rawData);
 			if (!data || data->button != MOUSE_BUTTON_LEFT)
@@ -137,7 +140,7 @@ namespace EditorRuntime
 			return 1;
 		}
 
-		int32_t OnMouseMove(const void* rawData, void*)
+		int32 OnMouseMove(const void* rawData, void*)
 		{
 			if (!Enabled())
 				return 1;
@@ -207,7 +210,7 @@ namespace EditorRuntime
 		return EditorObject::GameObjectByGuid(state.currentObjectGuid);
 	}
 
-	uint64_t CurrentSelectedGobGUID()
+	uint64 CurrentSelectedGobGUID()
 	{
 		return State().currentObjectGuid;
 	}
@@ -221,7 +224,7 @@ namespace EditorRuntime
 		state.gizmoDragState = {};
 	}
 
-	bool SelectGameObject(uint64_t guid)
+	bool SelectGameObject(uint64 guid)
 	{
 		CGGameObject_C* gameObject = EditorObject::GameObjectByGuid(guid);
 		if (!gameObject)
@@ -312,7 +315,7 @@ namespace
 {
 	using namespace ClientData;
 
-	void __cdecl ClientInitializeGame_EditorRuntimeDetour(int32_t a1, float a2, float a3, float a4)
+	void __cdecl ClientInitializeGame_EditorRuntimeDetour(int32 a1, float a2, float a3, float a4)
 	{
 		GameClient::InitializeGame(a1, a2, a3, a4);
 		EditorRuntime::OnGameClientInitialize();
@@ -358,6 +361,8 @@ namespace
 		sMovementForce.Tick();
 		sCraftingPackets.Tick();
 		sCooldownRate.Tick();
+		sLootWindow.Tick();
+		sPlayerRenderLimit.Tick();
 		return result;
 	}
 

@@ -2,6 +2,7 @@
 
 #include "MpqFile.h"
 #include "Sha256.h"
+#include "StreamPaths.h"
 #include "TextConv.h"
 
 #include <Helpers/Util.h>
@@ -42,7 +43,20 @@ namespace Streaming::LocalDigests
 
 		fs::path CacheFile()
 		{
-			return Util::GetExeDir() / "Cache" / "hotstream-local.txt";
+			return Paths::WorkDir() / "hotstream-local.txt";
+		}
+
+		void MigrateLegacyCacheFile()
+		{
+			const fs::path file = CacheFile();
+			std::error_code ec;
+			if (fs::exists(file, ec))
+				return;
+			const fs::path legacy = Paths::LegacyCacheDir() / "hotstream-local.txt";
+			if (!fs::exists(legacy, ec))
+				return;
+			fs::create_directories(file.parent_path(), ec);
+			fs::rename(legacy, file, ec);
 		}
 
 		bool Stat(const std::wstring& path, long long& size, long long& mtime)
@@ -87,6 +101,7 @@ namespace Streaming::LocalDigests
 		void LoadLocked()
 		{
 			g_loaded = true;
+			MigrateLegacyCacheFile();
 			std::ifstream in(CacheFile(), std::ios::binary);
 			std::string line;
 			bool first = true;

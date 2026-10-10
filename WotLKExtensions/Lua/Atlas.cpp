@@ -1,16 +1,11 @@
 #include "Atlas.h"
 
 #include <ClientData/ClientFunctions.h>
+#include <ClientData/GameEnums.h>
 
 #include <cctype>
 #include <string>
 #include <unordered_map>
-
-static const int kLuaGlobalsIndex = -10002;
-static const int kLuaTypeNumber = 3;
-static const int kLuaTypeString = 4;
-static const int kLuaTypeTable = 5;
-static const int kLuaTypeFunction = 6;
 
 struct AtlasEntry
 {
@@ -60,7 +55,7 @@ static void Pop(lua_State* L, int n)
 static double FieldNumber(lua_State* L, int tableIdx, int n)
 {
 	FrameScript::RawGetI(L, tableIdx, n);
-	double value = FrameScript::Type(L, -1) == kLuaTypeNumber ? FrameScript::GetNumber(L, -1) : 0.0;
+	double value = FrameScript::Type(L, -1) == ClientData::LUA_TNUMBER ? FrameScript::GetNumber(L, -1) : 0.0;
 	Pop(L, 1);
 
 	return value;
@@ -79,7 +74,7 @@ static bool FieldBool(lua_State* L, int tableIdx, int n)
 static bool BeginMethod(lua_State* L, int objIdx, const char* method)
 {
 	FrameScript::GetField(L, objIdx, method);
-	if (FrameScript::Type(L, -1) != kLuaTypeFunction)
+	if (FrameScript::Type(L, -1) != ClientData::LUA_TFUNCTION)
 	{
 		Pop(L, 1);
 		return false;
@@ -100,13 +95,13 @@ void LuaAtlas::Install(lua_State* L)
 	if (!L)
 		return;
 
-	FrameScript::GetField(L, kLuaGlobalsIndex, "C_Texture");
-	if (FrameScript::Type(L, -1) != kLuaTypeTable)
+	FrameScript::GetField(L, ClientData::LUA_GLOBALSINDEX, "C_Texture");
+	if (FrameScript::Type(L, -1) != ClientData::LUA_TTABLE)
 	{
 		Pop(L, 1);
 		FrameScript::CreateTable(L, 0, 4);
 		FrameScript::PushValue(L, -1);
-		FrameScript::SetField(L, kLuaGlobalsIndex, "C_Texture");
+		FrameScript::SetField(L, ClientData::LUA_GLOBALSINDEX, "C_Texture");
 	}
 
 	FrameScript::PushCClosure(L, &LuaAtlas::LoadAtlasData, 0);
@@ -121,14 +116,14 @@ void LuaAtlas::Install(lua_State* L)
 	Pop(L, 1);
 
 	FrameScript::PushCClosure(L, &LuaAtlas::SetAtlas, 0);
-	FrameScript::SetField(L, kLuaGlobalsIndex, "SetAtlas");
+	FrameScript::SetField(L, ClientData::LUA_GLOBALSINDEX, "SetAtlas");
 }
 
 // C_Texture.LoadAtlasData({ ["path\\to\\sheet.blp"] = { ["atlas-name"] = { w, h, l, r, t, b,
 // tileH, tileV, scale } } }) -> number of atlases added.
 int LuaAtlas::LoadAtlasData(lua_State* L)
 {
-	if (FrameScript::Type(L, 1) != kLuaTypeTable)
+	if (FrameScript::Type(L, 1) != ClientData::LUA_TTABLE)
 	{
 		FrameScript::PushNumber(L, 0);
 		return 1;
@@ -140,7 +135,7 @@ int LuaAtlas::LoadAtlasData(lua_State* L)
 	while (FrameScript::Next(L, 1))
 	{
 		int groupIdx = FrameScript::GetTop(L);
-		if (FrameScript::Type(L, groupIdx - 1) == kLuaTypeString && FrameScript::Type(L, groupIdx) == kLuaTypeTable)
+		if (FrameScript::Type(L, groupIdx - 1) == ClientData::LUA_TSTRING && FrameScript::Type(L, groupIdx) == ClientData::LUA_TTABLE)
 		{
 			std::string file = NormalizePath(FrameScript::ToLString(L, groupIdx - 1, false));
 
@@ -148,7 +143,7 @@ int LuaAtlas::LoadAtlasData(lua_State* L)
 			while (FrameScript::Next(L, groupIdx))
 			{
 				int dataIdx = FrameScript::GetTop(L);
-				if (FrameScript::Type(L, dataIdx - 1) == kLuaTypeString && FrameScript::Type(L, dataIdx) == kLuaTypeTable)
+				if (FrameScript::Type(L, dataIdx - 1) == ClientData::LUA_TSTRING && FrameScript::Type(L, dataIdx) == ClientData::LUA_TTABLE)
 				{
 					AtlasEntry entry;
 					entry.width = (int)FieldNumber(L, dataIdx, 1);
@@ -178,7 +173,7 @@ int LuaAtlas::LoadAtlasData(lua_State* L)
 
 int LuaAtlas::GetAtlasInfo(lua_State* L)
 {
-	if (FrameScript::Type(L, 1) != kLuaTypeString)
+	if (FrameScript::Type(L, 1) != ClientData::LUA_TSTRING)
 	{
 		FrameScript::PushNil(L);
 		return 1;
@@ -233,7 +228,7 @@ int LuaAtlas::GetAtlasInfo(lua_State* L)
 // SetAtlas(texture, atlasName, useAtlasSize), also reachable as C_Texture.SetAtlas.
 int LuaAtlas::SetAtlas(lua_State* L)
 {
-	if (FrameScript::Type(L, 1) <= 0 || FrameScript::Type(L, 2) != kLuaTypeString)
+	if (FrameScript::Type(L, 1) <= 0 || FrameScript::Type(L, 2) != ClientData::LUA_TSTRING)
 	{
 		FrameScript::PushBoolean(L, 0);
 		return 1;

@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "CooldownRate.h"
 
 #include <Packet.h>
@@ -18,35 +19,35 @@ namespace
 {
 	constexpr float kMinRate = 0.02f;
 	constexpr float kMaxRate = 10.0f;
-	constexpr uint32_t kMaxAffectedMs = 60 * 60 * 1000;
-	constexpr int32_t kMatchToleranceMs = 2;
+	constexpr uint32 kMaxAffectedMs = 60 * 60 * 1000;
+	constexpr int32 kMatchToleranceMs = 2;
 
 	// CGCooldown, from CGCooldown__SetCooldown (0x005ECD70) and OnLayerUpdate (0x005EC8F0).
 	constexpr uintptr_t kFrameStartMs = 0x29C;
 	constexpr uintptr_t kFrameDurationMs = 0x2A0;
 
-	uint32_t NowMs()
+	uint32 NowMs()
 	{
-		return static_cast<uint32_t>(OsGetAsyncTimeMs());
+		return static_cast<uint32>(OsGetAsyncTimeMs());
 	}
 
-	uint32_t* FrameStart(void* frame)
+	uint32* FrameStart(void* frame)
 	{
-		return reinterpret_cast<uint32_t*>(static_cast<char*>(frame) + kFrameStartMs);
+		return reinterpret_cast<uint32*>(static_cast<char*>(frame) + kFrameStartMs);
 	}
 
-	bool Near(int32_t a, int32_t b)
+	bool Near(int32 a, int32 b)
 	{
 		return std::abs(a - b) <= kMatchToleranceMs;
 	}
 
-	bool Live(Entry* entry, uint32_t now, uint32_t start, uint32_t length)
+	bool Live(Entry* entry, uint32 now, uint32 start, uint32 length)
 	{
 		if (!length || entry->m_onHold)
 			return false;
 
-		int32_t remaining = static_cast<int32_t>(start + length - now);
-		return remaining > 0 && static_cast<uint32_t>(remaining) <= kMaxAffectedMs;
+		int32 remaining = static_cast<int32>(start + length - now);
+		return remaining > 0 && static_cast<uint32>(remaining) <= kMaxAffectedMs;
 	}
 
 }
@@ -81,8 +82,8 @@ void CooldownRate::Forget()
 
 void CooldownRate::Tick()
 {
-	uint32_t now = NowMs();
-	int32_t elapsed = static_cast<int32_t>(now - m_lastTickMs);
+	uint32 now = NowMs();
+	int32 elapsed = static_cast<int32>(now - m_lastTickMs);
 	m_lastTickMs = now;
 
 	m_frameShiftMs = 0;
@@ -90,7 +91,7 @@ void CooldownRate::Tick()
 		return;
 
 	double want = static_cast<double>(elapsed) * (1.0 - m_rate) + m_carryMs;
-	int32_t shift = static_cast<int32_t>(want);
+	int32 shift = static_cast<int32>(want);
 	m_carryMs = want - shift;
 	if (!shift)
 		return;
@@ -98,9 +99,9 @@ void CooldownRate::Tick()
 	m_frameShiftMs = shift;
 
 	for (Entry* entry = ClientData::SpellCooldowns::First(ClientData::SpellCooldowns::PlayerHistory); entry;
-	     entry = ClientData::SpellCooldowns::Next(entry))
+	    entry = ClientData::SpellCooldowns::Next(entry))
 	{
-		uint32_t gcdEnd = entry->m_startTime + entry->m_gcdDuration;
+		uint32 gcdEnd = entry->m_startTime + entry->m_gcdDuration;
 		bool gcdLive = Live(entry, now, entry->m_startTime, entry->m_gcdDuration);
 
 		if (Live(entry, now, entry->m_startTime, entry->m_duration))
@@ -113,36 +114,33 @@ void CooldownRate::Tick()
 
 		if (gcdLive)
 		{
-			uint32_t wanted = m_includeGcd ? gcdEnd + shift : gcdEnd;
-			int32_t length = static_cast<int32_t>(wanted - entry->m_startTime);
-			entry->m_gcdDuration = length > 0 ? static_cast<uint32_t>(length) : 0;
+			uint32 wanted = m_includeGcd ? gcdEnd + shift : gcdEnd;
+			int32 length = static_cast<int32>(wanted - entry->m_startTime);
+			entry->m_gcdDuration = length > 0 ? static_cast<uint32>(length) : 0;
 		}
 	}
 }
 
-bool CooldownRate::Match(int32_t startMs, int32_t durationMs, Tracked& out) const
+bool CooldownRate::Match(int32 startMs, int32 durationMs, Tracked& out) const
 {
-	uint32_t now = NowMs();
+	uint32 now = NowMs();
 
 	for (Entry* entry = ClientData::SpellCooldowns::First(ClientData::SpellCooldowns::PlayerHistory); entry;
-	     entry = ClientData::SpellCooldowns::Next(entry))
+	    entry = ClientData::SpellCooldowns::Next(entry))
 	{
-		if (Live(entry, now, entry->m_startTime, entry->m_duration) && Near(startMs, entry->m_startTime)
-		    && Near(durationMs, entry->m_duration))
+		if (Live(entry, now, entry->m_startTime, entry->m_duration) && Near(startMs, entry->m_startTime) && Near(durationMs, entry->m_duration))
 		{
 			out = { entry->m_spellId, entry->m_itemId, FieldSpell };
 			return true;
 		}
 
-		if (Live(entry, now, entry->m_categoryStart, entry->m_categoryDuration) && Near(startMs, entry->m_categoryStart)
-		    && Near(durationMs, entry->m_categoryDuration))
+		if (Live(entry, now, entry->m_categoryStart, entry->m_categoryDuration) && Near(startMs, entry->m_categoryStart) && Near(durationMs, entry->m_categoryDuration))
 		{
 			out = { entry->m_spellId, entry->m_itemId, FieldCategory };
 			return true;
 		}
 
-		if (m_includeGcd && Live(entry, now, entry->m_startTime, entry->m_gcdDuration)
-		    && Near(startMs, entry->m_startTime) && Near(durationMs, entry->m_gcdDuration))
+		if (m_includeGcd && Live(entry, now, entry->m_startTime, entry->m_gcdDuration) && Near(startMs, entry->m_startTime) && Near(durationMs, entry->m_gcdDuration))
 		{
 			out = { entry->m_spellId, entry->m_itemId, FieldGcd };
 			return true;
@@ -152,7 +150,7 @@ bool CooldownRate::Match(int32_t startMs, int32_t durationMs, Tracked& out) cons
 	return false;
 }
 
-void CooldownRate::OnCooldownFrameSet(void* frame, int32_t startMs, int32_t durationMs)
+void CooldownRate::OnCooldownFrameSet(void* frame, int32 startMs, int32 durationMs)
 {
 	Tracked tracked;
 	if (Match(startMs, durationMs, tracked))
@@ -167,16 +165,16 @@ void CooldownRate::OnCooldownFrameUpdate(void* frame)
 	if (tracked == m_frames.end())
 		return;
 
-	uint32_t now = NowMs();
+	uint32 now = NowMs();
 
 	for (Entry* entry = ClientData::SpellCooldowns::First(ClientData::SpellCooldowns::PlayerHistory); entry;
-	     entry = ClientData::SpellCooldowns::Next(entry))
+	    entry = ClientData::SpellCooldowns::Next(entry))
 	{
 		if (entry->m_spellId != tracked->second.spellId || entry->m_itemId != tracked->second.itemId)
 			continue;
 
-		uint32_t start = entry->m_startTime;
-		uint32_t length = entry->m_duration;
+		uint32 start = entry->m_startTime;
+		uint32 length = entry->m_duration;
 		if (tracked->second.field == FieldCategory)
 		{
 			start = entry->m_categoryStart;
@@ -195,11 +193,11 @@ void CooldownRate::OnCooldownFrameUpdate(void* frame)
 	m_frames.erase(tracked);
 }
 
-void CooldownRate::Handler_SMSG_COOLDOWN_RATE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void CooldownRate::Handler_SMSG_COOLDOWN_RATE(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	float rate = r.GetFloat();
-	uint8_t flags = r.GetUInt8();
+	uint8 flags = r.GetUInt8();
 
 	sCooldownRate.SetRate(rate, (flags & 0x1) != 0);
 }
@@ -227,7 +225,7 @@ CLIENT_DETOUR(Spell_C_ClearCooldowns, 0x00804AF0, __cdecl, void, ())
 	sCooldownRate.Forget();
 }
 
-CLIENT_DETOUR_THISCALL(CGCooldown__SetCooldown, 0x005ECD70, int, (int32_t startMs, int32_t durationMs))
+CLIENT_DETOUR_THISCALL(CGCooldown__SetCooldown, 0x005ECD70, int, (int32 startMs, int32 durationMs))
 {
 	int result = CGCooldown__SetCooldown(self, startMs, durationMs);
 	sCooldownRate.OnCooldownFrameSet(self, startMs, durationMs);

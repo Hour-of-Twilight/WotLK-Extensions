@@ -1,9 +1,11 @@
+#include <Defines.h>
 #include <Character/HandItemDisplay.h>
 
 #include <ClientDetours.h>
 #include <ClientData/ClientFunctions.h>
 #include <ClientData/M2Model.h>
 #include <ClientData/SharedDefines.h>
+#include <ClientData/WowObjects.h>
 
 #include <cctype>
 #include <cstdint>
@@ -13,44 +15,19 @@
 
 namespace HandItemDisplay
 {
-	constexpr unsigned int kHandMain = 15;
-	constexpr unsigned int kHandOff = 16;
-	constexpr unsigned int kHandRanged = 17;
 
-	constexpr int kAttachShield = 0;
-	constexpr int kAttachHandRight = 1;
-	constexpr int kAttachHandLeft = 2;
 	constexpr int kNoAttachment = -1;
 
-	constexpr int kSlotMainHand = 0;
-	constexpr int kSlotOffHand = 1;
-	constexpr int kSlotRanged = 2;
-
-	constexpr uint8_t kInvTypeShield = 14;
-	constexpr uint8_t kInvTypeThrown = 25;
-	constexpr uint8_t kInvTypeRangedRight = 26;
-
-	constexpr uintptr_t kUnitModelOffset = 0xB4;
 	constexpr size_t kVTableGetVirtualItem = 0x12C / sizeof(void*);
 	constexpr size_t kVTableGetVirtualItemDisplay = 0x130 / sizeof(void*);
 
 	constexpr uintptr_t kModelRefCountOffset = 0x00;
-	constexpr uintptr_t kModelAttachmentOffset = 0x50;
 	constexpr uintptr_t kModelLocalMatrixOffset = 0xB4;
 	constexpr size_t kMatrixCells = 16;
-	constexpr uintptr_t kModelFirstChildOffset = 0x58;
-	constexpr uintptr_t kModelNextSiblingOffset = 0x60;
-	constexpr uintptr_t kModelSharedOffset = 0x2C;
-	constexpr uintptr_t kSharedHeaderOffset = 0x150;
-	constexpr uintptr_t kHeaderAttachmentsOffset = 0xF0;
-	constexpr uintptr_t kHeaderAttachmentLookupOffset = 0xF8;
-	constexpr size_t kAttachmentStride = 0x28;
-	constexpr uintptr_t kAttachmentPositionOffset = 0x08;
-	constexpr uint16_t kNoAttachmentIndex = 0xFFFF;
 	constexpr float kDefaultShieldOffset[3] = { -0.015f, -0.104f, 0.132f };
 
-	constexpr uint8_t kFoundWeapon = 1;
-	constexpr uint8_t kFoundShield = 2;
+	constexpr uint8 kFoundWeapon = 1;
+	constexpr uint8 kFoundShield = 2;
 
 	constexpr size_t kPathSize = 260;
 
@@ -59,11 +36,11 @@ namespace HandItemDisplay
 
 	struct VirtualItemInfo
 	{
-		uint8_t itemClass;
-		uint8_t subClass;
-		uint8_t pad[2];
-		uint8_t inventoryType;
-		uint8_t sheath;
+		uint8 itemClass;
+		uint8 subClass;
+		uint8 pad[2];
+		uint8 inventoryType;
+		uint8 sheath;
 	};
 
 	using GetVirtualItemFn = VirtualItemInfo*(__thiscall*)(void* unit, int slot, int a3);
@@ -102,15 +79,15 @@ namespace HandItemDisplay
 		return name;
 	}
 
-	static uint8_t ProbeFolders(const std::string& fileName)
+	static uint8 ProbeFolders(const std::string& fileName)
 	{
-		static std::unordered_map<std::string, uint8_t> cache;
+		static std::unordered_map<std::string, uint8> cache;
 
 		auto it = cache.find(fileName);
 		if (it != cache.end())
 			return it->second;
 
-		uint8_t found = 0;
+		uint8 found = 0;
 		if (SFile::FileExistsEx((std::string(kWeaponFolder) + fileName).c_str(), 0))
 			found |= kFoundWeapon;
 		if (SFile::FileExistsEx((std::string(kShieldFolder) + fileName).c_str(), 0))
@@ -127,7 +104,7 @@ namespace HandItemDisplay
 		if (!record || !record->m_modelName[0] || !*record->m_modelName[0])
 			return preferred;
 
-		uint8_t found = ProbeFolders(ModelFileName(record->m_modelName[0]));
+		uint8 found = ProbeFolders(ModelFileName(record->m_modelName[0]));
 		if (found == kFoundWeapon)
 			return ModelFolder::Weapon;
 		if (found == kFoundShield)
@@ -140,25 +117,22 @@ namespace HandItemDisplay
 		if (!ClientData::M2Model::IsLoaded(model))
 			return false;
 
-		uintptr_t shared = *reinterpret_cast<uintptr_t*>(reinterpret_cast<uintptr_t>(model) + kModelSharedOffset);
-		if (!shared)
-			return false;
-		uintptr_t header = *reinterpret_cast<uintptr_t*>(shared + kSharedHeaderOffset);
+		uintptr_t header = ClientData::M2Model::SharedData(model);
 		if (!header)
 			return false;
 
-		uint32_t lookupCount = *reinterpret_cast<uint32_t*>(header + kHeaderAttachmentLookupOffset);
-		const uint16_t* lookup = *reinterpret_cast<const uint16_t**>(header + kHeaderAttachmentLookupOffset + 4);
+		uint32 lookupCount = *reinterpret_cast<uint32*>(header + ClientData::M2Model::kDataAttachmentLookupOffset);
+		const uint16* lookup = *reinterpret_cast<const uint16**>(header + ClientData::M2Model::kDataAttachmentLookupOffset + 4);
 		if (!lookup || attachment >= lookupCount)
 			return false;
 
-		uint16_t index = lookup[attachment];
-		uint32_t count = *reinterpret_cast<uint32_t*>(header + kHeaderAttachmentsOffset);
-		const uint8_t* attachments = *reinterpret_cast<const uint8_t**>(header + kHeaderAttachmentsOffset + 4);
-		if (!attachments || index == kNoAttachmentIndex || index >= count)
+		uint16 index = lookup[attachment];
+		uint32 count = *reinterpret_cast<uint32*>(header + ClientData::M2Model::kDataAttachmentsOffset);
+		const uint8* attachments = *reinterpret_cast<const uint8**>(header + ClientData::M2Model::kDataAttachmentsOffset + 4);
+		if (!attachments || index == ClientData::M2Model::kNoAttachmentIndex || index >= count)
 			return false;
 
-		const float* position = reinterpret_cast<const float*>(attachments + index * kAttachmentStride + kAttachmentPositionOffset);
+		const float* position = reinterpret_cast<const float*>(attachments + index * ClientData::M2Model::kAttachmentStride + ClientData::M2Model::kAttachmentPositionOffset);
 		out[0] = position[0];
 		out[1] = position[1];
 		out[2] = position[2];
@@ -169,7 +143,7 @@ namespace HandItemDisplay
 	{
 		float shieldPoint[3];
 		float handPoint[3];
-		if (AttachmentBindPosition(parent, kAttachShield, shieldPoint) && AttachmentBindPosition(parent, kAttachHandLeft, handPoint))
+		if (AttachmentBindPosition(parent, ClientData::M2Model::ATTACHMENT_SHIELD, shieldPoint) && AttachmentBindPosition(parent, ClientData::M2Model::ATTACHMENT_HAND_LEFT, handPoint))
 		{
 			out[0] = shieldPoint[0] - handPoint[0];
 			out[1] = handPoint[1] - shieldPoint[1];
@@ -206,12 +180,10 @@ namespace HandItemDisplay
 
 	static void* FindChild(void* model, int attachment)
 	{
-		uintptr_t child = *reinterpret_cast<uintptr_t*>(reinterpret_cast<uintptr_t>(model) + kModelFirstChildOffset);
-		while (child)
+		for (void* child = ClientData::M2Model::FirstChild(model); child; child = ClientData::M2Model::NextSibling(child))
 		{
-			if (*reinterpret_cast<int*>(child + kModelAttachmentOffset) == attachment)
-				return reinterpret_cast<void*>(child);
-			child = *reinterpret_cast<uintptr_t*>(child + kModelNextSiblingOffset);
+			if (static_cast<int>(ClientData::M2Model::AttachmentId(child)) == attachment)
+				return child;
 		}
 		return nullptr;
 	}
@@ -224,13 +196,13 @@ namespace HandItemDisplay
 		bool leftHand;
 		switch (hand)
 		{
-		case kHandMain:
+		case ClientData::EQUIPMENT_SLOT_MAINHAND:
 			leftHand = false;
 			break;
-		case kHandOff:
+		case ClientData::EQUIPMENT_SLOT_OFFHAND:
 			leftHand = true;
 			break;
-		case kHandRanged:
+		case ClientData::EQUIPMENT_SLOT_RANGED:
 			leftHand = isRangedRight == 0;
 			break;
 		default:
@@ -238,15 +210,15 @@ namespace HandItemDisplay
 		}
 
 		ModelFolder folder = ResolveFolder(record, isShield != 0);
-		int handAttachment = leftHand ? kAttachHandLeft : kAttachHandRight;
-		if (hand == kHandOff && folder == ModelFolder::Shield)
-			handAttachment = kAttachShield;
+		int handAttachment = leftHand ? ClientData::M2Model::ATTACHMENT_HAND_LEFT : ClientData::M2Model::ATTACHMENT_HAND_RIGHT;
+		if (hand == ClientData::EQUIPMENT_SLOT_OFFHAND && folder == ModelFolder::Shield)
+			handAttachment = ClientData::M2Model::ATTACHMENT_SHIELD;
 		int sheathAttachment = SheathAttachment(sheath, leftHand);
 
-		if (hand == kHandOff)
+		if (hand == ClientData::EQUIPMENT_SLOT_OFFHAND)
 		{
-			CCharacterComponent::RemoveLinkpt(model, kAttachShield);
-			CCharacterComponent::RemoveLinkpt(model, kAttachHandLeft);
+			CCharacterComponent::RemoveLinkpt(model, ClientData::M2Model::ATTACHMENT_SHIELD);
+			CCharacterComponent::RemoveLinkpt(model, ClientData::M2Model::ATTACHMENT_HAND_LEFT);
 		}
 		else
 			CCharacterComponent::RemoveLinkpt(model, static_cast<unsigned int>(handAttachment));
@@ -267,9 +239,9 @@ namespace HandItemDisplay
 
 		CCharacterComponent::AddLink(model, attachment, modelPath, texturePath, itemVisual ? itemVisual : record->m_itemVisual, record);
 
-		if (folder == ModelFolder::Shield && attachment == kAttachHandRight)
+		if (folder == ModelFolder::Shield && attachment == ClientData::M2Model::ATTACHMENT_HAND_RIGHT)
 		{
-			if (void* child = FindChild(model, kAttachHandRight))
+			if (void* child = FindChild(model, ClientData::M2Model::ATTACHMENT_HAND_RIGHT))
 				SetMainHandShieldTransform(child, model, true);
 		}
 		return attachment;
@@ -282,17 +254,17 @@ namespace HandItemDisplay
 
 		switch (hand)
 		{
-		case kHandMain:
-			CCharacterComponent::RemoveLinkpt(model, kAttachHandRight);
+		case ClientData::EQUIPMENT_SLOT_MAINHAND:
+			CCharacterComponent::RemoveLinkpt(model, ClientData::M2Model::ATTACHMENT_HAND_RIGHT);
 			CCharacterComponent::RemoveLinkpt(model, static_cast<unsigned int>(SheathAttachment(sheath, false)));
 			break;
-		case kHandOff:
-			CCharacterComponent::RemoveLinkpt(model, kAttachShield);
-			CCharacterComponent::RemoveLinkpt(model, kAttachHandLeft);
+		case ClientData::EQUIPMENT_SLOT_OFFHAND:
+			CCharacterComponent::RemoveLinkpt(model, ClientData::M2Model::ATTACHMENT_SHIELD);
+			CCharacterComponent::RemoveLinkpt(model, ClientData::M2Model::ATTACHMENT_HAND_LEFT);
 			CCharacterComponent::RemoveLinkpt(model, static_cast<unsigned int>(SheathAttachment(sheath, true)));
 			break;
-		case kHandRanged:
-			CCharacterComponent::RemoveLinkpt(model, isShield ? kAttachShield : kAttachHandLeft);
+		case ClientData::EQUIPMENT_SLOT_RANGED:
+			CCharacterComponent::RemoveLinkpt(model, isShield ? ClientData::M2Model::ATTACHMENT_SHIELD : ClientData::M2Model::ATTACHMENT_HAND_LEFT);
 			CCharacterComponent::RemoveLinkpt(model, static_cast<unsigned int>(SheathAttachment(sheath, true)));
 			break;
 		default:
@@ -302,7 +274,7 @@ namespace HandItemDisplay
 
 	int SheatheHandItem(void* unit, int slot, int moveToSheath)
 	{
-		void* model = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(unit) + kUnitModelOffset);
+		void* model = ClientData::WowUnit(unit).BodyModel();
 		if (!model)
 			return 0;
 
@@ -311,25 +283,25 @@ namespace HandItemDisplay
 		if (!info)
 			return 0;
 
-		bool mainHandRules = slot == kSlotMainHand || info->inventoryType == kInvTypeRangedRight || info->inventoryType == kInvTypeThrown;
+		bool mainHandRules = slot == ClientData::VIRTUAL_ITEM_SLOT_MAINHAND || info->inventoryType == ClientData::INVTYPE_RANGEDRIGHT || info->inventoryType == ClientData::INVTYPE_THROWN;
 
 		ItemDisplayInfoRec record = {};
 		const ItemDisplayInfoRec* recordPtr = nullptr;
-		if (slot != kSlotRanged && reinterpret_cast<GetVirtualItemDisplayFn>(vtable[kVTableGetVirtualItemDisplay])(unit, slot, &record))
+		if (slot != ClientData::VIRTUAL_ITEM_SLOT_RANGED && reinterpret_cast<GetVirtualItemDisplayFn>(vtable[kVTableGetVirtualItemDisplay])(unit, slot, &record))
 			recordPtr = &record;
-		bool shieldModel = slot != kSlotRanged && ResolveFolder(recordPtr, info->inventoryType == kInvTypeShield) == ModelFolder::Shield;
+		bool shieldModel = slot != ClientData::VIRTUAL_ITEM_SLOT_RANGED && ResolveFolder(recordPtr, info->inventoryType == ClientData::INVTYPE_SHIELD) == ModelFolder::Shield;
 
 		int handAttachment;
 		switch (slot)
 		{
-		case kSlotMainHand:
-			handAttachment = kAttachHandRight;
+		case ClientData::VIRTUAL_ITEM_SLOT_MAINHAND:
+			handAttachment = ClientData::M2Model::ATTACHMENT_HAND_RIGHT;
 			break;
-		case kSlotOffHand:
-			handAttachment = shieldModel ? kAttachShield : kAttachHandLeft;
+		case ClientData::VIRTUAL_ITEM_SLOT_OFFHAND:
+			handAttachment = shieldModel ? ClientData::M2Model::ATTACHMENT_SHIELD : ClientData::M2Model::ATTACHMENT_HAND_LEFT;
 			break;
-		case kSlotRanged:
-			handAttachment = mainHandRules ? kAttachHandRight : kAttachHandLeft;
+		case ClientData::VIRTUAL_ITEM_SLOT_RANGED:
+			handAttachment = mainHandRules ? ClientData::M2Model::ATTACHMENT_HAND_RIGHT : ClientData::M2Model::ATTACHMENT_HAND_LEFT;
 			break;
 		default:
 			return 0;
@@ -340,7 +312,7 @@ namespace HandItemDisplay
 		int to = moveToSheath ? sheathAttachment : handAttachment;
 
 		bool hideShieldInBarberShop = false;
-		if (CGUnit_C::IsActivePlayer(unit) && *CGBarberShop::m_barberShopEnabled && info->inventoryType == kInvTypeShield)
+		if (CGUnit_C::IsActivePlayer(unit) && *CGBarberShop::m_barberShopEnabled && info->inventoryType == ClientData::INVTYPE_SHIELD)
 		{
 			hideShieldInBarberShop = true;
 			to = kNoAttachment;
@@ -354,29 +326,29 @@ namespace HandItemDisplay
 		}
 		else
 		{
-			++*reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t>(child) + kModelRefCountOffset);
+			++*reinterpret_cast<uint32*>(reinterpret_cast<uintptr_t>(child) + kModelRefCountOffset);
 			ClientData::M2Model::DetachFromParent(child);
 			if (to != kNoAttachment)
 				ClientData::M2Model::AttachToParent(child, model, static_cast<unsigned int>(to), nullptr, 0);
-			if (slot == kSlotMainHand && shieldModel)
-				SetMainHandShieldTransform(child, model, to == kAttachHandRight);
+			if (slot == ClientData::VIRTUAL_ITEM_SLOT_MAINHAND && shieldModel)
+				SetMainHandShieldTransform(child, model, to == ClientData::M2Model::ATTACHMENT_HAND_RIGHT);
 			ClientData::M2Model::Release(child);
 
-			if (handAttachment != kAttachShield)
+			if (handAttachment != ClientData::M2Model::ATTACHMENT_SHIELD)
 			{
-				int leftHand = handAttachment != kAttachHandRight ? 1 : 0;
+				int leftHand = handAttachment != ClientData::M2Model::ATTACHMENT_HAND_RIGHT ? 1 : 0;
 				if (to == handAttachment)
 					CCharacterComponent::ComponentCloseFingers(model, leftHand);
 				else
 					CCharacterComponent::ComponentOpenFingers(model, leftHand);
 			}
 
-			if (slot == kSlotRanged)
+			if (slot == ClientData::VIRTUAL_ITEM_SLOT_RANGED)
 			{
 				if (!moveToSheath)
 					return 1;
-				CGUnit_C::AddHandItemForSlot(unit, kSlotMainHand);
-				CGUnit_C::AddHandItemForSlot(unit, kSlotOffHand);
+				CGUnit_C::AddHandItemForSlot(unit, ClientData::VIRTUAL_ITEM_SLOT_MAINHAND);
+				CGUnit_C::AddHandItemForSlot(unit, ClientData::VIRTUAL_ITEM_SLOT_OFFHAND);
 			}
 		}
 

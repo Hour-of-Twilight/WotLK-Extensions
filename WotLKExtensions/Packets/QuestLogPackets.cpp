@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "QuestLogPackets.h"
 #include "Packet.h"
 #include <CustomPacket.h>
@@ -18,14 +19,14 @@ void QuestLogPackets::Apply()
 	sCustomPacket.RegisterHandler(SMSG_QUEST_LOG_PARTY, &Handler_SMSG_QUEST_LOG_PARTY);
 }
 
-void QuestLogPackets::SendPartyRequest(uint64_t guid)
+void QuestLogPackets::SendPartyRequest(uint64 guid)
 {
 	Packet packet(CMSG_QUEST_LOG_PARTY_REQUEST);
 	packet.PutUInt64(guid);
 	packet.Send();
 }
 
-static ClientData::QuestLog::Slot ReadSlot(Packet& r, uint32_t& index)
+static ClientData::QuestLog::Slot ReadSlot(Packet& r, uint32& index)
 {
 	ClientData::QuestLog::Slot slot;
 	index = r.GetUInt8();
@@ -37,15 +38,15 @@ static ClientData::QuestLog::Slot ReadSlot(Packet& r, uint32_t& index)
 	return slot;
 }
 
-void QuestLogPackets::Handler_SMSG_QUEST_LOG_FULL(void*, uint32_t, uint32_t, CDataStore* pkt)
+void QuestLogPackets::Handler_SMSG_QUEST_LOG_FULL(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint32_t count = r.GetUInt8();
+	uint32 count = r.GetUInt8();
 
 	sQuestLog.ClearSlots();
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
-		uint32_t index;
+		uint32 index;
 		ClientData::QuestLog::Slot slot = ReadSlot(r, index);
 		sQuestLog.SetSlot(index, slot);
 	}
@@ -53,28 +54,28 @@ void QuestLogPackets::Handler_SMSG_QUEST_LOG_FULL(void*, uint32_t, uint32_t, CDa
 	sQuestLog.OnFullLogReceived();
 }
 
-void QuestLogPackets::Handler_SMSG_QUEST_LOG_SLOTS(void*, uint32_t, uint32_t, CDataStore* pkt)
+void QuestLogPackets::Handler_SMSG_QUEST_LOG_SLOTS(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint32_t count = r.GetUInt8();
+	uint32 count = r.GetUInt8();
 
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
-		uint32_t index;
+		uint32 index;
 		ClientData::QuestLog::Slot slot = ReadSlot(r, index);
 		sQuestLog.OnSlotReceived(index, slot);
 	}
 }
 
-void QuestLogPackets::Handler_SMSG_QUEST_LOG_PARTY(void*, uint32_t, uint32_t, CDataStore* pkt)
+void QuestLogPackets::Handler_SMSG_QUEST_LOG_PARTY(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint64_t guid = r.GetUInt64();
-	uint32_t count = r.GetUInt8();
+	uint64 guid = r.GetUInt64();
+	uint32 count = r.GetUInt8();
 
-	std::vector<uint32_t> questIds;
+	std::vector<uint32> questIds;
 	questIds.reserve(count);
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 		questIds.push_back(r.GetUInt32());
 
 	sQuestLog.SetPartyQuests(guid, std::move(questIds));

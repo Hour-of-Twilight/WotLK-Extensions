@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <ClientData/MathTypes.h>
 #include <ClientData/Object.h>
 #include <cstddef>
@@ -9,21 +11,21 @@ namespace ClientData
 {
 	struct CPassenger
 	{
-		uint32_t unk_0000;
-		uint32_t unk_0004;
-		uint64_t transportGuid;
+		uint32 unk_0000;
+		uint32 unk_0004;
+		uint64 transportGuid;
 		C3Vector position;
-		uint32_t unk_001C;
-		uint64_t compressedRotation;
-		uint64_t guid2;
-		uint32_t unk_002C;
+		uint32 unk_001C;
+		uint64 compressedRotation;
+		uint64 guid2;
+		uint32 unk_002C;
 	};
 
 	class CGGameObject_C : public CGObject_C
 	{
 	public:
-		uint32_t unk_00D0;
-		uint32_t unk_00D4;
+		uint32 unk_00D0;
+		uint32 unk_00D4;
 		CPassenger m_passenger;
 	};
 

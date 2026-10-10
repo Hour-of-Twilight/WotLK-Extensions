@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <Macros.h>
 #include <ClientData/GxBatch.h>
 #include <ClientData/GxTypes.h>
@@ -15,78 +17,78 @@ namespace ClientData
 
 	struct CGxFormat
 	{
-		uint32_t apiSpecificModeID;
+		uint32 apiSpecificModeID;
 		bool hwTnL;
 		bool hwCursor;
-		int8_t fixLag;
-		int8_t window;
+		int8 fixLag;
+		int8 window;
 		bool aspect;
-		int32_t maximize;
+		int32 maximize;
 		CGxFormat__Format depthFormat;
 		C2iVector size;
-		uint32_t backBufferCount;
-		uint32_t multisampleCount;
+		uint32 backBufferCount;
+		uint32 multisampleCount;
 		float multisampleQuality;
 		CGxFormat__Format colorFormat;
-		uint32_t refreshRate;
-		uint32_t vsync;
+		uint32 refreshRate;
+		uint32 vsync;
 		bool stereoEnabled;
-		int32_t fixedFunction[6];
+		int32 fixedFunction[6];
 		C2iVector pos;
 	};
 
 	struct CGxCaps
 	{
-		int32_t m_numTmus;
-		int32_t m_pixelCenterOnEdge;
-		int32_t m_texelCenterOnEdge;
-		int32_t m_numStreams;
-		int32_t int10;
+		int32 m_numTmus;
+		int32 m_pixelCenterOnEdge;
+		int32 m_texelCenterOnEdge;
+		int32 m_numStreams;
+		int32 int10;
 		EGxColorFormat m_colorFormat;
-		uint32_t unk18;
-		uint32_t m_maxIndex;
-		int32_t m_generateMipMaps;
-		int32_t m_texFmt[13];
-		int32_t m_texTarget[4];
-		uint32_t m_texNonPow2;
-		uint32_t m_texMaxSize[4];
-		int32_t m_rttFormat[13];
-		uint32_t unkB0;
-		int32_t m_shaderTargets[6];
-		uint32_t m_shaderConstants[6];
-		int32_t m_texFilterTrilinear;
-		int32_t m_texFilterAnisotropic;
-		uint32_t m_maxTexAnisotropy;
-		int32_t m_depthBias;
-		int32_t m_colorWrite;
-		int32_t m_maxClipPlanes;
-		int32_t m_hwCursor;
-		int32_t m_occlusionQuery;
-		int32_t m_pointParameters;
+		uint32 unk18;
+		uint32 m_maxIndex;
+		int32 m_generateMipMaps;
+		int32 m_texFmt[13];
+		int32 m_texTarget[4];
+		uint32 m_texNonPow2;
+		uint32 m_texMaxSize[4];
+		int32 m_rttFormat[13];
+		uint32 unkB0;
+		int32 m_shaderTargets[6];
+		uint32 m_shaderConstants[6];
+		int32 m_texFilterTrilinear;
+		int32 m_texFilterAnisotropic;
+		uint32 m_maxTexAnisotropy;
+		int32 m_depthBias;
+		int32 m_colorWrite;
+		int32 m_maxClipPlanes;
+		int32 m_hwCursor;
+		int32 m_occlusionQuery;
+		int32 m_pointParameters;
 		float m_pointScaleMax;
-		int32_t m_pointSprite;
-		uint32_t m_blendFactor;
-		uint32_t unk114[5];
-		int32_t m_oglRtAlpha;
-		int32_t m_stereoAvailable;
-		int32_t int130;
-		int32_t int134;
-		int32_t int138;
+		int32 m_pointSprite;
+		uint32 m_blendFactor;
+		uint32 unk114[5];
+		int32 m_oglRtAlpha;
+		int32 m_stereoAvailable;
+		int32 int130;
+		int32 int134;
+		int32 int138;
 	};
 
 	struct CGxGammaRamp
 	{
-		uint16_t red[256];
-		uint16_t green[256];
-		uint16_t blue[256];
+		uint16 red[256];
+		uint16 green[256];
+		uint16 blue[256];
 	};
 
 	struct CGxMatrixStack
 	{
-		uint32_t m_level;
-		int8_t m_dirty;
+		uint32 m_level;
+		int8 m_dirty;
 		C44Matrix m_mtx[4];
-		uint32_t m_flags[4];
+		uint32 m_flags[4];
 	};
 
 	class CGxDevice
@@ -139,7 +141,7 @@ namespace ClientData
 		virtual void unk39();
 		virtual void XformSetProjection(C44Matrix* matrix);
 		virtual void XformSetView(C44Matrix* matrix);
-		virtual void Draw(CGxBatch* batch, int32_t indexed);
+		virtual void Draw(CGxBatch* batch, int32 indexed);
 
 		void Push()
 		{
@@ -154,9 +156,9 @@ namespace ClientData
 		char m_stackOffsets[0x10];
 		char m_dirtyStates[0x10];
 		EGxPrim m_primType;
-		int32_t m_indexLocked;
-		int32_t m_vertexLocked;
-		int32_t m_inBeginEnd;
+		int32 m_indexLocked;
+		int32 m_vertexLocked;
+		int32 m_inBeginEnd;
 		C3Vector m_primVertex;
 		C2Vector m_primTexCoord[8];
 		C3Vector m_primNormal;
@@ -166,31 +168,31 @@ namespace ClientData
 		char m_primNormalArray[0x10];
 		char m_primColorArray[0x10];
 		char m_primIndexArray[0x10];
-		uint32_t m_primMask;
+		uint32 m_primMask;
 		CRect m_defWindowRect;
 		CRect m_curWindowRect;
 		char m_deviceRestoredCallbacks[0x10];
 		char m_textureRecreationCallbacks[0x10];
 		char m_stereoChangedCallbacks[0x10];
 		EGxApi m_api;
-		uint32_t m_cpuFeatures;
+		uint32 m_cpuFeatures;
 		CGxFormat m_format;
 		CGxCaps m_caps;
-		uint32_t m_baseMipLevel;
+		uint32 m_baseMipLevel;
 		CGxGammaRamp m_gammaRamp;
 		CGxGammaRamp m_systemGammaRamp;
-		int32_t(__stdcall* m_windowProc)(void* window, uint32_t message, uintptr_t wparam, intptr_t lparam);
-		int32_t m_context;
-		int32_t intF5C;
-		int32_t m_windowVisible;
-		int32_t m_windowFocus;
-		int32_t m_frameCount;
-		int32_t m_viewportDirty;
+		int32(__stdcall* m_windowProc)(void* window, uint32 message, uintptr_t wparam, intptr_t lparam);
+		int32 m_context;
+		int32 intF5C;
+		int32 m_windowVisible;
+		int32 m_windowFocus;
+		int32 m_frameCount;
+		int32 m_viewportDirty;
 		CBoundingBox m_viewport;
 		C44Matrix m_projection;
 		C44Matrix m_projNative;
 		CGxMatrixStack m_xforms[11];
 		CGxMatrixStack m_texGen[8];
-		uint32_t m_clipPlaneMask;
+		uint32 m_clipPlaneMask;
 	};
 }

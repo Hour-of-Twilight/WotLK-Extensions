@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstddef>
 #include <cstdint>
 
@@ -7,189 +9,210 @@ namespace ClientData
 {
 	struct ChrClassesRow
 	{
-		int32_t m_ID;
-		int32_t m_damageBonusStat;
-		int32_t m_displayPower;
+		int32 m_ID;
+		int32 m_damageBonusStat;
+		int32 m_displayPower;
 		const char* m_petNameToken;
 		const char* m_name;
 		const char* m_nameFemale;
 		const char* m_nameMale;
 		const char* m_filename;
-		int32_t m_spellClassSet;
-		int32_t m_flags;
-		int32_t m_cinematicSequenceID;
-		int32_t m_requiredExpansion;
+		int32 m_spellClassSet;
+		int32 m_flags;
+		int32 m_cinematicSequenceID;
+		int32 m_requiredExpansion;
 	};
 
 	struct gtCombatRatingsRow
 	{
-		uint32_t ID;
+		uint32 ID;
 		float data;
 	};
 
 	struct gtOCTClassCombatRatingScalarRow
 	{
-		uint32_t ID;
+		uint32 ID;
 		float data;
 	};
 
 	struct MapRow
 	{
-		uint32_t m_ID;
+		uint32 m_ID;
 		char* m_Directory;
-		uint32_t m_InstanceType;
-		uint32_t m_Flags;
-		uint32_t m_PVP;
+		uint32 m_InstanceType;
+		uint32 m_Flags;
+		uint32 m_PVP;
 		char* m_MapName_lang;
-		uint32_t m_areaTableID;
+		uint32 m_areaTableID;
 		char* m_MapDescription0_lang;
 		char* m_MapDescription1_lang;
-		uint32_t m_LoadingScreenID;
+		uint32 m_LoadingScreenID;
 		float m_minimapIconScale;
-		uint32_t m_corpseMapID;
+		uint32 m_corpseMapID;
 		float m_corpseX;
 		float m_corpseY;
-		uint32_t m_timeOfDayOverride;
-		uint32_t m_expansionID;
-		uint32_t m_raidOffset;
-		uint32_t m_maxPlayers;
-		uint32_t m_parentMapID;
+		uint32 m_timeOfDayOverride;
+		uint32 m_expansionID;
+		uint32 m_raidOffset;
+		uint32 m_maxPlayers;
+		uint32 m_parentMapID;
 	};
 
 	struct PowerDisplayRow
 	{
-		uint32_t m_ID;
-		uint32_t m_actualType;
+		uint32 m_ID;
+		uint32 m_actualType;
 		char* m_globalStringBaseTag;
-		uint8_t m_red;
-		uint8_t m_green;
-		uint8_t m_blue;
+		uint8 m_red;
+		uint8 m_green;
+		uint8 m_blue;
 	};
 
 	struct SkillLineAbilityRow
 	{
-		uint32_t m_ID;
-		uint32_t m_skillLine;
-		uint32_t m_spell;
-		uint32_t m_raceMask;
-		uint32_t m_classMask;
-		uint32_t m_excludeRace;
-		uint32_t m_excludeClass;
-		uint32_t m_minSkillLineRank;
-		uint32_t m_supercededBySpell;
-		uint32_t m_acquireMethod;
-		uint32_t m_trivialSkillLineRankHigh;
-		uint32_t m_trivialSkillLineRankLow;
-		uint32_t m_characterPoints[2];
-		uint32_t m_numSkillUps;
+		uint32 m_ID;
+		uint32 m_skillLine;
+		uint32 m_spell;
+		uint32 m_raceMask;
+		uint32 m_classMask;
+		uint32 m_excludeRace;
+		uint32 m_excludeClass;
+		uint32 m_minSkillLineRank;
+		uint32 m_supercededBySpell;
+		uint32 m_acquireMethod;
+		uint32 m_trivialSkillLineRankHigh;
+		uint32 m_trivialSkillLineRankLow;
+		uint32 m_characterPoints[2];
+		uint32 m_numSkillUps;
 	};
 
 	struct SkillLineRow
 	{
-		uint32_t m_ID;
-		uint32_t m_categoryID;
-		uint32_t m_skillCostsID;
+		uint32 m_ID;
+		uint32 m_categoryID;
+		uint32 m_skillCostsID;
 		char* m_displayName_lang;
 		char* m_description_lang;
-		uint32_t m_spellIconID;
+		uint32 m_spellIconID;
 		char* m_alternateVerb_lang;
-		uint32_t m_canLink;
+		uint32 m_canLink;
 	};
+
+	struct CreatureDisplayInfoRow
+	{
+		uint32 m_ID;
+		uint32 m_modelId;
+		uint32 m_soundId;
+		uint32 m_extendedDisplayInfoId;
+		float m_creatureModelScale;
+	};
+
+	struct CreatureModelDataRow
+	{
+		uint32 m_ID;
+		uint32 m_flags;
+		const char* m_modelName;
+		uint32 m_sizeClass;
+		float m_modelScale;
+	};
+
+	static_assert(offsetof(CreatureDisplayInfoRow, m_creatureModelScale) == 0x10, "CreatureDisplayInfo scale must sit at 0x10");
+	static_assert(offsetof(CreatureModelDataRow, m_modelScale) == 0x10, "CreatureModelData scale must sit at 0x10");
 
 	struct TotemCategoryRow
 	{
-		int32_t m_ID;
+		int32 m_ID;
 		char* m_name;
-		int32_t m_totemCategoryType;
-		int32_t m_totemCategoryMask;
+		int32 m_totemCategoryType;
+		int32 m_totemCategoryMask;
 	};
 
 	struct ItemSubClassMaskRow
 	{
-		uint32_t m_classID;
-		uint32_t m_mask;
+		uint32 m_classID;
+		uint32 m_mask;
 		char* m_name;
 	};
 
 	struct ItemSubClassRow
 	{
-		int32_t m_classID;
-		int32_t m_subClassID;
-		int32_t m_prerequisiteProficiency;
-		int32_t m_postrequisiteProficiency;
-		int32_t m_flags;
-		int32_t m_displayFlags;
-		int32_t m_weaponParrySeq;
-		int32_t m_weaponReadySeq;
-		int32_t m_weaponAttackSeq;
-		int32_t m_weaponSwingSize;
+		int32 m_classID;
+		int32 m_subClassID;
+		int32 m_prerequisiteProficiency;
+		int32 m_postrequisiteProficiency;
+		int32 m_flags;
+		int32 m_displayFlags;
+		int32 m_weaponParrySeq;
+		int32 m_weaponReadySeq;
+		int32 m_weaponAttackSeq;
+		int32 m_weaponSwingSize;
 		const char* m_displayName;
 		const char* m_verboseName;
-		int32_t m_generatedID;
+		int32 m_generatedID;
 	};
 
 	struct FactionRec
 	{
-		int32_t m_ID;
-		int32_t m_reputationIndex;
-		int32_t m_reputationRaceMask[4];
-		int32_t m_reputationClassMask[4];
-		int32_t m_reputationBase[4];
-		int32_t m_reputationFlags[4];
-		int32_t m_parentFactionID;
+		int32 m_ID;
+		int32 m_reputationIndex;
+		int32 m_reputationRaceMask[4];
+		int32 m_reputationClassMask[4];
+		int32 m_reputationBase[4];
+		int32 m_reputationFlags[4];
+		int32 m_parentFactionID;
 		float m_parentFactionMod[2];
-		int32_t m_parentFactionCap[2];
+		int32 m_parentFactionCap[2];
 		const char* m_name;
 		const char* m_description;
 	};
 
 	struct SpellShapeshiftFormRow
 	{
-		int32_t m_ID;
-		int32_t m_bonusActionBar;
+		int32 m_ID;
+		int32 m_bonusActionBar;
 		const char* m_name;
-		int32_t m_flags;
-		int32_t m_creatureType;
-		int32_t m_attackIconID;
-		int32_t m_combatRoundTime;
-		int32_t m_creatureDisplayID[4];
-		int32_t m_presetSpellID[8];
+		int32 m_flags;
+		int32 m_creatureType;
+		int32 m_attackIconID;
+		int32 m_combatRoundTime;
+		int32 m_creatureDisplayID[4];
+		int32 m_presetSpellID[8];
 	};
 
 	struct SpellIconRow
 	{
-		uint32_t m_ID;
+		uint32 m_ID;
 		char* m_textureFilename;
 	};
 
 	struct SpellRuneCostRow
 	{
-		int32_t m_ID;
-		int32_t m_blood;
-		int32_t m_unholy;
-		int32_t m_frost;
-		int32_t m_runicPower;
+		int32 m_ID;
+		int32 m_blood;
+		int32 m_unholy;
+		int32 m_frost;
+		int32 m_runicPower;
 	};
 
 	// LiquidType.dbc. materialId is the anchor: CMapChunk::CreateLiquids reads it at [eax+38h]
 	// before handing it to the LiquidMaterial lookup, which pins the layout either side of it.
 	struct LiquidTypeRow
 	{
-		uint32_t id;
+		uint32 id;
 		char const* name;
-		uint32_t flags;
-		uint32_t soundBank;
-		uint32_t soundId;
-		uint32_t spellId;
+		uint32 flags;
+		uint32 soundBank;
+		uint32 soundId;
+		uint32 spellId;
 		float maxDarkenDepth;
 		float fogDarkenIntensity;
 		float ambDarkenIntensity;
 		float dirDarkenIntensity;
-		uint32_t lightId;
+		uint32 lightId;
 		float particleScale;
-		uint32_t particleMovement;
-		uint32_t particleTexSlots;
-		uint32_t materialId;
+		uint32 particleMovement;
+		uint32 particleTexSlots;
+		uint32 materialId;
 	};
 
 	static_assert(offsetof(LiquidTypeRow, materialId) == 0x38, "LiquidType MaterialID must sit at 0x38");

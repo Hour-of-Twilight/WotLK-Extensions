@@ -59,9 +59,15 @@ void MSDFFont::Unregister(FT_Face face) {
     }
 }
 
-void MSDFFont::ClearAllCache() {
+void MSDFFont::ClearAllCache(bool releaseTextures) {
     for (auto& handle : s_fontHandles | std::views::values) {
         if (handle) {
+            if (!releaseTextures) {
+                // The destroyed device took these with it: drop them unreleased.
+                for (auto& page : handle->m_atlasPages) {
+                    if (page) page->texture = nullptr;
+                }
+            }
 			handle->m_glyphPool.clear();
             handle->m_atlasPages.clear();
             handle->m_oldestPage = 0;
@@ -232,12 +238,16 @@ bool MSDFFont::UploadGlyphToAtlas(GlyphMetrics& metrics, uint32_t codepoint) {
             m_oldestPage = (m_oldestPage + 1) % MSDF::MAX_ATLAS_PAGES;
         }
         else {
-            if (!CreateAtlasPage()) return false;
+            if (!CreateAtlasPage()) {
+                return false;
+            }
             pageIndex = static_cast<int16_t>(m_atlasPages.size() - 1);
             targetPage = m_atlasPages.back().get();
         }
     }
-    if (!targetPage->texture) return false;
+    if (!targetPage->texture) {
+        return false;
+    }
 
     D3DLOCKED_RECT lockedRect;
     if (FAILED(targetPage->texture->LockRect(0, &lockedRect, nullptr, 0))) {

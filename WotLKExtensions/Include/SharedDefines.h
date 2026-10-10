@@ -8,7 +8,7 @@
 constexpr uint32 MAX_AFFIXES = 4;
 // constexpr uint32 MAX_SPELL_SCHOOL = 7;
 
-inline uint32_t dummy = 0;
+inline uint32 dummy = 0;
 
 #include <ClientData/Enums.h>
 #include <ClientData/ObjectModel.h>
@@ -19,7 +19,7 @@ inline uint32_t dummy = 0;
 
 namespace ClientDB
 {
-	inline bool GetSpellRow(uint32_t spellId, SpellRow& out)
+	inline bool GetSpellRow(uint32 spellId, SpellRow& out)
 	{
 		WowClientDb_C::GetRow(&out);
 		if (!GetLocalizedRow(g_SpellDB, spellId, &out))

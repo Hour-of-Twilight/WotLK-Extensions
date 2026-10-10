@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Compat/Ribbons.h"
 
 namespace ModernM2::Live::Ribbons
 {
 	// The engine draws an N-texture ribbon as N sequential single-texture passes, which cannot
 	// reproduce a source ribbon's texture product; the caller applies the combine for >= 3 layers.
-	void OnRibbonDraw(uint32_t /*layerCount*/, bool* useMultiTexture)
+	void OnRibbonDraw(uint32 /*layerCount*/, bool* useMultiTexture)
 	{
 		if (useMultiTexture)
 			*useMultiTexture = true;

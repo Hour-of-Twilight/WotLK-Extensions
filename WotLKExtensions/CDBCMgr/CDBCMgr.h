@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <functional>
 #include <unordered_map>
 #include <string>
@@ -15,7 +17,7 @@ public:
 	std::unordered_map<std::string, std::pair<int, int>> cdbcIndexRanges;
 	// Type-erased row writers so network DBC patches (raw bytes + id) can land in a CDBC
 	// without the concrete row type at the call site. Registered per CDBC in its LoadDB.
-	std::unordered_map<std::string, std::function<bool(int, const void*, uint32_t)>> rowWriters;
+	std::unordered_map<std::string, std::function<bool(int, const void*, uint32)>> rowWriters;
 	static void Load();
 	void addCDBC(std::string cdbcName);
 	// these stay in .h because haha template
@@ -29,7 +31,7 @@ public:
 	template <typename T>
 	void registerRowType(std::string cdbcName)
 	{
-		rowWriters[cdbcName] = [this, cdbcName](int rowIndex, const void* bytes, uint32_t size) -> bool
+		rowWriters[cdbcName] = [this, cdbcName](int rowIndex, const void* bytes, uint32 size) -> bool
 		{
 			if (size != sizeof(T))
 				return false;
@@ -47,7 +49,7 @@ public:
 		return rowWriters.count(cdbcName) != 0;
 	}
 
-	bool patchRow(const std::string& cdbcName, int rowIndex, const void* bytes, uint32_t size)
+	bool patchRow(const std::string& cdbcName, int rowIndex, const void* bytes, uint32 size)
 	{
 		auto it = rowWriters.find(cdbcName);
 		if (it == rowWriters.end() || !it->second(rowIndex, bytes, size))
@@ -87,7 +89,7 @@ public:
 		return { 0, 0 };
 	}
 
-	void setIndexRange(std::string cdbcName, uint32_t minIndex, uint32_t maxIndex)
+	void setIndexRange(std::string cdbcName, uint32 minIndex, uint32 maxIndex)
 	{
 		auto it = cdbcIndexRanges.find(cdbcName);
 		if (it != cdbcIndexRanges.end())

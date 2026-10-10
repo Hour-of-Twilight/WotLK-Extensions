@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 // Record widths and record SHAPES are the only things that move between source eras, and both are
 // expressed here as data: one table entry per header array whose record is wider in some era, giving
 // the two widths, the era the wider form starts at, and the rewrite that turns one source record into
@@ -36,8 +38,8 @@ namespace ModernM2::Reader::Detail
     /// still body-relative at this point) and the header that bounds its index fields.
     struct NormalizeCtx
     {
-        uint8_t*                  body;
-        uint32_t                  size;
+        uint8*                  body;
+        uint32                  size;
         ModernM2::Format::M2Header*  header;
     };
 
@@ -48,18 +50,18 @@ namespace ModernM2::Reader::Detail
      * cannot overwrite a record before it has been read. A rewrite returns false when the record
      * points outside the body, which fails the whole load rather than leaving a wild pointer.
      */
-    using NormalizeRecordFn = bool (*)(const NormalizeCtx& ctx, const uint8_t* src, uint8_t* dst);
+    using NormalizeRecordFn = bool (*)(const NormalizeCtx& ctx, const uint8* src, uint8* dst);
 
-    bool NormalizeParticleRecord(const NormalizeCtx& ctx, const uint8_t* src, uint8_t* dst);
-    bool NormalizeCameraRecord(const NormalizeCtx& ctx, const uint8_t* src, uint8_t* dst);
+    bool NormalizeParticleRecord(const NormalizeCtx& ctx, const uint8* src, uint8* dst);
+    bool NormalizeCameraRecord(const NormalizeCtx& ctx, const uint8* src, uint8* dst);
 
     /** @brief One header array whose record width follows the source era. */
     struct RecordNormalizer
     {
-        uint32_t          at;               ///< byte offset of the count+offset pair inside the header
-        uint32_t          sourceStride;     ///< record width from sourceMinVersion up
-        uint32_t          targetStride;     ///< the one width every consumer past the walk steps
-        uint32_t          sourceMinVersion; ///< below it the record already has the target shape
+        uint32          at;               ///< byte offset of the count+offset pair inside the header
+        uint32          sourceStride;     ///< record width from sourceMinVersion up
+        uint32          targetStride;     ///< the one width every consumer past the walk steps
+        uint32          sourceMinVersion; ///< below it the record already has the target shape
         NormalizeRecordFn rewrite;
         const char*       label;            ///< names this record type in the load log
     };
@@ -73,12 +75,12 @@ namespace ModernM2::Reader::Detail
           ModernM2::Offsets::M2::kCameraModernMinVer, &NormalizeCameraRecord, "cameras" },
     };
 
-    inline constexpr uint32_t kRecordNormalizerCount =
-        static_cast<uint32_t>(sizeof(kRecordNormalizers) / sizeof(kRecordNormalizers[0]));
+    inline constexpr uint32 kRecordNormalizerCount =
+        static_cast<uint32>(sizeof(kRecordNormalizers) / sizeof(kRecordNormalizers[0]));
 
     /// Records rewritten per table entry, in table order -- what the per-model log reports.
     struct NormalizeReport
     {
-        uint32_t records[kRecordNormalizerCount];
+        uint32 records[kRecordNormalizerCount];
     };
 }

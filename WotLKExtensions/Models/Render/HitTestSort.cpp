@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 #include "Models/Client/WideIndices.h"
 
@@ -30,8 +31,8 @@ namespace
 
     m2::M2_SceneTriangleHitTestFn g_origSceneTriangleHitTest = nullptr;
     m2::M2_SortOpaqueGeoBatchesFn g_origSortOpaqueGeoBatches = nullptr;
-    std::atomic<uint32_t>         g_sceneHitTestFaults{ 0 };
-    std::atomic<uint32_t>         g_opaqueSortFaults{ 0 };
+    std::atomic<uint32>         g_sceneHitTestFaults{ 0 };
+    std::atomic<uint32>         g_opaqueSortFaults{ 0 };
 
     /**
      * @brief Contains a stale M2 collision-buffer read after disconnect/reconnect world teardown.
@@ -40,7 +41,7 @@ namespace
      * this leaf lets the scene's outer geometry/collision code finish its cleanup and matrix restoration.
      */
     int __fastcall hkSceneTriangleHitTest(
-        void* scratch, void* /*edx*/, uint16_t* indexBegin, uint16_t* indexEnd, int vertexBase,
+        void* scratch, void* /*edx*/, uint16* indexBegin, uint16* indexEnd, int vertexBase,
         float* point, int mode, int candidate, float* bestDepth, int currentHit)
     {
         // 0x0081D510 carries exactly one detour, so the wide-skin picking remap rides this one.
@@ -52,7 +53,7 @@ namespace
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
         {
-            const uint32_t faults = g_sceneHitTestFaults.fetch_add(1, std::memory_order_relaxed) + 1;
+            const uint32 faults = g_sceneHitTestFaults.fetch_add(1, std::memory_order_relaxed) + 1;
             if (faults == 1 || (faults & (faults - 1)) == 0)
                 WLOG_WARN("M2 scene hit-test skipped stale collision data (faults=%u)", faults);
             return currentHit;
@@ -66,8 +67,8 @@ namespace
      * vertex/pixel shader indices at +0x34/+0x38. The effect pointer is not needed by DrawBatch itself;
      * it only refines ordering. A stale key can therefore be cleared without dropping the geometry.
      */
-    bool ProbeOpaqueEffectKey(void* rawEntry, void** effectOut, int32_t* vertexIndexOut,
-                              int32_t* pixelIndexOut) noexcept
+    bool ProbeOpaqueEffectKey(void* rawEntry, void** effectOut, int32* vertexIndexOut,
+                              int32* pixelIndexOut) noexcept
     {
         if (effectOut) *effectOut = nullptr;
         if (vertexIndexOut) *vertexIndexOut = -1;
@@ -76,10 +77,10 @@ namespace
 
         __try
         {
-            auto* entry = static_cast<uint8_t*>(rawEntry);
+            auto* entry = static_cast<uint8*>(rawEntry);
             void* effect = *reinterpret_cast<void**>(entry + 0x30);
-            const int32_t vertexIndex = *reinterpret_cast<int32_t*>(entry + 0x34);
-            const int32_t pixelIndex = *reinterpret_cast<int32_t*>(entry + 0x38);
+            const int32 vertexIndex = *reinterpret_cast<int32*>(entry + 0x34);
+            const int32 pixelIndex = *reinterpret_cast<int32*>(entry + 0x38);
             if (effectOut) *effectOut = effect;
             if (vertexIndexOut) *vertexIndexOut = vertexIndex;
             if (pixelIndexOut) *pixelIndexOut = pixelIndex;
@@ -90,10 +91,10 @@ namespace
             if (vertexIndex < 0 || pixelIndex < 0 || vertexIndex > 0x10000 || pixelIndex > 0x10000)
                 return false;
 
-            volatile uint32_t vertexKey = *reinterpret_cast<uint32_t*>(
-                static_cast<uint8_t*>(effect) + 0x2C + static_cast<uint32_t>(vertexIndex) * 4u);
-            volatile uint32_t pixelKey = *reinterpret_cast<uint32_t*>(
-                static_cast<uint8_t*>(effect) + 0x194 + static_cast<uint32_t>(pixelIndex) * 4u);
+            volatile uint32 vertexKey = *reinterpret_cast<uint32*>(
+                static_cast<uint8*>(effect) + 0x2C + static_cast<uint32>(vertexIndex) * 4u);
+            volatile uint32 pixelKey = *reinterpret_cast<uint32*>(
+                static_cast<uint8*>(effect) + 0x194 + static_cast<uint32>(pixelIndex) * 4u);
             (void)vertexKey;
             (void)pixelKey;
             return true;
@@ -109,7 +110,7 @@ namespace
         if (!rawEntry) return;
         __try
         {
-            *reinterpret_cast<void**>(static_cast<uint8_t*>(rawEntry) + 0x30) = nullptr;
+            *reinterpret_cast<void**>(static_cast<uint8*>(rawEntry) + 0x30) = nullptr;
         }
         __except (EXCEPTION_EXECUTE_HANDLER) {}
     }
@@ -125,7 +126,7 @@ namespace
     {
         void* lhsEffect = nullptr;
         void* rhsEffect = nullptr;
-        int32_t lhsVs = -1, lhsPs = -1, rhsVs = -1, rhsPs = -1;
+        int32 lhsVs = -1, lhsPs = -1, rhsVs = -1, rhsPs = -1;
         const bool lhsOk = ProbeOpaqueEffectKey(lhs, &lhsEffect, &lhsVs, &lhsPs);
         const bool rhsOk = ProbeOpaqueEffectKey(rhs, &rhsEffect, &rhsVs, &rhsPs);
 
@@ -133,7 +134,7 @@ namespace
         if (!rhsOk) ClearOpaqueEffectKey(rhs);
         if (!lhsOk || !rhsOk)
         {
-            const uint32_t faults = g_opaqueSortFaults.fetch_add(1, std::memory_order_relaxed) + 1;
+            const uint32 faults = g_opaqueSortFaults.fetch_add(1, std::memory_order_relaxed) + 1;
             if (faults == 1 || (faults & (faults - 1)) == 0)
                 WLOG_WARN("M2 opaque-sort: cleared stale effect key (faults=%u lhsFx=%p lhsVS=%d lhsPS=%d rhsFx=%p rhsVS=%d rhsPS=%d)",
                           faults, lhsEffect, lhsVs, lhsPs, rhsEffect, rhsVs, rhsPs);
@@ -145,7 +146,7 @@ namespace
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
         {
-            const uint32_t faults = g_opaqueSortFaults.fetch_add(1, std::memory_order_relaxed) + 1;
+            const uint32 faults = g_opaqueSortFaults.fetch_add(1, std::memory_order_relaxed) + 1;
             if (faults == 1 || (faults & (faults - 1)) == 0)
                 WLOG_WARN("M2 opaque-sort: native comparator fault quarantined (faults=%u lhs=%p rhs=%p)",
                           faults, lhs, rhs);

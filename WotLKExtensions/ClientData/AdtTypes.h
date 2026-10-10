@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <ClientData/MathTypes.h>
 
 #include <cstddef>
@@ -13,95 +15,95 @@ namespace ClientData
 	// 8-byte IFF header, not its data.
 	struct SMMapHeader
 	{
-		uint32_t flags;
-		uint32_t mcin;
-		uint32_t mtex;
-		uint32_t mmdx;
-		uint32_t mmid;
-		uint32_t mwmo;
-		uint32_t mwid;
-		uint32_t mddf;
-		uint32_t modf;
-		uint32_t mfbo;
-		uint32_t mh2o;
-		uint32_t mtxf;
-		uint8_t mampValue;
-		uint8_t padding[3];
-		uint32_t unused[3];
+		uint32 flags;
+		uint32 mcin;
+		uint32 mtex;
+		uint32 mmdx;
+		uint32 mmid;
+		uint32 mwmo;
+		uint32 mwid;
+		uint32 mddf;
+		uint32 modf;
+		uint32 mfbo;
+		uint32 mh2o;
+		uint32 mtxf;
+		uint8 mampValue;
+		uint8 padding[3];
+		uint32 unused[3];
 	};
 
 	// MCIN entry. offset is absolute from the start of the file and points at the MCNK header.
 	struct SMChunkInfo
 	{
-		uint32_t offset;
-		uint32_t size;
-		uint32_t flags; // bit 0 is set by the client once the chunk has been prepared
-		uint32_t asyncId;
+		uint32 offset;
+		uint32 size;
+		uint32 flags; // bit 0 is set by the client once the chunk has been prepared
+		uint32 asyncId;
 	};
 
 	// MCNK header. sizeAlpha and sizeLiquid include the 8-byte IFF header of their sub-chunk.
 	struct SMChunk
 	{
-		uint32_t flags;
+		uint32 flags;
 		C2iVector index;
-		uint32_t nLayers;
-		uint32_t nDoodadRefs;
-		uint32_t ofsHeight;
-		uint32_t ofsNormal;
-		uint32_t ofsLayer;
-		uint32_t ofsRefs;
-		uint32_t ofsAlpha;
-		uint32_t sizeAlpha;
-		uint32_t ofsShadow;
-		uint32_t sizeShadow;
-		uint32_t areaid;
-		uint32_t nMapObjRefs;
-		uint32_t holes;
-		uint8_t lowQualityTextureMap[16];
-		uint32_t predTex;
-		uint32_t nEffectDoodad;
-		uint32_t ofsSndEmitters;
-		uint32_t nSndEmitters;
-		uint32_t ofsLiquid;
-		uint32_t sizeLiquid;
+		uint32 nLayers;
+		uint32 nDoodadRefs;
+		uint32 ofsHeight;
+		uint32 ofsNormal;
+		uint32 ofsLayer;
+		uint32 ofsRefs;
+		uint32 ofsAlpha;
+		uint32 sizeAlpha;
+		uint32 ofsShadow;
+		uint32 sizeShadow;
+		uint32 areaid;
+		uint32 nMapObjRefs;
+		uint32 holes;
+		uint8 lowQualityTextureMap[16];
+		uint32 predTex;
+		uint32 nEffectDoodad;
+		uint32 ofsSndEmitters;
+		uint32 nSndEmitters;
+		uint32 ofsLiquid;
+		uint32 sizeLiquid;
 		C3Vector position;
-		uint32_t ofsMCCV;
-		uint32_t unused1;
-		uint32_t unused2;
+		uint32 ofsMCCV;
+		uint32 unused1;
+		uint32 unused2;
 	};
 
 	struct SMLayer
 	{
-		uint32_t textureId;
-		uint32_t flags;
-		uint32_t offsetInMCAL;
-		uint32_t effectId;
+		uint32 textureId;
+		uint32 flags;
+		uint32 offsetInMCAL;
+		uint32 effectId;
 	};
 
 	// MDDF entry. nameId indexes MMID, which holds byte offsets into the MMDX string blob.
 	struct SMDoodadDef
 	{
-		uint32_t nameId;
-		uint32_t uniqueId;
+		uint32 nameId;
+		uint32 uniqueId;
 		C3Vector position;
 		C3Vector rotation;
-		uint16_t scale;
-		uint16_t flags;
+		uint16 scale;
+		uint16 flags;
 	};
 
 	// MODF entry. nameId indexes MWID into MWMO, and uniqueId must be unique per instance across
 	// the whole map or CMapChunk::CreateRefs silently drops it.
 	struct SMMapObjDef
 	{
-		uint32_t nameId;
-		uint32_t uniqueId;
+		uint32 nameId;
+		uint32 uniqueId;
 		C3Vector position;
 		C3Vector rotation;
 		CAaBox extents;
-		uint16_t flags;
-		uint16_t doodadSet;
-		uint16_t nameSet;
-		uint16_t scale;
+		uint16 flags;
+		uint16 doodadSet;
+		uint16 nameSet;
+		uint16 scale;
 	};
 
 	// MH2O per-chunk header, 256 of them at the very start of MH2O, indexed chunkY * 16 + chunkX.
@@ -109,25 +111,25 @@ namespace ClientData
 	// IFF header.
 	struct SMLiquidChunk
 	{
-		uint32_t offsetInstances;
-		uint32_t layerCount;
-		uint32_t offsetAttributes; // two uint64 masks, fishable then deep. 0 means all ones.
+		uint32 offsetInstances;
+		uint32 layerCount;
+		uint32 offsetAttributes; // two uint64 masks, fishable then deep. 0 means all ones.
 	};
 
 	// One liquid layer over a sub-rectangle of the chunk's 8x8 cells. Liquid__GetInstanceDesc
 	// (0x008A3090) indexes these at base + offsetInstances + i * 24.
 	struct SMLiquidInstance
 	{
-		uint16_t liquidType;   // LiquidType.dbc id
-		uint16_t vertexFormat; // 0 height+depth, 1 height+uv, 2 depth only
+		uint16 liquidType;   // LiquidType.dbc id
+		uint16 vertexFormat; // 0 height+depth, 1 height+uv, 2 depth only
 		float minHeight;
 		float maxHeight;
-		uint8_t xOffset;             // 0..7
-		uint8_t yOffset;             // 0..7
-		uint8_t width;               // 1..8
-		uint8_t height;              // 1..8
-		uint32_t offsetExistsBitmap; // width * height bits, x fast. 0 means every cell exists.
-		uint32_t offsetVertexData;
+		uint8 xOffset;             // 0..7
+		uint8 yOffset;             // 0..7
+		uint8 width;               // 1..8
+		uint8 height;              // 1..8
+		uint32 offsetExistsBitmap; // width * height bits, x fast. 0 means every cell exists.
+		uint32 offsetVertexData;
 	};
 
 	// One entry of CMapArea::textureData, the tile's MTEX list once loaded. SMLayer::textureId

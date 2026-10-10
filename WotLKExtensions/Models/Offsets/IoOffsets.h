@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 // INTERNAL to the core. Archive file-I/O primitives, all callee-cleaned. Hooked to serve reads from
@@ -44,7 +46,7 @@ namespace ModernM2::Offsets::Io
     // absent optional archive, which every caller already tolerates. NOT __stdcall like kArchiveMount --
     // this one is __cdecl (caller-cleaned stack).
     constexpr uintptr_t kMopaqOpenArchive = 0x0045C480;
-    using MopaqOpenArchiveFn = char(__cdecl*)(const char* name, int priority, uint32_t flags, void** out);
+    using MopaqOpenArchiveFn = char(__cdecl*)(const char* name, int priority, uint32 flags, void** out);
 
     // Second required-archive gate inside kInitializeWowConfig (`jne 0x4061d4`). A failed mount for one of
     // a small set of rows that are required for this install (common.MPQ, locale-<locale>.MPQ,
@@ -67,12 +69,12 @@ namespace ModernM2::Offsets::Io
     constexpr uintptr_t kWotlkContentFlag = 0x00B2F9E1;
 
     // Open flag: load the whole file into the handle buffer.
-    constexpr uint32_t  kOpenWholeFile = 0x20000;
+    constexpr uint32  kOpenWholeFile = 0x20000;
 
-    using Storage_FileOpenFn  = int(__stdcall*)(void* archive, const char* name, uint32_t flags, void** out);
-    using Storage_FileSizeFn  = uint32_t(__stdcall*)(void* handle, uint32_t* sizeHigh);
-    using Storage_FileReadFn  = int(__stdcall*)(void* handle, void* dst, uint32_t len, uint32_t* read, void* ovl, uint32_t unk);
-    using Storage_FileSeekFn  = uint32_t(__stdcall*)(void* handle, int32_t distLow, uint32_t* distHigh, uint32_t method);
+    using Storage_FileOpenFn  = int(__stdcall*)(void* archive, const char* name, uint32 flags, void** out);
+    using Storage_FileSizeFn  = uint32(__stdcall*)(void* handle, uint32* sizeHigh);
+    using Storage_FileReadFn  = int(__stdcall*)(void* handle, void* dst, uint32 len, uint32* read, void* ovl, uint32 unk);
+    using Storage_FileSeekFn  = uint32(__stdcall*)(void* handle, int32 distLow, uint32* distHigh, uint32 method);
     using Storage_FileCloseFn = int(__stdcall*)(void* handle);
-    using Storage_ArchiveMountFn = int(__stdcall*)(const char* name, int priority, uint32_t flags, void** out);
+    using Storage_ArchiveMountFn = int(__stdcall*)(const char* name, int priority, uint32 flags, void** out);
 }

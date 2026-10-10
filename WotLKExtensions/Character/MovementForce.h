@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 struct CDataStore;
@@ -25,8 +27,8 @@ public:
 private:
 	MovementForce() = default;
 
-	static void Handler_ApplyForce(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_ClearForce(void*, uint32_t, uint32_t, CDataStore* pkt);
+	static void Handler_ApplyForce(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_ClearForce(void*, uint32, uint32, CDataStore* pkt);
 };
 
 #define sMovementForce MovementForce::Instance()

@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "CustomLua.h"
 #include "Atlas.h"
 #include "Player.h"
@@ -18,6 +19,8 @@
 #include <Spells/CooldownRate.h>
 #include <UnitDetours.h>
 #include <ClientData/Enums.h>
+#include <ClientData/Aura.h>
+#include <ClientData/WowObjects.h>
 
 CustomLua& CustomLua::Instance()
 {
@@ -44,7 +47,7 @@ void CustomLua::LoadForState(LuaFunctionState currentState)
 void CustomLua::Apply()
 {
 	RegisterBuiltinFunctions();
-	Util::OverwriteUInt32AtAddress(0x52AB17, (uint32_t)&LoadScriptFunctionsCustom - 0x52AB1B);
+	Util::OverwriteUInt32AtAddress(0x52AB17, (uint32)&LoadScriptFunctionsCustom - 0x52AB1B);
 }
 
 int CustomLua::LoadScriptFunctionsCustom()
@@ -60,16 +63,7 @@ void CustomLua::LoadGlueLuaFunctions()
 
 int CustomLua::GetShapeshiftFormID(lua_State* L)
 {
-	uint64_t activePlayer = ClntObjMgr::GetActivePlayer();
-
-	if (activePlayer)
-	{
-		CGUnit* activeObjectPtr = (CGUnit*)ClntObjMgr::ObjectPtr(activePlayer, TYPEMASK_UNIT);
-		FrameScript::PushNumber(L, CGUnit_C::GetShapeshiftFormId(activeObjectPtr));
-		return 1;
-	}
-
-	FrameScript::PushNumber(L, 0);
+	FrameScript::PushNumber(L, ClientData::WowPlayer::Active().ShapeshiftForm());
 	return 1;
 }
 
@@ -77,7 +71,7 @@ int CustomLua::GetSpellDescription(lua_State* L)
 {
 	if (FrameScript::IsNumber(L, 1))
 	{
-		uint32_t spellId = (uint32_t)FrameScript::GetNumber(L, 1);
+		uint32 spellId = (uint32)FrameScript::GetNumber(L, 1);
 		SpellRow row;
 		char desc[1024];
 
@@ -97,7 +91,7 @@ int CustomLua::GetSpellNameById(lua_State* L)
 {
 	if (FrameScript::IsNumber(L, 1))
 	{
-		uint32_t spellId = (uint32_t)FrameScript::GetNumber(L, 1);
+		uint32 spellId = (uint32)FrameScript::GetNumber(L, 1);
 		SpellRow row;
 
 		if (ClientDB::GetLocalizedRow((void*)0xAD49D0, spellId, &row))
@@ -123,7 +117,7 @@ int CustomLua::GetMapNameById(lua_State* L)
 {
 	if (FrameScript::IsNumber(L, 1))
 	{
-		uint32_t mapId = (uint32_t)FrameScript::GetNumber(L, 1);
+		uint32 mapId = (uint32)FrameScript::GetNumber(L, 1);
 		MapRow* row = (MapRow*)ClientDB::GetRow((void*)0xAD4178, mapId);
 
 		if (row && row->m_MapName_lang)
@@ -139,12 +133,11 @@ int CustomLua::GetMapNameById(lua_State* L)
 
 namespace
 {
-	constexpr int AURA_TEMP_LEARN_SPELL = 317; // SPELL_AURA_TEMP_LEARN_SPELL
 
-	typedef ItemCache*(__thiscall* GetItemBlockFn)(void*, uint32_t, void*, void*, void*, int);
-	typedef void*(__thiscall* GetDbRecordFn)(void*, uint32_t);
+	typedef ItemCache*(__thiscall* GetItemBlockFn)(void*, uint32, void*, void*, void*, int);
+	typedef void*(__thiscall* GetDbRecordFn)(void*, uint32);
 
-	uint32_t GemColorFromSubClass(int subClass)
+	uint32 GemColorFromSubClass(int subClass)
 	{
 		switch (subClass)
 		{
@@ -163,7 +156,7 @@ namespace
 		}
 	}
 
-	bool ResolveGemDisplay(uint32_t itemId, uint32_t& outSpellId, uint32_t& outGemColor, const char*& outIcon)
+	bool ResolveGemDisplay(uint32 itemId, uint32& outSpellId, uint32& outGemColor, const char*& outIcon)
 	{
 		outSpellId = 0;
 		outGemColor = 0;
@@ -177,12 +170,11 @@ namespace
 		if (!item)
 			return false; // not cached yet (a query was queued); caller should retry
 
-
-		uint32_t triggerSpell = 0;
+		uint32 triggerSpell = 0;
 		for (int i = 0; i < 5; ++i)
 			if (item->SpellTrigger[i] == ITEM_SPELLTRIGGER_ON_SOCKET && item->SpellId[i] > 0)
 			{
-				triggerSpell = static_cast<uint32_t>(item->SpellId[i]);
+				triggerSpell = static_cast<uint32>(item->SpellId[i]);
 				break;
 			}
 
@@ -191,12 +183,12 @@ namespace
 
 		outGemColor = GemColorFromSubClass(item->SubClass);
 
-		uint32_t displaySpell = triggerSpell;
+		uint32 displaySpell = triggerSpell;
 		SpellRow row;
 		if (ClientDB::GetLocalizedRow(g_SpellDB, triggerSpell, &row))
 		{
 			for (int i = 0; i < 3; ++i)
-				if (row.m_effectAura[i] == AURA_TEMP_LEARN_SPELL && row.m_effectTriggerSpell[i])
+				if (row.m_effectAura[i] == ClientData::Aura::SPELL_AURA_TEMP_LEARN_SPELL && row.m_effectTriggerSpell[i])
 				{
 					displaySpell = row.m_effectTriggerSpell[i];
 					break;
@@ -208,7 +200,7 @@ namespace
 		if (ClientDB::GetLocalizedRow(g_SpellDB, displaySpell, &drow))
 		{
 			auto* icon = reinterpret_cast<ClientData::SpellIconRow*>(
-			    getRecord(reinterpret_cast<uint8_t*>(0x00AD488C) + 0x18 /*g_spellIconDB*/, drow.m_spellIconID));
+			    getRecord(reinterpret_cast<uint8*>(0x00AD488C) + 0x18 /*g_spellIconDB*/, drow.m_spellIconID));
 			if (icon)
 				outIcon = icon->m_textureFilename;
 		}
@@ -226,9 +218,9 @@ int CustomLua::GetGemSpellInfo(lua_State* L)
 		return 3;
 	}
 
-	uint32_t itemId = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
-	uint32_t spellId = 0;
-	uint32_t gemColor = 0;
+	uint32 itemId = static_cast<uint32>(FrameScript::GetNumber(L, 1));
+	uint32 spellId = 0;
+	uint32 gemColor = 0;
 	const char* icon = nullptr;
 
 	bool isGem = ResolveGemDisplay(itemId, spellId, gemColor, icon);
@@ -253,9 +245,9 @@ int CustomLua::GetGemType(lua_State* L)
 		return 1;
 	}
 
-	uint32_t itemId = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
-	uint32_t spellId = 0;
-	uint32_t gemColor = 0;
+	uint32 itemId = static_cast<uint32>(FrameScript::GetNumber(L, 1));
+	uint32 spellId = 0;
+	uint32 gemColor = 0;
 	const char* icon = nullptr;
 
 	if (!ResolveGemDisplay(itemId, spellId, gemColor, icon))
@@ -302,11 +294,11 @@ int CustomLua::GetGemType(lua_State* L)
 
 int CustomLua::FindSpellActionBarSlots(lua_State* L)
 {
-	uint32_t spellID = FrameScript::GetNumber(L, 1);
+	uint32 spellID = FrameScript::GetNumber(L, 1);
 	uintptr_t* actionBarSpellIDs = (uintptr_t*)0xC1E358;
-	uint8_t count = 0;
+	uint8 count = 0;
 
-	for (uint8_t i = 0; i < 144; i++)
+	for (uint8 i = 0; i < 144; i++)
 	{
 		if (actionBarSpellIDs[i] == spellID)
 		{
@@ -326,19 +318,19 @@ int CustomLua::FindSpellActionBarSlots(lua_State* L)
 
 int CustomLua::ReplaceActionBarSpell(lua_State* L)
 {
-	uint32_t oldSpellID = FrameScript::GetNumber(L, 1);
-	uint32_t newSpellID = FrameScript::GetNumber(L, 2);
+	uint32 oldSpellID = FrameScript::GetNumber(L, 1);
+	uint32 newSpellID = FrameScript::GetNumber(L, 2);
 	uintptr_t* actionBarSpellIDs = (uintptr_t*)0xC1E358;
 	uintptr_t* actionButtons = (uintptr_t*)0xC1DED8;
 
-	for (uint8_t i = 0; i < 144; i++)
+	for (uint8 i = 0; i < 144; i++)
 	{
 		if (actionBarSpellIDs[i] == oldSpellID)
 		{
 			actionBarSpellIDs[i] = newSpellID;
 			ClientPacket::MSG_SET_ACTION_BUTTON(i, 1, 0);
 
-			for (uint8_t j = i + 72; j < 144; j += 12)
+			for (uint8 j = i + 72; j < 144; j += 12)
 			{
 				if (!actionButtons[j])
 				{
@@ -355,8 +347,8 @@ int CustomLua::ReplaceActionBarSpell(lua_State* L)
 
 int CustomLua::SetSpellInActionBarSlot(lua_State* L)
 {
-	uint32_t spellID = FrameScript::GetNumber(L, 1);
-	uint8_t slotID = FrameScript::GetNumber(L, 2);
+	uint32 spellID = FrameScript::GetNumber(L, 1);
+	uint8 slotID = FrameScript::GetNumber(L, 2);
 	uintptr_t* actionBarSpellIDs = (uintptr_t*)0xC1E358;
 	uintptr_t* actionButtons = (uintptr_t*)0xC1DED8;
 
@@ -377,14 +369,13 @@ int CustomLua::ReloadMap(lua_State* L)
 	if (!HasSecurityClearance(2))
 		return 0;
 
-	uint64_t activePlayer = ClntObjMgr::GetActivePlayer();
+	ClientData::WowUnit activePlayer = ClientData::WowUnit::FromGuid(ClntObjMgr::GetActivePlayer());
 
 	if (activePlayer)
 	{
 		MapRow* row = 0;
-		int32_t mapId = *(uint32_t*)0xBD088C;
-		CGUnit* activeObjectPtr = (CGUnit*)ClntObjMgr::ObjectPtr(activePlayer, TYPEMASK_UNIT);
-		MovementInfo* moveInfo = activeObjectPtr->movementInfo;
+		int32 mapId = *(uint32*)0xBD088C;
+		C3Vector position = activePlayer.RawPosition();
 
 		if (mapId > -1)
 		{
@@ -395,8 +386,8 @@ int CustomLua::ReloadMap(lua_State* L)
 				char buffer[512];
 
 				World::UnloadMap();
-				World::LoadMap(row->m_Directory, &moveInfo->position, mapId);
-				SStr::Printf(buffer, 512, "Map ID: %d (Directory: \"%s\", x: %f, y: %f, z: %f) reloaded.", mapId, row->m_Directory, moveInfo->position.x, moveInfo->position.y, moveInfo->position.z);
+				World::LoadMap(row->m_Directory, &position, mapId);
+				SStr::Printf(buffer, 512, "Map ID: %d (Directory: \"%s\", x: %f, y: %f, z: %f) reloaded.", mapId, row->m_Directory, position.x, position.y, position.z);
 				CGChat::AddChatMessage(buffer, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 			}
 		}
@@ -411,17 +402,17 @@ int CustomLua::ToggleDisplayNormals(lua_State* L)
 		return 0;
 
 	char buffer[512];
-	uint8_t renderFlags = *(uint8_t*)0xCD774F;
+	uint8 renderFlags = *(uint8*)0xCD774F;
 	bool areNormalsDisplayed = renderFlags & 0x40;
 
 	if (areNormalsDisplayed)
 	{
-		*(uint8_t*)0xCD774F = renderFlags - 0x40;
+		*(uint8*)0xCD774F = renderFlags - 0x40;
 		SStr::Printf(buffer, 512, "Normal display turned off.");
 	}
 	else
 	{
-		*(uint8_t*)0xCD774F = renderFlags + 0x40;
+		*(uint8*)0xCD774F = renderFlags + 0x40;
 		SStr::Printf(buffer, 512, "Normal display turned on.");
 	}
 
@@ -435,17 +426,17 @@ int CustomLua::ToggleGroundEffects(lua_State* L)
 		return 0;
 
 	char buffer[512];
-	uint8_t renderFlags = *(uint8_t*)0xCD774E;
+	uint8 renderFlags = *(uint8*)0xCD774E;
 	bool areGroundEffectsDisplayed = renderFlags & 0x10;
 
 	if (areGroundEffectsDisplayed)
 	{
-		*(uint8_t*)0xCD774E = renderFlags - 0x10;
+		*(uint8*)0xCD774E = renderFlags - 0x10;
 		SStr::Printf(buffer, 512, "Ground clutter hidden.");
 	}
 	else
 	{
-		*(uint8_t*)0xCD774E = renderFlags + 0x10;
+		*(uint8*)0xCD774E = renderFlags + 0x10;
 		SStr::Printf(buffer, 512, "Ground clutter shown.");
 	}
 
@@ -459,17 +450,17 @@ int CustomLua::ToggleLiquids(lua_State* L)
 		return 0;
 
 	char buffer[512];
-	uint8_t renderFlags = *(uint8_t*)0xCD774F;
+	uint8 renderFlags = *(uint8*)0xCD774F;
 	bool areLiquidsShowing = renderFlags & 0x3;
 
 	if (areLiquidsShowing)
 	{
-		*(uint8_t*)0xCD774F = renderFlags - 0x3;
+		*(uint8*)0xCD774F = renderFlags - 0x3;
 		SStr::Printf(buffer, 512, "Liquids hidden.");
 	}
 	else
 	{
-		*(uint8_t*)0xCD774F = renderFlags + 0x3;
+		*(uint8*)0xCD774F = renderFlags + 0x3;
 		SStr::Printf(buffer, 512, "Liquids shown.");
 	}
 
@@ -483,17 +474,17 @@ int CustomLua::ToggleM2(lua_State* L)
 		return 0;
 
 	char buffer[512];
-	uint8_t renderFlags = *(uint8_t*)0xCD774C;
+	uint8 renderFlags = *(uint8*)0xCD774C;
 	bool areM2Displayed = renderFlags & 0x1;
 
 	if (areM2Displayed)
 	{
-		*(uint8_t*)0xCD774C = renderFlags - 0x1;
+		*(uint8*)0xCD774C = renderFlags - 0x1;
 		SStr::Printf(buffer, 512, "Client-side M2s hidden.");
 	}
 	else
 	{
-		*(uint8_t*)0xCD774C = renderFlags + 0x1;
+		*(uint8*)0xCD774C = renderFlags + 0x1;
 		SStr::Printf(buffer, 512, "Client-side M2s shown.");
 	}
 
@@ -507,17 +498,17 @@ int CustomLua::ToggleTerrain(lua_State* L)
 		return 0;
 
 	char buffer[512];
-	uint8_t renderFlags = *(uint8_t*)0xCD774C;
+	uint8 renderFlags = *(uint8*)0xCD774C;
 	bool isTerrainShown = renderFlags & 0x2;
 
 	if (isTerrainShown)
 	{
-		*(uint8_t*)0xCD774C = renderFlags - 0x2;
+		*(uint8*)0xCD774C = renderFlags - 0x2;
 		SStr::Printf(buffer, 512, "Terrain hidden.");
 	}
 	else
 	{
-		*(uint8_t*)0xCD774C = renderFlags + 0x2;
+		*(uint8*)0xCD774C = renderFlags + 0x2;
 		SStr::Printf(buffer, 512, "Terrain shown.");
 	}
 
@@ -531,17 +522,17 @@ int CustomLua::ToggleTerrainCulling(lua_State* L)
 		return 0;
 
 	char buffer[512];
-	uint8_t renderFlags = *(uint8_t*)0xCD774C;
+	uint8 renderFlags = *(uint8*)0xCD774C;
 	bool isTerrainCullingOn = renderFlags & 0x32;
 
 	if (isTerrainCullingOn)
 	{
-		*(uint8_t*)0xCD774C = renderFlags - 0x32;
+		*(uint8*)0xCD774C = renderFlags - 0x32;
 		SStr::Printf(buffer, 512, "Terrain culling disabled.");
 	}
 	else
 	{
-		*(uint8_t*)0xCD774C = renderFlags + 0x32;
+		*(uint8*)0xCD774C = renderFlags + 0x32;
 		SStr::Printf(buffer, 512, "Terrain culling enabled.");
 	}
 
@@ -555,17 +546,17 @@ int CustomLua::ToggleWireframeMode(lua_State* L)
 		return 0;
 
 	char buffer[512];
-	uint8_t renderFlags = *(uint8_t*)0xCD774F;
+	uint8 renderFlags = *(uint8*)0xCD774F;
 	bool isWireframeModeOn = renderFlags & 0x20;
 
 	if (isWireframeModeOn)
 	{
-		*(uint8_t*)0xCD774F = renderFlags - 0x20;
+		*(uint8*)0xCD774F = renderFlags - 0x20;
 		SStr::Printf(buffer, 512, "Wireframe mode off.");
 	}
 	else
 	{
-		*(uint8_t*)0xCD774F = renderFlags + 0x20;
+		*(uint8*)0xCD774F = renderFlags + 0x20;
 		SStr::Printf(buffer, 512, "Wireframe mode on.");
 	}
 
@@ -579,17 +570,17 @@ int CustomLua::ToggleWMO(lua_State* L)
 		return 0;
 
 	char buffer[512];
-	uint8_t renderFlags = *(uint8_t*)0xCD774D;
+	uint8 renderFlags = *(uint8*)0xCD774D;
 	bool areWMOsDisplayed = renderFlags & 0x1;
 
 	if (areWMOsDisplayed)
 	{
-		*(uint8_t*)0xCD774D = renderFlags - 0x1;
+		*(uint8*)0xCD774D = renderFlags - 0x1;
 		SStr::Printf(buffer, 512, "WMOs hidden.");
 	}
 	else
 	{
-		*(uint8_t*)0xCD774D = renderFlags + 0x1;
+		*(uint8*)0xCD774D = renderFlags + 0x1;
 		SStr::Printf(buffer, 512, "WMOs shown.");
 	}
 
@@ -613,9 +604,9 @@ int CustomLua::PlayAnimation(lua_State* L)
 
 	int animationId = (int)FrameScript::GetNumber(L, 1);
 
-	uint64_t guid = 0;
+	uint64 guid = 0;
 	const char* token = "player";
-	if (FrameScript::Type(L, 2) == 4)
+	if (FrameScript::Type(L, 2) == ClientData::LUA_TSTRING)
 	{
 		token = FrameScript::ToLString(L, 2, false);
 		Script_GetGUIDFromToken(token, &guid, 0);
@@ -674,7 +665,7 @@ int CustomLua::ConvertCoordsToScreenSpace(lua_State* L)
 	void* worldFrame = *(void**)0x00B7436C;
 	C3Vector pos3d = { ox, oy, oz };
 	C3Vector pos2d = {};
-	uint32_t flags = 0;
+	uint32 flags = 0;
 	int result = World::Pos3Dto2D(worldFrame, nullptr, &pos3d, &pos2d, &flags);
 	float x;
 	float y;
@@ -785,7 +776,7 @@ int CustomLua::GetEventId(lua_State* L)
 	}
 
 	char* eventName = FrameScript::ToLString(L, 1, false);
-	int32_t eventId = FrameXMLExtensions::GetEventIdByName(eventName);
+	int32 eventId = FrameXMLExtensions::GetEventIdByName(eventName);
 	FrameScript::PushNumber(L, eventId);
 	return 1;
 }
@@ -797,11 +788,10 @@ int CustomLua::GetPlayerX(lua_State* L)
 		FrameScript::DisplayError(L, "You don't have the clearance for this function.");
 		return 0;
 	}
-	CGPlayer* activeObjectPtr = ClntObjMgr::GetActivePlayerObj();
-	if (activeObjectPtr)
+	ClientData::WowPlayer player = ClientData::WowPlayer::Active();
+	if (player)
 	{
-		C3Vector position = activeObjectPtr->unitBase.movementInfo->position;
-		FrameScript::PushNumber(L, position.x);
+		FrameScript::PushNumber(L, player.RawPosition().x);
 		return 1;
 	}
 	return 0;
@@ -814,11 +804,10 @@ int CustomLua::GetPlayerY(lua_State* L)
 		FrameScript::DisplayError(L, "You don't have the clearance for this function.");
 		return 0;
 	}
-	CGPlayer* activeObjectPtr = ClntObjMgr::GetActivePlayerObj();
-	if (activeObjectPtr)
+	ClientData::WowPlayer player = ClientData::WowPlayer::Active();
+	if (player)
 	{
-		C3Vector position = activeObjectPtr->unitBase.movementInfo->position;
-		FrameScript::PushNumber(L, position.y);
+		FrameScript::PushNumber(L, player.RawPosition().y);
 		return 1;
 	}
 	return 0;
@@ -831,11 +820,10 @@ int CustomLua::GetPlayerZ(lua_State* L)
 		FrameScript::DisplayError(L, "You don't have the clearance for this function.");
 		return 0;
 	}
-	CGPlayer* activeObjectPtr = ClntObjMgr::GetActivePlayerObj();
-	if (activeObjectPtr)
+	ClientData::WowPlayer player = ClientData::WowPlayer::Active();
+	if (player)
 	{
-		C3Vector position = activeObjectPtr->unitBase.movementInfo->position;
-		FrameScript::PushNumber(L, position.z);
+		FrameScript::PushNumber(L, player.RawPosition().z);
 		return 1;
 	}
 	return 0;
@@ -940,16 +928,16 @@ static void* GetItemFromLuaArg(lua_State* L)
 	int argc = FrameScript::GetTop(L);
 	Util::DebugOutput("Getting item from Lua args");
 
-	if (argc == 0 || FrameScript::Type(L, 1) == 0 /*LUA_TNIL*/)
+	if (argc == 0 || FrameScript::Type(L, 1) == ClientData::LUA_TNIL)
 	{
 		Util::DebugOutput("Getting cursor item");
-		uint64_t guid = CGGameUI::GetCursorItem();
+		uint64 guid = CGGameUI::GetCursorItem();
 		if (!guid)
 		{
 			Util::DebugOutput("No cursor item found");
 			return nullptr;
 		}
-		return ClntObjMgr::ObjectPtr(guid, 0x2);
+		return ClntObjMgr::ObjectPtr(guid, ClientData::TYPEMASK_ITEM);
 	}
 
 	if (argc >= 2 && FrameScript::IsNumber(L, 1) && FrameScript::IsNumber(L, 2))
@@ -983,10 +971,10 @@ static void* GetItemFromLuaArg(lua_State* L)
 		return CGBag_C::GetItemPointer(bagObj, slot);
 	}
 
-	uint32_t entryId = 0;
+	uint32 entryId = 0;
 	if (FrameScript::IsNumber(L, 1))
 	{
-		entryId = (uint32_t)FrameScript::GetNumber(L, 1);
+		entryId = (uint32)FrameScript::GetNumber(L, 1);
 	}
 	else
 	{
@@ -999,13 +987,11 @@ static void* GetItemFromLuaArg(lua_State* L)
 	if (!entryId)
 		return nullptr;
 
-	uint64_t playerGuid = ClntObjMgr::GetActivePlayer();
-	void* player = ClntObjMgr::ObjectPtr(playerGuid, 0x10);
+	ClientData::WowPlayer player = ClientData::WowPlayer::FromGuid(ClntObjMgr::GetActivePlayer());
 	if (!player)
 		return nullptr;
 
-	void* bags = reinterpret_cast<uint8_t*>(player) + 0x18F0;
-	return CGBag_C::FindItemOfType(bags, entryId, 0xA1);
+	return CGBag_C::FindItemOfType(player.Backpack(), entryId, 0xA1);
 }
 
 int CustomLua::LockBagItem(lua_State* L)
@@ -1037,7 +1023,7 @@ int CustomLua::GetUnitItemLevel(lua_State* L)
 		FrameScript::PushNil(L);
 		return 1;
 	}
-	uint64_t guid = 0;
+	uint64 guid = 0;
 	Script_GetGUIDFromToken(token, &guid, 0);
 	if (!guid)
 	{
@@ -1062,7 +1048,7 @@ int CustomLua::GetUnitDungeonLevel(lua_State* L)
 		FrameScript::PushNil(L);
 		return 1;
 	}
-	uint64_t guid = 0;
+	uint64 guid = 0;
 	Script_GetGUIDFromToken(token, &guid, 0);
 	if (!guid)
 	{
@@ -1084,7 +1070,7 @@ int CustomLua::GetUnitSubclass(lua_State* L)
 	const char* token = FrameScript::ToLString(L, 1, false);
 	if (!token)
 		token = "player";
-	uint64_t guid = 0;
+	uint64 guid = 0;
 	Script_GetGUIDFromToken(token, &guid, 0);
 	if (!guid)
 	{

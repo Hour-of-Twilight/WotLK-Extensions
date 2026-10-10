@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <ClientData/MathTypes.h>
 #include <Editor/Map/MapClient.h>
 
@@ -29,14 +31,14 @@ namespace MapEditor::Coords
 		return (kMapHalf - world.x) / kTileSize;
 	}
 
-	inline int32_t TileX(C3Vector const& world)
+	inline int32 TileX(C3Vector const& world)
 	{
-		return static_cast<int32_t>(std::floor(TileCoordX(world)));
+		return static_cast<int32>(std::floor(TileCoordX(world)));
 	}
 
-	inline int32_t TileY(C3Vector const& world)
+	inline int32 TileY(C3Vector const& world)
 	{
-		return static_cast<int32_t>(std::floor(TileCoordY(world)));
+		return static_cast<int32>(std::floor(TileCoordY(world)));
 	}
 
 	// MDDF and MODF store positions in the ADT's own frame rather than the world one. The loader
@@ -54,27 +56,27 @@ namespace MapEditor::Coords
 	}
 
 	// Chunk index within its tile, 0..15 on each axis.
-	inline int32_t ChunkX(C3Vector const& world)
+	inline int32 ChunkX(C3Vector const& world)
 	{
 		float tile = TileCoordX(world);
-		return static_cast<int32_t>((tile - std::floor(tile)) * 16.0f);
+		return static_cast<int32>((tile - std::floor(tile)) * 16.0f);
 	}
 
-	inline int32_t ChunkY(C3Vector const& world)
+	inline int32 ChunkY(C3Vector const& world)
 	{
 		float tile = TileCoordY(world);
-		return static_cast<int32_t>((tile - std::floor(tile)) * 16.0f);
+		return static_cast<int32>((tile - std::floor(tile)) * 16.0f);
 	}
 
 	// Global chunk index across the whole map, what CMapChunk::cOffset holds.
-	inline int32_t GlobalChunkX(C3Vector const& world)
+	inline int32 GlobalChunkX(C3Vector const& world)
 	{
-		return static_cast<int32_t>(std::floor((kMapHalf - world.y) / kChunkSize));
+		return static_cast<int32>(std::floor((kMapHalf - world.y) / kChunkSize));
 	}
 
-	inline int32_t GlobalChunkY(C3Vector const& world)
+	inline int32 GlobalChunkY(C3Vector const& world)
 	{
-		return static_cast<int32_t>(std::floor((kMapHalf - world.x) / kChunkSize));
+		return static_cast<int32>(std::floor((kMapHalf - world.x) / kChunkSize));
 	}
 
 	// MCVT is indexed `xUnit * 17 + yUnit`, plus 9 for the inner vertex of a cell.
@@ -83,18 +85,18 @@ namespace MapEditor::Coords
 	// count down from the chunk's top-left corner.
 	struct VertexCoord
 	{
-		int32_t row = 0;    // x axis, 0..8 outer, 0..7 inner
-		int32_t col = 0;    // y axis, 0..8 outer, 0..7 inner
+		int32 row = 0;      // x axis, 0..8 outer, 0..7 inner
+		int32 col = 0;      // y axis, 0..8 outer, 0..7 inner
 		bool inner = false; // the 8x8 grid offset half a unit into each cell
 	};
 
 	// MCVT is 145 floats: 9 rows of 9 outer verts interleaved with 8 rows of 8 inner verts,
 	// so every group of 17 is one outer row followed by one inner row.
-	inline VertexCoord DecodeVertex(int32_t index)
+	inline VertexCoord DecodeVertex(int32 index)
 	{
 		VertexCoord out;
-		int32_t block = index / 17;
-		int32_t rem = index % 17;
+		int32 block = index / 17;
+		int32 rem = index % 17;
 
 		out.inner = rem >= 9;
 		out.row = block;
@@ -102,19 +104,19 @@ namespace MapEditor::Coords
 		return out;
 	}
 
-	inline int32_t EncodeOuterVertex(int32_t row, int32_t col)
+	inline int32 EncodeOuterVertex(int32 row, int32 col)
 	{
 		return row * 17 + col;
 	}
 
-	inline int32_t EncodeInnerVertex(int32_t row, int32_t col)
+	inline int32 EncodeInnerVertex(int32 row, int32 col)
 	{
 		return row * 17 + 9 + col;
 	}
 
 	// World position of one MCVT vertex. Height is exact: CMapChunk::CreateVerticesWorld writes
 	// `vertex.z = chunk->topLeftCoords.z + MCVT[i]`.
-	inline C3Vector VertexWorldPos(CMapChunk const* chunk, int32_t index)
+	inline C3Vector VertexWorldPos(CMapChunk const* chunk, int32 index)
 	{
 		C3Vector out{};
 		if (!chunk || !chunk->vertices || index < 0 || index >= Access::kVertsPerChunk)
@@ -130,7 +132,7 @@ namespace MapEditor::Coords
 		return out;
 	}
 
-	inline float VertexHeight(CMapChunk const* chunk, int32_t index)
+	inline float VertexHeight(CMapChunk const* chunk, int32 index)
 	{
 		if (!chunk || !chunk->vertices || index < 0 || index >= Access::kVertsPerChunk)
 			return 0.0f;
@@ -149,17 +151,17 @@ namespace MapEditor::Coords
 	// so the stride is the world.x row and the fast index the world.y column. CMapChunk::Intersect
 	// (0x007D8730) feeds MCVT `col + row * 17` and tests holes at `(row >> 1) * 4 + (col >> 1)`,
 	// and MCAL, MCSH and the hole mask all share that layout.
-	constexpr int32_t kAlphaSide = 64;
+	constexpr int32 kAlphaSide = 64;
 	constexpr float kTexelSize = kChunkSize / static_cast<float>(kAlphaSide);
 
-	inline int32_t EncodeTexel(int32_t row, int32_t col)
+	inline int32 EncodeTexel(int32 row, int32 col)
 	{
 		return row * kAlphaSide + col;
 	}
 
 	// Centre of one alpha texel in world space. The centre rather than the corner so a brush
 	// covering half a texel does not systematically favour one side.
-	inline C3Vector TexelWorldPos(CMapChunk const* chunk, int32_t row, int32_t col)
+	inline C3Vector TexelWorldPos(CMapChunk const* chunk, int32 row, int32 col)
 	{
 		C3Vector out{};
 		if (!chunk)

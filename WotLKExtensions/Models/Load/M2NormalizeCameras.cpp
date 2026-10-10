@@ -21,6 +21,7 @@
 // including the diagonal-radians unit of the value itself, so the reconstructed camera frames exactly
 // what the source camera framed.
 
+#include <Defines.h>
 #include "Models/Load/M2NativeInternal.h"
 
 #include <cstddef>
@@ -34,32 +35,32 @@ namespace ModernM2::Reader::Detail
     namespace
     {
         // Target record: type, field of view, then the clip planes ahead of the track body.
-        constexpr uint32_t kOffType     = 0x00;
-        constexpr uint32_t kOffFov      = 0x04;
-        constexpr uint32_t kOffFarClip  = 0x08;
-        constexpr uint32_t kOffNearClip = 0x0C;
-        constexpr uint32_t kOffBody     = 0x10;
+        constexpr uint32 kOffType     = 0x00;
+        constexpr uint32 kOffFov      = 0x04;
+        constexpr uint32 kOffFarClip  = 0x08;
+        constexpr uint32 kOffNearClip = 0x0C;
+        constexpr uint32 kOffBody     = 0x10;
 
         // Source record: no field-of-view float, so the clip planes and the whole track body sit one
         // float earlier, and the field of view follows the body as a track of its own.
-        constexpr uint32_t kSrcFarClip  = 0x04;
-        constexpr uint32_t kSrcNearClip = 0x08;
-        constexpr uint32_t kSrcBody     = 0x0C;
-        constexpr uint32_t kSrcFovTrack = 0x60;
+        constexpr uint32 kSrcFarClip  = 0x04;
+        constexpr uint32 kSrcNearClip = 0x08;
+        constexpr uint32 kSrcBody     = 0x0C;
+        constexpr uint32 kSrcFovTrack = 0x60;
 
         // Position and target spline tracks with their bases, then roll: identical in both forms.
-        constexpr uint32_t kBodyBytes = 0x54;
+        constexpr uint32 kBodyBytes = 0x54;
 
         // An animation track heads its two count+offset pairs with the interpolation fields; the value
         // pair is the second one, and it is a slot list -- one entry per sequence -- of key lists.
-        constexpr uint32_t kTrackGlobalLoop = 0x02;
-        constexpr uint32_t kTrackValues     = 0x0C;
-        constexpr uint32_t kTrackBytes      = 0x14;
-        constexpr int16_t  kNoGlobalLoop    = -1;
-        constexpr uint32_t kSeqKeysInline   = 0x20;
+        constexpr uint32 kTrackGlobalLoop = 0x02;
+        constexpr uint32 kTrackValues     = 0x0C;
+        constexpr uint32 kTrackBytes      = 0x14;
+        constexpr int16  kNoGlobalLoop    = -1;
+        constexpr uint32 kSeqKeysInline   = 0x20;
 
         // One spline key is its value plus the two tangents around it; the value comes first.
-        constexpr uint32_t kSplineKeyBytes = 0x0C;
+        constexpr uint32 kSplineKeyBytes = 0x0C;
 
         // Used when the source track carries no key we can address: a 45 degree diagonal view, the
         // conventional framing for a model that never animates its field of view.
@@ -80,12 +81,12 @@ namespace ModernM2::Reader::Detail
          * @brief Reads the first key of the source field-of-view track.
          * @return the key value, or the default when the track is empty or addresses another file.
          */
-        float FirstFovKey(const NormalizeCtx& ctx, const uint8_t* track)
+        float FirstFovKey(const NormalizeCtx& ctx, const uint8* track)
         {
-            int16_t globalLoop; std::memcpy(&globalLoop, track + kTrackGlobalLoop, 2);
+            int16 globalLoop; std::memcpy(&globalLoop, track + kTrackGlobalLoop, 2);
 
-            const uint32_t slots  = Rd32(track + kTrackValues);
-            const uint32_t offset = Rd32(track + kTrackValues + 4);
+            const uint32 slots  = Rd32(track + kTrackValues);
+            const uint32 offset = Rd32(track + kTrackValues + 4);
             if (!slots || !offset) return kDefaultFov;
             if (!FitsInBody(ctx.size, offset, slots, sizeof(fmt::M2Array))) return kDefaultFov;
 
@@ -99,9 +100,9 @@ namespace ModernM2::Reader::Detail
                 if (!(seqs[0].flags & kSeqKeysInline)) return kDefaultFov;
             }
 
-            const uint8_t* slot = ctx.body + offset;
-            const uint32_t keyCount  = Rd32(slot);
-            const uint32_t keyOffset = Rd32(slot + 4);
+            const uint8* slot = ctx.body + offset;
+            const uint32 keyCount  = Rd32(slot);
+            const uint32 keyOffset = Rd32(slot + 4);
             if (!keyCount || !keyOffset) return kDefaultFov;
             if (!FitsInBody(ctx.size, keyOffset, keyCount, kSplineKeyBytes)) return kDefaultFov;
 
@@ -117,13 +118,13 @@ namespace ModernM2::Reader::Detail
      * @param dst  where the target-shaped record goes (never ahead of src).
      * @return true; a source track this cannot address yields the default view rather than a failure.
      */
-    bool NormalizeCameraRecord(const NormalizeCtx& ctx, const uint8_t* src, uint8_t* dst)
+    bool NormalizeCameraRecord(const NormalizeCtx& ctx, const uint8* src, uint8* dst)
     {
         // Read every scalar out before anything moves: at the first record dst and src are the same
         // address, so the body slide overwrites the near clip plane where it lay in the source form.
-        const uint32_t type     = Rd32(src + kOffType);
-        const uint32_t farClip  = Rd32(src + kSrcFarClip);
-        const uint32_t nearClip = Rd32(src + kSrcNearClip);
+        const uint32 type     = Rd32(src + kOffType);
+        const uint32 farClip  = Rd32(src + kSrcFarClip);
+        const uint32 nearClip = Rd32(src + kSrcNearClip);
         const float    fov      = FirstFovKey(ctx, src + kSrcFovTrack);
 
         std::memmove(dst + kOffBody, src + kSrcBody, kBodyBytes);

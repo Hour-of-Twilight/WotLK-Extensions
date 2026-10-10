@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "Util.h"
 #include <SharedDefines.h>
 #include <Logger.h>
@@ -9,7 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-void Util::SetByteAtAddress(void* address, uint8_t byte)
+void Util::SetByteAtAddress(void* address, uint8 byte)
 {
 	DWORD flOldProtect;
 	VirtualProtect(address, 0x1, PAGE_EXECUTE_READWRITE, &flOldProtect);
@@ -17,7 +18,7 @@ void Util::SetByteAtAddress(void* address, uint8_t byte)
 	VirtualProtect(address, 0x1, flOldProtect, &flOldProtect);
 }
 
-void Util::OverwriteBytesAtAddress(void* address, uint8_t byte, size_t numRepeats)
+void Util::OverwriteBytesAtAddress(void* address, uint8 byte, size_t numRepeats)
 {
 	DWORD flOldProtect;
 	VirtualProtect(address, numRepeats, PAGE_EXECUTE_READWRITE, &flOldProtect);
@@ -25,20 +26,20 @@ void Util::OverwriteBytesAtAddress(void* address, uint8_t byte, size_t numRepeat
 	VirtualProtect(address, numRepeats, flOldProtect, &flOldProtect);
 }
 
-void Util::OverwriteBytesAtAddress(uint32_t address, uint8_t byteArray[], size_t arraySize)
+void Util::OverwriteBytesAtAddress(uint32 address, uint8 byteArray[], size_t arraySize)
 {
 	void* vAddress = (void*)address;
 	for (size_t i = 0; i < arraySize; i++)
 		SetByteAtAddress((void*)(address + i), byteArray[i]);
 }
 
-void Util::OverwriteUInt32AtAddress(uint32_t address, uint32_t newVal)
+void Util::OverwriteUInt32AtAddress(uint32 address, uint32 newVal)
 {
 	DWORD flOldProtect;
 	void* vAddress = (void*)address;
-	VirtualProtect(vAddress, sizeof(uint32_t), PAGE_EXECUTE_READWRITE, &flOldProtect);
-	*(uint32_t*)address = newVal;
-	VirtualProtect(vAddress, sizeof(uint32_t), flOldProtect, &flOldProtect);
+	VirtualProtect(vAddress, sizeof(uint32), PAGE_EXECUTE_READWRITE, &flOldProtect);
+	*(uint32*)address = newVal;
+	VirtualProtect(vAddress, sizeof(uint32), flOldProtect, &flOldProtect);
 }
 
 void Util::PercToScreenPos(float x, float y, float* resX, float* resY)
@@ -49,7 +50,7 @@ void Util::PercToScreenPos(float x, float y, float* resX, float* resY)
 	*resY = (y * (g_UITexCoordAlphaMultiplier3 * 1024.f)) / g_UITexCoordAlphaMultiplier1;
 }
 
-uint32_t Util::CalculateAddress(uint32_t address1, uint32_t address2, bool backwards)
+uint32 Util::CalculateAddress(uint32 address1, uint32 address2, bool backwards)
 {
 	if (!backwards)
 		return address1 - address2;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <SharedDefines.h>
 #include <string>
 #include <vector>
@@ -10,21 +12,21 @@ class Packet;
 
 struct TalentLoadoutInfo
 {
-	uint32_t id = 0;
+	uint32 id = 0;
 	std::string name;
-	uint32_t nodeCount = 0;
+	uint32 nodeCount = 0;
 };
 
 struct NodeInfo
 {
-	uint32_t index = 0;
-	uint32_t spellId = 0;
+	uint32 index = 0;
+	uint32 spellId = 0;
 	double xOffset = 0.0;
 	double yOffset = 0.0;
-	uint32_t mutex = 0;
-	uint32_t buttonType = 0;
-	uint32_t flagMask = 0;
-	std::vector<uint32_t> childLinks;
+	uint32 mutex = 0;
+	uint32 buttonType = 0;
+	uint32 flagMask = 0;
+	std::vector<uint32> childLinks;
 };
 
 class TalentFramePackets
@@ -40,23 +42,23 @@ public:
 private:
 	TalentFramePackets() = default;
 
-	static void ReadLearntTalents(Packet& r, std::vector<uint32_t>& out);
-	static void Send(uint32_t opcode);
-	static void SendU32(uint32_t opcode, uint32_t value);
+	static void ReadLearntTalents(Packet& r, std::vector<uint32>& out);
+	static void Send(uint32 opcode);
+	static void SendU32(uint32 opcode, uint32 value);
 
-	static void Handler_SMSG_CUSTOM_TALENT_CACHE(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_SMALL_CACHE(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_ITEM_GRANTED_UPDATE(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_POINTS(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_LEVEL(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_LEARN_RESPONSE(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_UNLEARN_RESPONSE(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_RESET(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_INSPECT_RESPONSE(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_NEW(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_LEARNT_UPDATE(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_LOADOUTS(void*, uint32_t, uint32_t, CDataStore* a3);
-	static void Handler_SMSG_CUSTOM_TALENT_LOADOUT_RESULT(void*, uint32_t, uint32_t, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_CACHE(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_SMALL_CACHE(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_ITEM_GRANTED_UPDATE(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_POINTS(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_LEVEL(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_LEARN_RESPONSE(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_UNLEARN_RESPONSE(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_RESET(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_INSPECT_RESPONSE(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_NEW(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_LEARNT_UPDATE(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_LOADOUTS(void*, uint32, uint32, CDataStore* a3);
+	static void Handler_SMSG_CUSTOM_TALENT_LOADOUT_RESULT(void*, uint32, uint32, CDataStore* a3);
 
 	static int GetCustomTalentStorage(lua_State* L);
 	static int GetTalentTreeVersion(lua_State* L);
@@ -93,20 +95,20 @@ private:
 	static int TalentEditorDeleteNode(lua_State* L);
 	static int TalentEditorNewNode(lua_State* L);
 
-	std::unordered_map<uint32_t, NodeInfo> m_nodes;
-	uint32_t m_version = 0;
-	uint32_t m_freePoints = 0;
-	uint32_t m_talentLevel = 0;
-	uint32_t m_xpTalentLevel = 0;
-	uint32_t m_maxTalentLevel = 0;
-	std::vector<uint32_t> m_learntTalents;
-	std::vector<uint32_t> m_itemGrantedTalents;
-	std::vector<uint32_t> m_inspectLearntTalents;
-	uint32_t m_inspectFreePoints = 0;
-	uint32_t m_inspectTalentLevel = 0;
+	std::unordered_map<uint32, NodeInfo> m_nodes;
+	uint32 m_version = 0;
+	uint32 m_freePoints = 0;
+	uint32 m_talentLevel = 0;
+	uint32 m_xpTalentLevel = 0;
+	uint32 m_maxTalentLevel = 0;
+	std::vector<uint32> m_learntTalents;
+	std::vector<uint32> m_itemGrantedTalents;
+	std::vector<uint32> m_inspectLearntTalents;
+	uint32 m_inspectFreePoints = 0;
+	uint32 m_inspectTalentLevel = 0;
 	std::vector<TalentLoadoutInfo> m_loadouts;
-	uint32_t m_activeLoadout = 0;
-	uint32_t m_maxLoadouts = 0;
+	uint32 m_activeLoadout = 0;
+	uint32 m_maxLoadouts = 0;
 };
 
 #define sTalentFramePackets TalentFramePackets::Instance()

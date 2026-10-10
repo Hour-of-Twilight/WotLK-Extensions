@@ -8,6 +8,9 @@
 #include "MeleeDeadzoneCvar.h"
 #include "HealPredictionCvars.h"
 #include "ComboPointCvar.h"
+#include "FirstRunCvars.h"
+#include "StartupDefaults.h"
+#include "PlayerRenderLimitCvar.h"
 
 namespace FeatureCvars
 {
@@ -21,5 +24,8 @@ namespace FeatureCvars
 		MeleeDeadzoneCvar::Apply();
 		HealPredictionCvars::Apply();
 		ComboPointCvar::Apply();
+		FirstRunCvars::Apply();
+		StartupDefaults::Apply();
+		PlayerRenderLimitCvar::Apply();
 	}
 }

@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "PlayerSettingsPackets.h"
 #include "Packet.h"
 #include <CustomPacket.h>
@@ -11,16 +12,16 @@ PlayerSettingsPackets& PlayerSettingsPackets::Instance()
 	return instance;
 }
 
-void PlayerSettingsPackets::Handler_SMSG_PLAYER_SETTINGS(void*, uint32_t, uint32_t, CDataStore* pkt)
+void PlayerSettingsPackets::Handler_SMSG_PLAYER_SETTINGS(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint8_t count = r.GetUInt8();
+	uint8 count = r.GetUInt8();
 
 	PlayerSettingsPackets& self = Instance();
-	for (uint8_t i = 0; i < count; ++i)
+	for (uint8 i = 0; i < count; ++i)
 	{
-		uint8_t setting = r.GetUInt8();
-		uint32_t value = r.GetUInt32();
+		uint8 setting = r.GetUInt8();
+		uint32 value = r.GetUInt32();
 		if (setting < PLAYER_SETTING_MAX)
 			self.m_values[setting] = value;
 	}
@@ -32,7 +33,7 @@ void PlayerSettingsPackets::Handler_SMSG_PLAYER_SETTINGS(void*, uint32_t, uint32
 int PlayerSettingsPackets::GetPlayerSetting(lua_State* L)
 {
 	PlayerSettingsPackets& self = Instance();
-	uint32_t setting = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 setting = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 
 	if (!self.m_hasData || setting >= PLAYER_SETTING_MAX)
 	{
@@ -47,8 +48,8 @@ int PlayerSettingsPackets::GetPlayerSetting(lua_State* L)
 int PlayerSettingsPackets::SetPlayerSetting(lua_State* L)
 {
 	PlayerSettingsPackets& self = Instance();
-	uint32_t setting = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
-	uint32_t value = static_cast<uint32_t>(FrameScript::GetNumber(L, 2));
+	uint32 setting = static_cast<uint32>(FrameScript::GetNumber(L, 1));
+	uint32 value = static_cast<uint32>(FrameScript::GetNumber(L, 2));
 
 	if (setting >= PLAYER_SETTING_MAX)
 		return 0;
@@ -57,7 +58,7 @@ int PlayerSettingsPackets::SetPlayerSetting(lua_State* L)
 	self.m_hasData = true;
 
 	Packet pkt(CMSG_PLAYER_SETTING_UPDATE);
-	pkt.PutUInt8(static_cast<uint8_t>(setting));
+	pkt.PutUInt8(static_cast<uint8>(setting));
 	pkt.PutUInt32(value);
 	pkt.Send();
 	return 0;

@@ -1,10 +1,12 @@
 #pragma once
+
+#include <Defines.h>
 #include "SharedDefines.h"
 #include <iostream>
 
-static uint32_t spellVariables[192] = { 0 };
+static uint32 spellVariables[192] = { 0 };
 
-enum SpellVariable : uint32_t
+enum SpellVariable : uint32
 {
 	SPELLVARIABLE_hp = 162,
 	SPELLVARIABLE_HP = 163,

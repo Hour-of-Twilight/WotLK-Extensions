@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "AutoRepeatDeadzone.h"
 
 #include <ClientData/AutoRepeat.h>
@@ -12,7 +13,7 @@ namespace
 		int percent = sAutoRepeatDeadzone.Percent();
 
 		if (percent >= 100)
-			return AutoRepeat::IsInMeleeRange(self, target);
+			return CGUnit_C::IsInMeleeRange(self, target);
 
 		if (percent <= 0 || !self || !target)
 			return 0;
@@ -36,7 +37,7 @@ void AutoRepeatDeadzone::SetPercent(int percent)
 void AutoRepeatDeadzone::Apply()
 {
 	Util::OverwriteUInt32AtAddress(AutoRepeat::MELEE_RANGE_CALL_REL32,
-	    reinterpret_cast<uint32_t>(&MeleeRangeHook) - AutoRepeat::MELEE_RANGE_CALL_NEXT);
+	    reinterpret_cast<uint32>(&MeleeRangeHook) - AutoRepeat::MELEE_RANGE_CALL_NEXT);
 
 	// Movement is left to CheckToCancelSpellsDueToMovement, which honours InterruptFlags.
 	Util::SetByteAtAddress(reinterpret_cast<void*>(AutoRepeat::MOVEMENT_GATE_MASK), 0x00);

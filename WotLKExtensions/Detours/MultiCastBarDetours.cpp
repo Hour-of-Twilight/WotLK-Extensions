@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "ClientDetours.h"
 #include "MultiCastBarDetours.h"
 
@@ -9,31 +10,26 @@
 #include <cstdint>
 #include <cstring>
 
-static constexpr uint32_t kSummonPropertiesDB = 0x00AD4B38 + 0x18;
-
-// Match server SharedDefines.
-static constexpr uint32_t SPELL_EFFECT_SUMMON = 28;
-static constexpr int32_t SUMMON_TYPE_TOTEM = 4;
-static constexpr int32_t SUMMON_SLOT_TOTEM_FIRE = 1; // fire=1, earth=2, water=3, air=4
+static constexpr uint32 kSummonPropertiesDB = 0x00AD4B38 + 0x18;
 
 struct SummonPropertiesRow
 {
-	int32_t m_ID;
-	int32_t m_control;
-	int32_t m_faction;
-	int32_t m_title;
-	int32_t m_slot;
-	int32_t m_flags;
+	int32 m_ID;
+	int32 m_control;
+	int32 m_faction;
+	int32 m_title;
+	int32 m_slot;
+	int32 m_flags;
 };
 
 static int s_totemSlotMask = 0;
 static bool s_totemMaskConsumed = false;
 
-static bool ReadSpellRow(uint32_t spellId, SpellRow* out)
+static bool ReadSpellRow(uint32 spellId, SpellRow* out)
 {
 	if (!g_SpellDB || !g_SpellDB->Rows)
 		return false;
-	if (spellId < (uint32_t)g_SpellDB->minIndex || spellId > (uint32_t)g_SpellDB->maxIndex)
+	if (spellId < (uint32)g_SpellDB->minIndex || spellId > (uint32)g_SpellDB->maxIndex)
 		return false;
 
 	void* rec = ((void**)g_SpellDB->Rows)[spellId - g_SpellDB->minIndex];
@@ -49,7 +45,7 @@ static bool ReadSpellRow(uint32_t spellId, SpellRow* out)
 
 // Returns the multicast element bit (fire=0x1, earth=0x2, water=0x4, air=0x8) for
 // a totem spell, or 0 if the spell doesn't summon a totem.
-int MultiCastBar_GetTotemSlotMask(uint32_t spellId)
+int MultiCastBar_GetTotemSlotMask(uint32 spellId)
 {
 	SpellRow spell;
 	if (!ReadSpellRow(spellId, &spell))
@@ -63,10 +59,10 @@ int MultiCastBar_GetTotemSlotMask(uint32_t spellId)
 
 	for (int i = 0; i < 3; ++i)
 	{
-		if (spell.m_effect[i] != SPELL_EFFECT_SUMMON)
+		if (spell.m_effect[i] != ClientData::SPELL_EFFECT_SUMMON)
 			continue;
 
-		uint32_t summonPropId = spell.m_effectMiscValueB[i];
+		uint32 summonPropId = spell.m_effectMiscValueB[i];
 		if (!summonPropId)
 			continue;
 
@@ -80,10 +76,10 @@ int MultiCastBar_GetTotemSlotMask(uint32_t spellId)
 		Util::DebugOutput("[MCBar]   effect %d summon: summonPropId=%u title=%d slot=%d",
 		    i, summonPropId, props->m_title, props->m_slot);
 
-		if (props->m_title != SUMMON_TYPE_TOTEM)
+		if (props->m_title != ClientData::SUMMON_TYPE_TOTEM)
 			continue;
 
-		int slot = props->m_slot - SUMMON_SLOT_TOTEM_FIRE; // fire=0..air=3
+		int slot = props->m_slot - ClientData::SUMMON_SLOT_TOTEM_FIRE; // fire=0..air=3
 		if (slot < 0 || slot > 3)
 			continue;
 
@@ -98,7 +94,7 @@ CLIENT_DETOUR(CGSpellBook_AddKnownSpell, 0x00542030, __cdecl, void, (int spellId
 	int prevMask = s_totemSlotMask;
 	bool prevConsumed = s_totemMaskConsumed;
 
-	s_totemSlotMask = MultiCastBar_GetTotemSlotMask((uint32_t)spellId);
+	s_totemSlotMask = MultiCastBar_GetTotemSlotMask((uint32)spellId);
 	s_totemMaskConsumed = false;
 
 	Util::DebugOutput("[MCBar] AddKnownSpell spell=%d derivedMask=0x%X", spellId, s_totemSlotMask);
@@ -128,7 +124,7 @@ CLIENT_DETOUR(GetMultiCastSlotMaskForTotemCategory, 0x005A7B50, __cdecl, int, (i
 	return 0;
 }
 
-CLIENT_DETOUR(MultiCastValidateTotemForSlot, 0x005A7BC0, __cdecl, int, (int slot, SpellRow* spellRec, uint32_t* outCategory))
+CLIENT_DETOUR(MultiCastValidateTotemForSlot, 0x005A7BC0, __cdecl, int, (int slot, SpellRow* spellRec, uint32* outCategory))
 {
 	int result = MultiCastValidateTotemForSlot(slot, spellRec, outCategory);
 	if (result)

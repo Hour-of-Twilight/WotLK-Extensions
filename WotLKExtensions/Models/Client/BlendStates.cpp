@@ -29,6 +29,7 @@
 // carrying the table address as an absolute displacement, so rewriting those displacements moves the
 // tables without moving or rewriting a single instruction's behaviour.
 
+#include <Defines.h>
 #include "Models/Common/ModelLog.h"
 #include "Models/Common/Mem.h"
 #include "Models/Common/ModelHooks.h"
@@ -42,14 +43,14 @@ namespace
     namespace gx = ModernM2::Offsets::Gx;
 
     /// Room for the states the target ships plus the ones later versions of the format ask for.
-    constexpr uint32_t kOwnedStateCount = 16;
+    constexpr uint32 kOwnedStateCount = 16;
 
     /// One appended state: the index it takes, and the factor pair it resolves to.
     struct AddedState
     {
-        uint32_t index;
-        uint32_t srcFactor;
-        uint32_t dstFactor;
+        uint32 index;
+        uint32 srcFactor;
+        uint32 dstFactor;
         const char* what;
     };
 
@@ -63,14 +64,14 @@ namespace
     };
 
     // Storage the device reads for the rest of the process. Static, so it outlives every device reset.
-    uint32_t g_srcFactors[kOwnedStateCount]{};
-    uint32_t g_dstFactors[kOwnedStateCount]{};
+    uint32 g_srcFactors[kOwnedStateCount]{};
+    uint32 g_dstFactors[kOwnedStateCount]{};
 
     /// Rewrites the absolute table address inside one read instruction.
-    bool Repoint(uintptr_t displacementField, const uint32_t* table)
+    bool Repoint(uintptr_t displacementField, const uint32* table)
     {
         auto* dst = reinterpret_cast<void*>(displacementField);
-        const auto value = reinterpret_cast<uint32_t>(table);
+        const auto value = reinterpret_cast<uint32>(table);
         return ModernM2::Mem::WithWritable(dst, sizeof value,
                                       [&] { std::memcpy(dst, &value, sizeof value); });
     }
@@ -85,9 +86,9 @@ namespace ModernM2
         static_assert(gx::kBlendStatePremulAlpha < kOwnedStateCount, "added state past our storage");
 
         std::memcpy(g_srcFactors, reinterpret_cast<const void*>(gx::kBlendSrcFactors),
-                    gx::kBlendStateCount * sizeof(uint32_t));
+                    gx::kBlendStateCount * sizeof(uint32));
         std::memcpy(g_dstFactors, reinterpret_cast<const void*>(gx::kBlendDstFactors),
-                    gx::kBlendStateCount * sizeof(uint32_t));
+                    gx::kBlendStateCount * sizeof(uint32));
 
         for (const AddedState& state : kAddedStates)
         {
@@ -100,7 +101,7 @@ namespace ModernM2
         if (!Repoint(gx::kBlendSrcReadDisp, g_srcFactors)) return false;
         if (!Repoint(gx::kBlendDstReadDisp, g_dstFactors))
         {
-            Repoint(gx::kBlendSrcReadDisp, reinterpret_cast<const uint32_t*>(gx::kBlendSrcFactors));
+            Repoint(gx::kBlendSrcReadDisp, reinterpret_cast<const uint32*>(gx::kBlendSrcFactors));
             return false;
         }
 

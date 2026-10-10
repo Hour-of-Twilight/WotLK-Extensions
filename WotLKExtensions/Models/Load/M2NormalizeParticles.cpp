@@ -29,6 +29,7 @@
 // evenly -- and the runtime decodes a cell by mask and shift, which handles that end key on its own.
 // Folding the end key back into range flattens the ramp and freezes the flipbook on its first cell.
 
+#include <Defines.h>
 #include "Models/Load/M2NativeInternal.h"
 
 #include <cmath>
@@ -43,29 +44,29 @@ namespace ModernM2::Reader::Detail
     namespace
     {
         // Fields of one emitter record.
-        constexpr uint32_t kOffFlags        = 0x004;
-        constexpr uint32_t kOffTextureId    = 0x016;
-        constexpr uint32_t kOffGravityTrack = 0x084;
+        constexpr uint32 kOffFlags        = 0x004;
+        constexpr uint32 kOffTextureId    = 0x016;
+        constexpr uint32 kOffGravityTrack = 0x084;
 
         // An animation track heads its two count+offset pairs with the interpolation fields; the value
         // pair is the second one. Both pairs are one slot list per sequence, values inside -- unless
         // the track is keyed to a global loop, in which case the slots are the loop's own.
-        constexpr uint32_t kTrackGlobalLoop = 0x02;
-        constexpr uint32_t kTrackValues     = 0x0C;
-        constexpr int16_t  kNoGlobalLoop    = -1;
+        constexpr uint32 kTrackGlobalLoop = 0x02;
+        constexpr uint32 kTrackValues     = 0x0C;
+        constexpr int16  kNoGlobalLoop    = -1;
 
         // Only the first of the three packed layer ids has a target home; the id also has to land
         // inside the model's texture table or it selects nothing.
-        constexpr uint16_t kPackedTextureIdMask = 0x1F;
+        constexpr uint16 kPackedTextureIdMask = 0x1F;
 
         // Gravity keys packed as {int8 x, int8 y, int16 magnitude} instead of a downward scalar.
-        constexpr uint32_t kFlagCompressedGravity = 0x800000;
+        constexpr uint32 kFlagCompressedGravity = 0x800000;
         constexpr float    kGravityMagnitudeUnit  = 0.04238648f;
         constexpr float    kPackedDirectionUnit   = 1.0f / 128.0f;
 
         // A sequence keeps its keys in this model only when this bit is set; otherwise they arrive with
         // a companion file and the offsets in the record do not address this body at all.
-        constexpr uint32_t kSeqKeysInline = 0x20;
+        constexpr uint32 kSeqKeysInline = 0x20;
 
         // Every field above lives inside the target record; the source record is this one with the
         // multi-texture scroll parameters appended.
@@ -77,13 +78,13 @@ namespace ModernM2::Reader::Detail
          *        the flag that said they were packed.
          * @return false when an inline sequence's key list addresses outside the body.
          */
-        bool ExpandGravityKeys(const NormalizeCtx& ctx, uint8_t* rec, uint32_t flags)
+        bool ExpandGravityKeys(const NormalizeCtx& ctx, uint8* rec, uint32 flags)
         {
-            int16_t globalLoop;
+            int16 globalLoop;
             std::memcpy(&globalLoop, rec + kOffGravityTrack + kTrackGlobalLoop, 2);
 
-            const uint32_t slots  = Rd32(rec + kOffGravityTrack + kTrackValues);
-            const uint32_t offset = Rd32(rec + kOffGravityTrack + kTrackValues + 4);
+            const uint32 slots  = Rd32(rec + kOffGravityTrack + kTrackValues);
+            const uint32 offset = Rd32(rec + kOffGravityTrack + kTrackValues + 4);
             if (slots && offset)
             {
                 if (!FitsInBody(ctx.size, offset, slots, sizeof(fmt::M2Array))) return false;
@@ -93,26 +94,26 @@ namespace ModernM2::Reader::Detail
                                     ctx.header->sequences.offset)
                     ? reinterpret_cast<const fmt::M2Sequence*>(ctx.body + ctx.header->sequences.offset)
                     : nullptr;
-                for (uint32_t s = 0; s < slots; ++s)
+                for (uint32 s = 0; s < slots; ++s)
                 {
                     // Keys that stream in with a companion file are not addressed against this body;
                     // leaving them packed is correct, that file's arrival brings its own.
                     if (seqs && s < ctx.header->sequences.count &&
                         !(seqs[s].flags & kSeqKeysInline)) continue;
 
-                    const uint8_t* slot = ctx.body + offset + s * sizeof(fmt::M2Array);
-                    const uint32_t keyCount  = Rd32(slot);
-                    const uint32_t keyOffset = Rd32(slot + 4);
+                    const uint8* slot = ctx.body + offset + s * sizeof(fmt::M2Array);
+                    const uint32 keyCount  = Rd32(slot);
+                    const uint32 keyOffset = Rd32(slot + 4);
                     if (!keyCount || !keyOffset) continue;
                     if (!FitsInBody(ctx.size, keyOffset, keyCount, 4)) return false;
 
-                    uint8_t* keys = ctx.body + keyOffset;
-                    for (uint32_t k = 0; k < keyCount; ++k)
+                    uint8* keys = ctx.body + keyOffset;
+                    for (uint32 k = 0; k < keyCount; ++k)
                     {
-                        uint8_t* key = keys + k * 4;
-                        const float dx = static_cast<int8_t>(key[0]) * kPackedDirectionUnit;
-                        const float dy = static_cast<int8_t>(key[1]) * kPackedDirectionUnit;
-                        int16_t packedMag; std::memcpy(&packedMag, key + 2, 2);
+                        uint8* key = keys + k * 4;
+                        const float dx = static_cast<int8>(key[0]) * kPackedDirectionUnit;
+                        const float dy = static_cast<int8>(key[1]) * kPackedDirectionUnit;
+                        int16 packedMag; std::memcpy(&packedMag, key + 2, 2);
 
                         const float planar = dx * dx + dy * dy;
                         float z   = std::sqrt(planar < 1.0f ? 1.0f - planar : 0.0f);
@@ -135,17 +136,17 @@ namespace ModernM2::Reader::Detail
      * @param dst  where the target-shaped record goes (never ahead of src).
      * @return false when the record reaches outside the body.
      */
-    bool NormalizeParticleRecord(const NormalizeCtx& ctx, const uint8_t* src, uint8_t* dst)
+    bool NormalizeParticleRecord(const NormalizeCtx& ctx, const uint8* src, uint8* dst)
     {
         // The trailing multi-texture scroll parameters stop here: no part of the pipeline downstream
         // reads them, and keeping them would mean keeping a second record width alive everywhere.
         std::memmove(dst, src, off::kParticleStrideClient);
 
-        const uint32_t flags = Rd32(dst + kOffFlags);
+        const uint32 flags = Rd32(dst + kOffFlags);
 
         // A multi-layer emitter packs three layer ids into the texture slot. Only the first layer has a
         // home in a single-texture emitter, and an id past the model's table would select nothing.
-        uint16_t texId = Rd16(dst + kOffTextureId);
+        uint16 texId = Rd16(dst + kOffTextureId);
         if (flags & off::kParticleFlagMultiTex) texId &= kPackedTextureIdMask;
         if (ctx.header->textures.count && texId >= ctx.header->textures.count) texId = 0;
         Wr16(dst + kOffTextureId, texId);

@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 namespace ModernM2::Fdid
@@ -32,10 +34,10 @@ namespace ModernM2::Fdid
 	// FileDataID -> file path, cached (a node's c_str() is stable for the process once resolved).
 	// ResolveTexture reads the texture table alone; ResolveModel pulls in the model table and falls
 	// back to the texture one, since the two share a FileDataID space.
-	const char* ResolveTexture(uint32_t fileDataId);
-	const char* ResolveModel(uint32_t fileDataId);
+	const char* ResolveTexture(uint32 fileDataId);
+	const char* ResolveModel(uint32 fileDataId);
 
 	// Model path -> its FileDataID, or 0. Case- and separator-insensitive, extension ignored.
 	// The first call builds a stem index over the whole model table, so it is not a cheap one.
-	uint32_t ResolveModelId(const char* modelPath);
+	uint32 ResolveModelId(const char* modelPath);
 }

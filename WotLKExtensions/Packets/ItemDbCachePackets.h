@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 struct CDataStore;
@@ -11,5 +13,5 @@ public:
 	static void RegisterRealmHandlers();
 
 private:
-	static void Handler_SMSG_ITEM_DB_CACHE(void*, uint32_t, uint32_t, CDataStore* pkt);
+	static void Handler_SMSG_ITEM_DB_CACHE(void*, uint32, uint32, CDataStore* pkt);
 };

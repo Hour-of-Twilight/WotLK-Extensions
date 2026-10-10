@@ -14,6 +14,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <vector>
 
@@ -39,15 +41,15 @@ namespace ModernM2::Db2
 {
     struct DB2Decoded
     {
-        uint32_t             rowSize = 0;  // decoded bytes per record (column count * 4, plus relationship)
+        uint32             rowSize = 0;  // decoded bytes per record (column count * 4, plus relationship)
         std::vector<char>    records;      // rowCount * rowSize
-        std::vector<int32_t> ids;          // rowCount
+        std::vector<int32> ids;          // rowCount
         std::vector<char>    strings;      // reconstructed string table
         bool                 hasRelationship = false; // a trailing relationship column was appended
     };
 
     // Decode the file bytes into out. stringColumns/stringColumnCount may be null/0 (see DB2File).
     // Returns false (and leaves out cleared) if the data is not a supported DB2 or is malformed.
-    bool DecodeDB2(const uint8_t* data, uint32_t size, DB2Decoded& out, const uint32_t* stringColumns,
-                   uint32_t stringColumnCount);
+    bool DecodeDB2(const uint8* data, uint32 size, DB2Decoded& out, const uint32* stringColumns,
+                   uint32 stringColumnCount);
 }

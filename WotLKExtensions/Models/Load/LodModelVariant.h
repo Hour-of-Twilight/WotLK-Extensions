@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstddef>
 #include <cstdint>
 
@@ -35,7 +37,7 @@ namespace ModernM2::LodVariant
      * @param tier           1-based LOD tier, matching "_lodNN.skin" numbering (1..99).
      * @return false (outBuf untouched) if tier is out of range or the result would not fit.
      */
-    bool BuildVariantName(const char* realModelPath, uint32_t tier, char* outBuf, size_t outBufSize);
+    bool BuildVariantName(const char* realModelPath, uint32 tier, char* outBuf, size_t outBufSize);
 
     /** @brief True once the file-open redirect and the load-time skin swap are installed. */
     bool Installed();

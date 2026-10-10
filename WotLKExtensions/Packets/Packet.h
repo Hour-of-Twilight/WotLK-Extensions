@@ -1,42 +1,44 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <ClientData/GameStructs.h> // CDataStore
 
 class Packet
 {
 public:
-	explicit Packet(uint32_t opcode);
+	explicit Packet(uint32 opcode);
 	explicit Packet(CDataStore* incoming);
 	~Packet();
 
 	Packet(const Packet&) = delete;
 	Packet& operator=(const Packet&) = delete;
 
-	Packet& PutInt8(int8_t v);
-	Packet& PutUInt8(uint8_t v);
-	Packet& PutInt16(int16_t v);
-	Packet& PutUInt16(uint16_t v);
-	Packet& PutInt32(int32_t v);
-	Packet& PutUInt32(uint32_t v);
-	Packet& PutInt64(int64_t v);
-	Packet& PutUInt64(uint64_t v);
+	Packet& PutInt8(int8 v);
+	Packet& PutUInt8(uint8 v);
+	Packet& PutInt16(int16 v);
+	Packet& PutUInt16(uint16 v);
+	Packet& PutInt32(int32 v);
+	Packet& PutUInt32(uint32 v);
+	Packet& PutInt64(int64 v);
+	Packet& PutUInt64(uint64 v);
 	Packet& PutFloat(float v);
 	Packet& PutDouble(double v);
 	Packet& PutString(const char* v);
 
-	int8_t GetInt8();
-	uint8_t GetUInt8();
-	int16_t GetInt16();
-	uint16_t GetUInt16();
-	int32_t GetInt32();
-	uint32_t GetUInt32();
-	int64_t GetInt64();
-	uint64_t GetUInt64();
+	int8 GetInt8();
+	uint8 GetUInt8();
+	int16 GetInt16();
+	uint16 GetUInt16();
+	int32 GetInt32();
+	uint32 GetUInt32();
+	int64 GetInt64();
+	uint64 GetUInt64();
 	float GetFloat();
 	double GetDouble();
-	void GetString(char* out, uint32_t size);
-	void GetBytes(void* dst, uint32_t len);
+	void GetString(char* out, uint32 size);
+	void GetBytes(void* dst, uint32 len);
 
 	void Send();
 

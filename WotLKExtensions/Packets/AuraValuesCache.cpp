@@ -1,8 +1,10 @@
+#include <Defines.h>
 #include "AuraValuesCache.h"
 #include "Packet.h"
 
 #include <CustomPacket.h>
 #include <ClientData/ClientFunctions.h>
+#include <ClientData/WowObjects.h>
 #include <Detours/ClientDetours.h>
 #include <Lua/XMLExtensions.h>
 #include <Packets/UnitHealthPrediction.h>
@@ -13,12 +15,12 @@
 using ClientData::Aura::MaxSpellEffects;
 using ClientData::Aura::TooltipCall;
 
-static constexpr uint32_t kRequestIntervalMs = 1000;
-static constexpr uint32_t kStaleAfterMs = 3000;
-static constexpr uint32_t kMaxBackoffShift = 5;
+static constexpr uint32 kRequestIntervalMs = 1000;
+static constexpr uint32 kStaleAfterMs = 3000;
+static constexpr uint32 kMaxBackoffShift = 5;
 
 static constexpr size_t kPruneUnitThreshold = 256;
-static constexpr uint32_t kPruneAgeMs = 60000;
+static constexpr uint32 kPruneAgeMs = 60000;
 
 AuraValuesCache& AuraValuesCache::Instance()
 {
@@ -26,12 +28,12 @@ AuraValuesCache& AuraValuesCache::Instance()
 	return instance;
 }
 
-AuraValuesCache::Entry& AuraValuesCache::EntryFor(uint64_t guid, uint8_t slot)
+AuraValuesCache::Entry& AuraValuesCache::EntryFor(uint64 guid, uint8 slot)
 {
 	return m_entries[guid][slot];
 }
 
-void AuraValuesCache::ClearUnit(uint64_t guid)
+void AuraValuesCache::ClearUnit(uint64 guid)
 {
 	m_entries.erase(guid);
 }
@@ -49,7 +51,7 @@ void AuraValuesCache::PruneIfLarge()
 	if (m_entries.size() < kPruneUnitThreshold)
 		return;
 
-	uint32_t now = GetTickCount();
+	uint32 now = GetTickCount();
 	for (auto unit = m_entries.begin(); unit != m_entries.end();)
 	{
 		for (auto slot = unit->second.begin(); slot != unit->second.end();)
@@ -67,23 +69,24 @@ void AuraValuesCache::PruneIfLarge()
 	}
 }
 
-void AuraValuesCache::RecordTooltipCall(CGUnit* unit, int32_t slot)
+void AuraValuesCache::RecordTooltipCall(CGUnit* unit, int32 slot)
 {
 	TooltipCall& pending = sAuraValuesCache.m_pending;
 	pending = TooltipCall{};
 
-	if (!unit || slot < 0 || slot >= static_cast<int32_t>(ClientData::Aura::MaxAuraSlots))
+	if (!unit || slot < 0 || slot >= static_cast<int32>(ClientData::Aura::MaxAuraSlots))
 		return;
 
-	if (!unit->objectBase.ObjectData)
+	ClientData::WowUnit target(unit);
+	if (!target)
 		return;
 
-	pending.unitGuid = unit->objectBase.ObjectData->OBJECT_FIELD_GUID;
+	pending.unitGuid = target.Guid();
 	pending.slot = slot;
 	pending.valid = true;
 }
 
-void AuraValuesCache::BeginTooltip(void* tooltip, uint32_t spellId)
+void AuraValuesCache::BeginTooltip(void* tooltip, uint32 spellId)
 {
 	m_active = m_pending;
 	m_pending = TooltipCall{};
@@ -98,7 +101,7 @@ void AuraValuesCache::EndTooltip()
 	m_active = TooltipCall{};
 }
 
-static void __cdecl RecordTooltipCallThunk(CGUnit* unit, int32_t slot)
+static void __cdecl RecordTooltipCallThunk(CGUnit* unit, int32 slot)
 {
 	AuraValuesCache::RecordTooltipCall(unit, slot);
 }
@@ -120,25 +123,25 @@ __declspec(naked) void CGTooltip__SetBuff_Hook()
 }
 
 CLIENT_DETOUR_THISCALL(CGTooltip__SetBuff, 0x00625350, void,
-    (uint32_t spellId, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5, uint32_t a6))
+    (uint32 spellId, uint32 a2, uint32 a3, uint32 a4, uint32 a5, uint32 a6))
 {
 	sAuraValuesCache.BeginTooltip(self, spellId);
 	CGTooltip__SetBuff(self, spellId, a2, a3, a4, a5, a6);
 	sAuraValuesCache.EndTooltip();
 }
 
-const AuraValuesCache::Values* AuraValuesCache::ResolveActive(uint32_t spellId)
+const AuraValuesCache::Values* AuraValuesCache::ResolveActive(uint32 spellId)
 {
 	if (!m_active.valid || m_active.spellId != spellId)
 		return nullptr;
 
-	uint32_t now = GetTickCount();
-	Entry& entry = EntryFor(m_active.unitGuid, static_cast<uint8_t>(m_active.slot));
+	uint32 now = GetTickCount();
+	Entry& entry = EntryFor(m_active.unitGuid, static_cast<uint8>(m_active.slot));
 	bool stale = !entry.haveData || (now - entry.receivedMs) >= kStaleAfterMs;
 	if (stale && (now - entry.lastRequestMs) >= kRequestIntervalMs)
 	{
 		entry.lastRequestMs = now;
-		Packet(CMSG_AURA_VALUES_REQUEST).PutUInt64(m_active.unitGuid).PutUInt8(static_cast<uint8_t>(m_active.slot)).Send();
+		Packet(CMSG_AURA_VALUES_REQUEST).PutUInt64(m_active.unitGuid).PutUInt8(static_cast<uint8>(m_active.slot)).Send();
 	}
 
 	if (!entry.haveData || entry.values.spellId != spellId)
@@ -147,7 +150,7 @@ const AuraValuesCache::Values* AuraValuesCache::ResolveActive(uint32_t spellId)
 	return &entry.values;
 }
 
-bool AuraValuesCache::GetActiveAmount(uint32_t spellId, uint32_t effectIndex, int32_t& out)
+bool AuraValuesCache::GetActiveAmount(uint32 spellId, uint32 effectIndex, int32& out)
 {
 	if (effectIndex < 1 || effectIndex > MaxSpellEffects)
 		return false;
@@ -156,7 +159,7 @@ bool AuraValuesCache::GetActiveAmount(uint32_t spellId, uint32_t effectIndex, in
 	if (!values)
 		return false;
 
-	uint32_t index = effectIndex - 1;
+	uint32 index = effectIndex - 1;
 	if (!(values->effectMask & (1u << index)))
 		return false;
 
@@ -164,7 +167,7 @@ bool AuraValuesCache::GetActiveAmount(uint32_t spellId, uint32_t effectIndex, in
 	return true;
 }
 
-bool AuraValuesCache::GetActiveAbsorb(uint32_t spellId, const SpellRow* spell, int32_t& out)
+bool AuraValuesCache::GetActiveAbsorb(uint32 spellId, const SpellRow* spell, int32& out)
 {
 	const Values* values = ResolveActive(spellId);
 	if (!values)
@@ -172,9 +175,9 @@ bool AuraValuesCache::GetActiveAbsorb(uint32_t spellId, const SpellRow* spell, i
 
 	if (spell)
 	{
-		for (uint32_t i = 0; i < MaxSpellEffects; ++i)
+		for (uint32 i = 0; i < MaxSpellEffects; ++i)
 		{
-			uint32_t auraType = spell->m_effectAura[i];
+			uint32 auraType = spell->m_effectAura[i];
 			bool absorbs = auraType == ClientData::Aura::SPELL_AURA_SCHOOL_ABSORB || auraType == ClientData::Aura::SPELL_AURA_MANA_SHIELD;
 			if (absorbs && (values->effectMask & (1u << i)))
 			{
@@ -184,7 +187,7 @@ bool AuraValuesCache::GetActiveAbsorb(uint32_t spellId, const SpellRow* spell, i
 		}
 	}
 
-	for (uint32_t i = 0; i < MaxSpellEffects; ++i)
+	for (uint32 i = 0; i < MaxSpellEffects; ++i)
 	{
 		if (values->effectMask & (1u << i))
 		{
@@ -196,7 +199,7 @@ bool AuraValuesCache::GetActiveAbsorb(uint32_t spellId, const SpellRow* spell, i
 	return false;
 }
 
-bool AuraValuesCache::GetSlotValues(uint64_t guid, uint8_t slot, uint32_t spellId, Values& out)
+bool AuraValuesCache::GetSlotValues(uint64 guid, uint8 slot, uint32 spellId, Values& out)
 {
 	if (!guid || slot >= ClientData::Aura::MaxAuraSlots)
 		return false;
@@ -208,8 +211,8 @@ bool AuraValuesCache::GetSlotValues(uint64_t guid, uint8_t slot, uint32_t spellI
 		return true;
 	}
 
-	uint32_t shift = entry.unansweredRequests < kMaxBackoffShift ? entry.unansweredRequests : kMaxBackoffShift;
-	uint32_t now = GetTickCount();
+	uint32 shift = entry.unansweredRequests < kMaxBackoffShift ? entry.unansweredRequests : kMaxBackoffShift;
+	uint32 now = GetTickCount();
 	if ((now - entry.lastRequestMs) >= (kRequestIntervalMs << shift))
 	{
 		entry.lastRequestMs = now;
@@ -221,7 +224,7 @@ bool AuraValuesCache::GetSlotValues(uint64_t guid, uint8_t slot, uint32_t spellI
 	return false;
 }
 
-bool AuraValuesCache::GetActiveStacks(uint32_t spellId, int32_t& out)
+bool AuraValuesCache::GetActiveStacks(uint32 spellId, int32& out)
 {
 	const Values* values = ResolveActive(spellId);
 	if (!values)
@@ -231,14 +234,14 @@ bool AuraValuesCache::GetActiveStacks(uint32_t spellId, int32_t& out)
 	return true;
 }
 
-void AuraValuesCache::Handler_SMSG_AURA_VALUES(void*, uint32_t, uint32_t, CDataStore* pkt)
+void AuraValuesCache::Handler_SMSG_AURA_VALUES(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint64_t guid = r.GetUInt64();
-	uint8_t slot = r.GetUInt8();
-	uint32_t spellId = r.GetUInt32();
-	uint8_t effectMask = r.GetUInt8();
-	uint8_t stacks = r.GetUInt8();
+	uint64 guid = r.GetUInt64();
+	uint8 slot = r.GetUInt8();
+	uint32 spellId = r.GetUInt32();
+	uint8 effectMask = r.GetUInt8();
+	uint8 stacks = r.GetUInt8();
 
 	if (!guid || slot >= ClientData::Aura::MaxAuraSlots)
 		return;
@@ -247,7 +250,7 @@ void AuraValuesCache::Handler_SMSG_AURA_VALUES(void*, uint32_t, uint32_t, CDataS
 	values.spellId = spellId;
 	values.effectMask = effectMask;
 	values.stacks = stacks;
-	for (uint32_t i = 0; i < MaxSpellEffects; ++i)
+	for (uint32 i = 0; i < MaxSpellEffects; ++i)
 	{
 		if (effectMask & (1u << i))
 			values.amounts[i] = r.GetInt32();
@@ -277,6 +280,6 @@ void AuraValuesCache::Apply()
 {
 	sCustomPacket.RegisterHandler(SMSG_AURA_VALUES, &Handler_SMSG_AURA_VALUES);
 
-	uint32_t rel = reinterpret_cast<uint32_t>(&CGTooltip__SetBuff_Hook) - (ClientData::Aura::SetBuffCallSite + 5);
+	uint32 rel = reinterpret_cast<uint32>(&CGTooltip__SetBuff_Hook) - (ClientData::Aura::SetBuffCallSite + 5);
 	Util::OverwriteUInt32AtAddress(ClientData::Aura::SetBuffCallSite + 1, rel);
 }

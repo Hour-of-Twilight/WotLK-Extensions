@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <Macros.h>
 #include <ClientData/AdtTypes.h>
 #include <ClientData/MathTypes.h>
@@ -13,7 +15,7 @@ namespace ClientData
 {
 	struct TSExplicitList
 	{
-		int32_t linkOffset;
+		int32 linkOffset;
 		void* prevLink;
 		void* next;
 	};
@@ -24,20 +26,20 @@ namespace ClientData
 	// on two lists at once, refLink on the chunk's and ownerLink on the def's.
 	struct CMapDefChunkLink
 	{
-		uint32_t objectIndex; // 0x00
-		void* owner;          // 0x04 the CMapDoodadDef or CMapObjDef
-		CMapChunk* ref;       // 0x08
-		void* refLink[2];     // 0x0C
-		void* ownerLink[2];   // 0x14
+		uint32 objectIndex; // 0x00
+		void* owner;        // 0x04 the CMapDoodadDef or CMapObjDef
+		CMapChunk* ref;     // 0x08
+		void* refLink[2];   // 0x0C
+		void* ownerLink[2]; // 0x14
 	};
 
 	struct CMapChunk
 	{
 		void** vtable;                // 0x000
-		uint32_t objectIndex;         // 0x004
-		uint16_t type;                // 0x008
-		uint16_t refCount;            // 0x00A
-		uint32_t unk_0C;              // 0x00C
+		uint32 objectIndex;           // 0x004
+		uint16 type;                  // 0x008
+		uint16 refCount;              // 0x00A
+		uint32 unk_0C;                // 0x00C
 		CMapChunk* prev;              // 0x010
 		CMapChunk* next;              // 0x014
 		TSExplicitList linkList;      // 0x018
@@ -54,70 +56,70 @@ namespace ClientData
 		CAaBox bbox2;                 // 0x08C
 		void* detailDoodadInst;       // 0x0A4
 		void* renderChunk;            // 0x0A8
-		int32_t hasRenderChunk;       // 0x0AC set once CMapChunk::CreateRenderChunk has run
-		int32_t areaId;               // 0x0B0
-		int32_t unk_B4[4];            // 0x0B4
+		int32 hasRenderChunk;         // 0x0AC set once CMapChunk::CreateRenderChunk has run
+		int32 areaId;                 // 0x0B0
+		int32 unk_B4[4];              // 0x0B4
 		TSExplicitList doodadDefLink; // 0x0C4
 		TSExplicitList mapObjDefLink; // 0x0D0
 		TSExplicitList unkLink_DC;    // 0x0DC
 		TSExplicitList unkLink_E8;    // 0x0E8
 		TSExplicitList unkLink_F4;    // 0x0F4
 		TSExplicitList liquidLink;    // 0x100
-		uint8_t* chunkInfoBeginPtr;   // 0x10C points at the MCNK IFF header inside filePtr
+		uint8* chunkInfoBeginPtr;     // 0x10C points at the MCNK IFF header inside filePtr
 		SMChunk* header;              // 0x110
-		uint8_t* lowQualityTexMap;    // 0x114
-		uint8_t* predTexture;         // 0x118
+		uint8* lowQualityTexMap;      // 0x114
+		uint8* predTexture;           // 0x118
 		float* vertices;              // 0x11C MCVT, 145 floats
-		uint32_t* vertexShading;      // 0x120 MCCV
-		int8_t* normals;              // 0x124 MCNR
-		uint8_t* shadowMap;           // 0x128 MCSH
+		uint32* vertexShading;        // 0x120 MCCV
+		int8* normals;                // 0x124 MCNR
+		uint8* shadowMap;             // 0x128 MCSH
 		SMLayer* layers;              // 0x12C MCLY
-		uint8_t* alpha;               // 0x130 MCAL, mislabelled additionalShadowmap in IDA
-		uint8_t* refs;                // 0x134 MCRF
+		uint8* alpha;                 // 0x130 MCAL, mislabelled additionalShadowmap in IDA
+		uint8* refs;                  // 0x134 MCRF
 		void* liquid;                 // 0x138 MCLQ
 		void* soundEmitters;          // 0x13C MCSE
-		int32_t unk_140[6];           // 0x140
+		int32 unk_140[6];             // 0x140
 	};
 
 	struct CMapArea
 	{
-		void** vtable;                   // 0x000
-		uint32_t objectIndex;            // 0x004
-		uint16_t type;                   // 0x008
-		uint16_t refCount;               // 0x00A
-		uint32_t unk_0C;                 // 0x00C
-		CMapArea* prev;                  // 0x010
-		CMapArea* next;                  // 0x014
-		TSExplicitList linkList;         // 0x018
-		C3Vector bottomRight;            // 0x024
-		C3Vector topLeft;                // 0x030
-		C3Vector topLeft2;               // 0x03C
-		C2iVector index;                 // 0x048 the x and y in <Map>_<x>_<y>.adt
-		C2iVector tileChunkIndex;        // 0x050 index * 16
-		uint32_t textureAlloc;           // 0x058
-		uint32_t textureCount;           // 0x05C
-		void* textureData;               // 0x060
-		uint32_t textureChunk;           // 0x064
-		SMMapHeader* header;             // 0x068
-		int32_t unk_6C;                  // 0x06C
-		void* asyncObject;               // 0x070 non-null while the tile is still streaming
-		TSExplicitList chunkLinkList;    // 0x074
-		void* filePtr;                   // 0x080 the whole raw .adt file image
-		int32_t fileSize;                // 0x084
-		SMChunkInfo* chunkInfo;          // 0x088 MCIN, 256 entries
-		int32_t unk_8C;                  // 0x08C
-		SMDoodadDef* doodadDef;          // 0x090 MDDF
-		SMMapObjDef* mapObjDef;          // 0x094 MODF
-		int32_t doodadDefCount;          // 0x098
-		int32_t mapObjDefCount;          // 0x09C
-		char* m2FileNames;               // 0x0A0 MMDX string blob
-		char* wmoFileNames;              // 0x0A4 MWMO string blob
-		uint32_t* modelFilenamesOffsets; // 0x0A8 MMID
-		uint32_t* wmoFilenamesOffsets;   // 0x0AC MWID
-		int16_t* flyingBbox;             // 0x0B0 MFBO
-		int32_t* textureFlags;           // 0x0B4 MTXF
-		uint8_t* unk_B8;                 // 0x0B8
-		CMapChunk* mapChunks[256];       // 0x0BC indexed cy * 16 + cx
+		void** vtable;                 // 0x000
+		uint32 objectIndex;            // 0x004
+		uint16 type;                   // 0x008
+		uint16 refCount;               // 0x00A
+		uint32 unk_0C;                 // 0x00C
+		CMapArea* prev;                // 0x010
+		CMapArea* next;                // 0x014
+		TSExplicitList linkList;       // 0x018
+		C3Vector bottomRight;          // 0x024
+		C3Vector topLeft;              // 0x030
+		C3Vector topLeft2;             // 0x03C
+		C2iVector index;               // 0x048 the x and y in <Map>_<x>_<y>.adt
+		C2iVector tileChunkIndex;      // 0x050 index * 16
+		uint32 textureAlloc;           // 0x058
+		uint32 textureCount;           // 0x05C
+		void* textureData;             // 0x060
+		uint32 textureChunk;           // 0x064
+		SMMapHeader* header;           // 0x068
+		int32 unk_6C;                  // 0x06C
+		void* asyncObject;             // 0x070 non-null while the tile is still streaming
+		TSExplicitList chunkLinkList;  // 0x074
+		void* filePtr;                 // 0x080 the whole raw .adt file image
+		int32 fileSize;                // 0x084
+		SMChunkInfo* chunkInfo;        // 0x088 MCIN, 256 entries
+		int32 unk_8C;                  // 0x08C
+		SMDoodadDef* doodadDef;        // 0x090 MDDF
+		SMMapObjDef* mapObjDef;        // 0x094 MODF
+		int32 doodadDefCount;          // 0x098
+		int32 mapObjDefCount;          // 0x09C
+		char* m2FileNames;             // 0x0A0 MMDX string blob
+		char* wmoFileNames;            // 0x0A4 MWMO string blob
+		uint32* modelFilenamesOffsets; // 0x0A8 MMID
+		uint32* wmoFilenamesOffsets;   // 0x0AC MWID
+		int16* flyingBbox;             // 0x0B0 MFBO
+		int32* textureFlags;           // 0x0B4 MTXF
+		uint8* unk_B8;                 // 0x0B8
+		CMapChunk* mapChunks[256];     // 0x0BC indexed cy * 16 + cx
 	};
 
 	// The live instance the client builds from one SMDoodadDef, keyed by uniqueId in a global hash
@@ -126,14 +128,14 @@ namespace ClientData
 	struct CMapDoodadDef
 	{
 		void** vtable;           // 0x000
-		uint32_t objectIndex;    // 0x004
-		uint16_t type;           // 0x008 bit 0x40 marks a doodad
-		uint16_t refCount;       // 0x00A
-		uint32_t flags;          // 0x00C 1, or 0x801 when the MDDF entry had bit 0 set
+		uint32 objectIndex;      // 0x004
+		uint16 type;             // 0x008 bit 0x40 marks a doodad
+		uint16 refCount;         // 0x00A
+		uint32 flags;            // 0x00C 1, or 0x801 when the MDDF entry had bit 0 set
 		CMapDoodadDef* prev;     // 0x010
 		CMapDoodadDef* next;     // 0x014
 		TSExplicitList linkList; // 0x018 the chunk links this doodad is threaded onto
-		uint8_t unk_24[0x10];    // 0x024
+		uint8 unk_24[0x10];      // 0x024
 		void* model;             // 0x034 CM2Model, null until the m2 has streamed in
 		C3Vector sphereCenter;   // 0x038
 		float sphereRadius;      // 0x044
@@ -141,16 +143,16 @@ namespace ClientData
 		C3Vector linkPos;        // 0x060 what CMap::LinkStaticEntitySingle2 reads
 		C3Vector position;       // 0x06C world space
 		float scale;             // 0x078
-		uint8_t unk_7C[0x14];    // 0x07C
-		uint32_t uniqueId;       // 0x090 straight off the MDDF entry
-		uint8_t unk_94[0x10];    // 0x094
-		uint32_t group;          // 0x0A4 0 for a plain MDDF doodad
+		uint8 unk_7C[0x14];      // 0x07C
+		uint32 uniqueId;         // 0x090 straight off the MDDF entry
+		uint8 unk_94[0x10];      // 0x094
+		uint32 group;            // 0x0A4 0 for a plain MDDF doodad
 		void* purgeLink[2];      // 0x0A8
-		uint8_t unk_B0[0x10];    // 0x0B0
+		uint8 unk_B0[0x10];      // 0x0B0
 		CAaBox bboxDoodadDef;    // 0x0C0 world space, only valid once the model has loaded
 		C44Matrix mat;           // 0x0D8
 		C44Matrix identity;      // 0x118
-		uint8_t unk_158[0x18];   // 0x158
+		uint8 unk_158[0x18];     // 0x158
 	};
 
 	// The live instance built from one SMMapObjDef. The def hash at 0x00D25434 writes the MODF
@@ -159,34 +161,34 @@ namespace ClientData
 	struct CMapObjDef
 	{
 		void** vtable;                         // 0x000
-		uint32_t objectIndex;                  // 0x004
-		uint16_t type;                         // 0x008 bit 0x8 marks a map object
-		uint16_t refCount;                     // 0x00A
-		uint32_t flags;                        // 0x00C
+		uint32 objectIndex;                    // 0x004
+		uint16 type;                           // 0x008 bit 0x8 marks a map object
+		uint16 refCount;                       // 0x00A
+		uint32 flags;                          // 0x00C
 		CMapObjDef* prev;                      // 0x010
 		CMapObjDef* next;                      // 0x014
 		TSExplicitList linkList;               // 0x018
-		uint32_t uniqueId;                     // 0x024 the MODF uniqueId, written by the def hash
+		uint32 uniqueId;                       // 0x024 the MODF uniqueId, written by the def hash
 		void* hashLink[2];                     // 0x028
 		void* allDefsLink[2];                  // 0x030
-		uint32_t unk_38;                       // 0x038
+		uint32 unk_38;                         // 0x038
 		C3Vector position;                     // 0x03C world space
 		CAaBox bbox;                           // 0x048 world space
 		C3Vector sphereCenter;                 // 0x060
 		float sphereRadius;                    // 0x06C
 		C44Matrix mat;                         // 0x070
 		C44Matrix invMat;                      // 0x0B0
-		uint32_t nameId;                       // 0x0F0 indexes MWID
+		uint32 nameId;                         // 0x0F0 indexes MWID
 		void* owner;                           // 0x0F4 CMapObj
-		uint32_t unk_F8;                       // 0x0F8
-		uint32_t unkFlags;                     // 0x0FC
-		uint32_t doodadSet;                    // 0x100
-		uint32_t nameSet;                      // 0x104
-		uint8_t unk_108[0x0C];                 // 0x108
+		uint32 unk_F8;                         // 0x0F8
+		uint32 unkFlags;                       // 0x0FC
+		uint32 doodadSet;                      // 0x100
+		uint32 nameSet;                        // 0x104
+		uint8 unk_108[0x0C];                   // 0x108
 		TSExplicitList mapObjDefGroupLinkList; // 0x114
-		uint8_t unk_120[0x24];                 // 0x120
-		uint32_t argbColor;                    // 0x144
-		uint8_t unk_148[0x10];                 // 0x148
+		uint8 unk_120[0x24];                   // 0x120
+		uint32 argbColor;                      // 0x144
+		uint8 unk_148[0x10];                   // 0x148
 	};
 
 #define CLIENTDATA_MAP_OFFSET_CHECK(type, member, offset) \
@@ -253,15 +255,15 @@ namespace ClientData
 		CLIENT_ADDRESS(char, sMapName, 0x00CE06D0) // e.g. "Azeroth"
 		CLIENT_ADDRESS(char, sMapPath, 0x00CE07D0) // e.g. "World\Maps\Azeroth"
 		CLIENT_ADDRESS(char, sWdtFilename, 0x00CE05D0)
-		CLIENT_ADDRESS(int32_t, sMapActive, 0x00CF08F0)
-		CLIENT_ADDRESS(int32_t, sMapIsDungeon, 0x00CF08F4)
+		CLIENT_ADDRESS(int32, sMapActive, 0x00CF08F0)
+		CLIENT_ADDRESS(int32, sMapIsDungeon, 0x00CF08F4)
 
 		// The WDT's MPHD, read straight off disk by the WDT loader at 0x007BF92D, flags first. Bit
 		// 2 is big alpha, which is what CMapRenderChunk::CreateLayerTexture tests to decide whether
 		// MCAL holds 8 bit or 4 bit masks.
-		CLIENT_ADDRESS(uint32_t, sMapFlags, 0x00CF08D0)
+		CLIENT_ADDRESS(uint32, sMapFlags, 0x00CF08D0)
 
-		constexpr uint32_t kMapFlagBigAlpha = 0x4;
+		constexpr uint32 kMapFlagBigAlpha = 0x4;
 
 		inline bool UsesBigAlpha()
 		{
@@ -269,7 +271,7 @@ namespace ClientData
 		}
 
 		CLIENT_FUNCTION(CMap_PurgeArea, 0x007C3700, __cdecl, void, (CMapArea * area))
-		CLIENT_FUNCTION(CMap_PrepareArea, 0x007D9A70, __cdecl, CMapArea*, (int32_t x, int32_t y))
+		CLIENT_FUNCTION(CMap_PrepareArea, 0x007D9A70, __cdecl, CMapArea*, (int32 x, int32 y))
 		CLIENT_FUNCTION(CMap_LoadArea, 0x007D9A20, __cdecl, void, (CMapArea * area))
 
 		// Rebuilds bbox/center/radius from the current MCVT. Must be called after any height edit
@@ -289,8 +291,8 @@ namespace ClientData
 		// against the first but never checking it has room. Identical sets always fit, so nothing
 		// bounds checks. The moment an edit makes them diverge the fifth layer lands on the gx
 		// buffer pointer at renderChunk+0x8C. The second owner is null on an unpaired chunk.
-		constexpr uint32_t kRenderChunkOwnerA = 0x10;
-		constexpr uint32_t kRenderChunkOwnerB = 0x14;
+		constexpr uint32 kRenderChunkOwnerA = 0x10;
+		constexpr uint32 kRenderChunkOwnerB = 0x14;
 
 		// Unlinks and destructs a render chunk, clearing renderChunk on both of its owners.
 		CLIENT_FUNCTION(CMap_FreeRenderChunk, 0x007C0610, __cdecl, void, (void* renderChunk))
@@ -305,7 +307,7 @@ namespace ClientData
 			if (!chunk || !chunk->renderChunk)
 				return;
 
-			uint8_t* rc = static_cast<uint8_t*>(chunk->renderChunk);
+			uint8* rc = static_cast<uint8*>(chunk->renderChunk);
 			CMapChunk* a = *reinterpret_cast<CMapChunk**>(rc + kRenderChunkOwnerA);
 			CMapChunk* b = *reinterpret_cast<CMapChunk**>(rc + kRenderChunkOwnerB);
 			if (!a || !b || a == b)
@@ -324,24 +326,25 @@ namespace ClientData
 		// CMapArea::textureAlloc through textureChunk, so `this` is `&area->textureAlloc`. It goes
 		// through SMemReAlloc, which matters because CMapArea's destructor SMemFrees textureData.
 		CLIENT_FUNCTION(CMapArea_SetTextureCapacity, 0x007C30B0, __thiscall, void,
-		    (void* array, uint32_t capacity))
+		    (void* array, uint32 capacity))
 
 		// (start, end, distanceInOut, flags, resultOut). distance starts at 1.0 and comes back as
 		// the fraction along the ray.
 		CLIENT_FUNCTION(CMap_VectorIntersectTerrain, 0x007A39F0, __cdecl, char,
-		    (C3Vector * start, C3Vector* end, float* distance, uint32_t flags, uint32_t* result))
+		    (C3Vector * start, C3Vector* end, float* distance, uint32 flags, uint32* result))
 
 		// Every test in CMap::VectorIntersectSubChunks is opt-in, so a flags value of 0 always
 		// misses. The client itself passes 0x100 for terrain and 0x20100 for terrain plus liquid.
-		constexpr uint32_t kIntersectTerrain = 0x100;      // gates CMapChunk::Intersect at 0x007A3750
-		constexpr uint32_t kIntersectLiquid = 0x30000;     // gates the CChunkLiquid tests
-		constexpr uint32_t kIntersectDoodads = 0x0000000F; // CMap::VectorIntersectDoodadDefs
-		constexpr uint32_t kIntersectEntities = 0x40F00000;
+		constexpr uint32 kIntersectTerrain = 0x100;      // gates CMapChunk::Intersect at 0x007A3750
+		constexpr uint32 kIntersectLiquid = 0x30000;     // gates the CChunkLiquid tests
+		constexpr uint32 kIntersectDoodads = 0x0000000F; // CMap::VectorIntersectDoodadDefs
+		constexpr uint32 kIntersectEntities = 0x40F00000;
+		constexpr uint32 kIntersectSolid = 0x00100111;
 
-		constexpr int32_t kTilesPerSide = 64;
-		constexpr int32_t kChunksPerTileSide = 16;
-		constexpr int32_t kChunksPerTile = kChunksPerTileSide * kChunksPerTileSide;
-		constexpr int32_t kVertsPerChunk = 145;
+		constexpr int32 kTilesPerSide = 64;
+		constexpr int32 kChunksPerTileSide = 16;
+		constexpr int32 kChunksPerTile = kChunksPerTileSide * kChunksPerTileSide;
+		constexpr int32 kVertsPerChunk = 145;
 
 		// Rebuilds the world transform of one doodad from a matrix, rederiving position and uniform
 		// scale out of it, then re-runs bounds and relinks it onto whichever chunks it now overlaps.
@@ -361,39 +364,39 @@ namespace ClientData
 
 		// The global hash of live doodads keyed by MDDF uniqueId, which is what makes the uniqueId
 		// a usable handle from our side.
-		CLIENT_ADDRESS(uint8_t, sDoodadDefTable, 0x00D2545C)
+		CLIENT_ADDRESS(uint8, sDoodadDefTable, 0x00D2545C)
 
 		// (table, uniqueId, group), where `group` is 0 for a plain MDDF doodad and non-zero only
 		// for the ones a WMO owns. Returns null when nothing matches, including when no map is
 		// loaded.
 		CLIENT_FUNCTION(CMapDoodadDefTable_Find, 0x007BDD80, __thiscall, CMapDoodadDef*,
-		    (void* table, uint32_t uniqueId, uint32_t* group))
+		    (void* table, uint32 uniqueId, uint32* group))
 
 		// The same idea for WMOs. CMap::CreateMapObjDef adds every instance and the destructor takes
 		// it back out, so a hit is by definition a live instance.
-		CLIENT_ADDRESS(uint8_t, sMapObjDefTable, 0x00D25434)
+		CLIENT_ADDRESS(uint8, sMapObjDefTable, 0x00D25434)
 
 		// (table, uniqueId, tag). The tag is a hash policy marker the lookup never reads, the client
 		// passes a pointer to a spare byte.
 		CLIENT_FUNCTION(CMapObjDefTable_Find, 0x007BDDF0, __thiscall, CMapObjDef*,
-		    (void* table, uint32_t uniqueId, void* tag))
+		    (void* table, uint32 uniqueId, void* tag))
 
 		// SFile2 keeps a cached index of every loose file under the data tree, guarded by this flag.
 		// FindFile rebuilds the whole index whenever it reads 0, so zeroing it makes a file written
 		// after startup discoverable instead of the client serving the MPQ copy forever.
-		CLIENT_ADDRESS(uint8_t, sLooseFileIndexBuilt, 0x00B324A4)
+		CLIENT_ADDRESS(uint8, sLooseFileIndexBuilt, 0x00B324A4)
 
 		inline bool IsActive()
 		{
 			return *sMapActive != 0;
 		}
 
-		inline bool IsValidTile(int32_t tileX, int32_t tileY)
+		inline bool IsValidTile(int32 tileX, int32 tileY)
 		{
 			return tileX >= 0 && tileX < kTilesPerSide && tileY >= 0 && tileY < kTilesPerSide;
 		}
 
-		inline CMapArea* GetArea(int32_t tileX, int32_t tileY)
+		inline CMapArea* GetArea(int32 tileX, int32 tileY)
 		{
 			if (!IsValidTile(tileX, tileY))
 				return nullptr;
@@ -408,7 +411,7 @@ namespace ClientData
 			return area && !area->asyncObject && area->filePtr && area->header;
 		}
 
-		inline CMapChunk* GetChunk(CMapArea* area, int32_t chunkX, int32_t chunkY)
+		inline CMapChunk* GetChunk(CMapArea* area, int32 chunkX, int32 chunkY)
 		{
 			if (!area || chunkX < 0 || chunkX >= kChunksPerTileSide || chunkY < 0 || chunkY >= kChunksPerTileSide)
 				return nullptr;
@@ -416,7 +419,7 @@ namespace ClientData
 			return area->mapChunks[chunkY * kChunksPerTileSide + chunkX];
 		}
 
-		inline SMChunkInfo* GetChunkInfo(CMapArea* area, int32_t chunkX, int32_t chunkY)
+		inline SMChunkInfo* GetChunkInfo(CMapArea* area, int32 chunkX, int32 chunkY)
 		{
 			if (!area || !area->chunkInfo)
 				return nullptr;
@@ -430,16 +433,16 @@ namespace ClientData
 		// holds. `name` has to outlive the loaded tile since the entry only borrows it, and leaving
 		// the texture unloaded is deliberate because CMapRenderChunk::CreateLayer pulls the file in
 		// itself when the entry's second field is null.
-		inline bool AppendTerrainTexture(CMapArea* area, char const* name, uint32_t& textureId)
+		inline bool AppendTerrainTexture(CMapArea* area, char const* name, uint32& textureId)
 		{
 			if (!area || !name)
 				return false;
 
-			uint32_t need = area->textureCount + 1;
+			uint32 need = area->textureCount + 1;
 			if (need > area->textureAlloc)
 			{
 				// Same rounding LoadTextures uses, up to a whole multiple of the growth step.
-				uint32_t step = area->textureChunk ? area->textureChunk : 16;
+				uint32 step = area->textureChunk ? area->textureChunk : 16;
 				CMapArea_SetTextureCapacity(&area->textureAlloc, ((need + step - 1) / step) * step);
 			}
 
@@ -455,7 +458,7 @@ namespace ClientData
 			return true;
 		}
 
-		inline const char* DoodadFileName(CMapArea* area, uint32_t nameId)
+		inline const char* DoodadFileName(CMapArea* area, uint32 nameId)
 		{
 			if (!area || !area->m2FileNames || !area->modelFilenamesOffsets)
 				return nullptr;
@@ -465,7 +468,7 @@ namespace ClientData
 
 		// MTEX resolved into the loaded texture list, which is where a layer's textureId ends up
 		// pointing once CMap::LoadTerrainTexture has been through it.
-		inline const char* TerrainTextureName(CMapArea* area, uint32_t textureId)
+		inline const char* TerrainTextureName(CMapArea* area, uint32 textureId)
 		{
 			if (!area || !area->textureData || textureId >= area->textureCount)
 				return nullptr;
@@ -473,7 +476,7 @@ namespace ClientData
 			return static_cast<SMTerrainTexture*>(area->textureData)[textureId].name;
 		}
 
-		inline const char* MapObjFileName(CMapArea* area, uint32_t nameId)
+		inline const char* MapObjFileName(CMapArea* area, uint32 nameId)
 		{
 			if (!area || !area->wmoFileNames || !area->wmoFilenamesOffsets)
 				return nullptr;
@@ -483,13 +486,13 @@ namespace ClientData
 
 		// MCRF is a flat u32[nDoodadRefs + nMapObjRefs]: doodad indices into this tile's MDDF
 		// first, then WMO indices into its MODF.
-		inline const uint32_t* DoodadRefs(CMapChunk* chunk, uint32_t& count)
+		inline const uint32* DoodadRefs(CMapChunk* chunk, uint32& count)
 		{
 			count = chunk && chunk->header ? chunk->header->nDoodadRefs : 0;
-			return chunk ? reinterpret_cast<const uint32_t*>(chunk->refs) : nullptr;
+			return chunk ? reinterpret_cast<const uint32*>(chunk->refs) : nullptr;
 		}
 
-		inline const uint32_t* MapObjRefs(CMapChunk* chunk, uint32_t& count)
+		inline const uint32* MapObjRefs(CMapChunk* chunk, uint32& count)
 		{
 			if (!chunk || !chunk->header || !chunk->refs)
 			{
@@ -498,7 +501,7 @@ namespace ClientData
 			}
 
 			count = chunk->header->nMapObjRefs;
-			return reinterpret_cast<const uint32_t*>(chunk->refs) + chunk->header->nDoodadRefs;
+			return reinterpret_cast<const uint32*>(chunk->refs) + chunk->header->nDoodadRefs;
 		}
 
 		// Walks a TSExplicitList the way CMap::LinkStaticEntity does: the head is `next`, each node's
@@ -507,22 +510,22 @@ namespace ClientData
 		template <typename Fn>
 		void ForEachLink(TSExplicitList const& list, Fn&& fn)
 		{
-			auto* node = static_cast<uint8_t*>(list.next);
+			auto* node = static_cast<uint8*>(list.next);
 			while (node && (reinterpret_cast<uintptr_t>(node) & 1) == 0)
 			{
-				auto* next = *reinterpret_cast<uint8_t**>(node + list.linkOffset + 4);
+				auto* next = *reinterpret_cast<uint8**>(node + list.linkOffset + 4);
 				fn(node);
 				node = next;
 			}
 		}
 
-		inline CMapDoodadDef* FindDoodadDef(uint32_t uniqueId)
+		inline CMapDoodadDef* FindDoodadDef(uint32 uniqueId)
 		{
-			uint32_t group = 0;
+			uint32 group = 0;
 			return CMapDoodadDefTable_Find(sDoodadDefTable, uniqueId, &group);
 		}
 
-		inline CMapObjDef* FindMapObjDef(uint32_t uniqueId)
+		inline CMapObjDef* FindMapObjDef(uint32 uniqueId)
 		{
 			return CMapObjDefTable_Find(sMapObjDefTable, uniqueId, nullptr);
 		}
@@ -535,7 +538,7 @@ namespace ClientData
 		// Purging is all it takes to reload a tile from disk. CMap::PreUpdateAreas notices the null
 		// slot and re-prepares plus re-loads it next frame, and CMapArea::Load re-opens through
 		// SFile, so file contents are never cached, only the name index is.
-		inline void ReloadTile(int32_t tileX, int32_t tileY)
+		inline void ReloadTile(int32 tileX, int32 tileY)
 		{
 			InvalidateLooseFileIndex();
 
@@ -549,7 +552,7 @@ namespace ClientData
 			C3Vector rayStart = start;
 			C3Vector rayEnd = end;
 			float distance = 1.0f;
-			uint32_t result = 0;
+			uint32 result = 0;
 
 			char didHit = CMap_VectorIntersectTerrain(&rayStart, &rayEnd, &distance, kIntersectTerrain, &result);
 			if (fraction)

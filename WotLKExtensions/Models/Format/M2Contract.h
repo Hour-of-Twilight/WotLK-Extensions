@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 /**
@@ -24,6 +26,6 @@
 namespace ModernM2::Live
 {
     // Modern MD21 inner-version window the native reader reads directly.
-    constexpr uint32_t kSourceVersionMin = 272;
-    constexpr uint32_t kSourceVersionMax = 274;
+    constexpr uint32 kSourceVersionMin = 272;
+    constexpr uint32 kSourceVersionMax = 274;
 }

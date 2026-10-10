@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include "Models/Common/ModelLog.h"
 
 #include <ClientDetours.h>
@@ -47,13 +49,13 @@ namespace ModernM2
 		return true;
 	}
 
-	inline uint64_t ConfigU64(const char* name, uint64_t fallback, uint64_t minValue, uint64_t maxValue)
+	inline uint64 ConfigU64(const char* name, uint64 fallback, uint64 minValue, uint64 maxValue)
 	{
 		char value[32] = {};
 		if (!ConfigRaw(name, value, sizeof value))
 			return fallback;
 		char* end = nullptr;
-		const uint64_t parsed = std::strtoull(value, &end, 10);
+		const uint64 parsed = std::strtoull(value, &end, 10);
 		if (end == value)
 			return fallback;
 		if (parsed < minValue)
@@ -63,31 +65,31 @@ namespace ModernM2
 		return parsed;
 	}
 
-	inline uint32_t ConfigU32(const char* name, uint32_t fallback, uint32_t minValue, uint32_t maxValue)
+	inline uint32 ConfigU32(const char* name, uint32 fallback, uint32 minValue, uint32 maxValue)
 	{
-		return static_cast<uint32_t>(ConfigU64(name, fallback, minValue, maxValue));
+		return static_cast<uint32>(ConfigU64(name, fallback, minValue, maxValue));
 	}
 
-	inline uint32_t ConfigBytesMbKb(const char* envMb, const char* envKb, uint32_t defBytes, uint32_t minKb, uint32_t maxKb)
+	inline uint32 ConfigBytesMbKb(const char* envMb, const char* envKb, uint32 defBytes, uint32 minKb, uint32 maxKb)
 	{
 		char value[32] = {};
 		if (ConfigRaw(envMb, value, sizeof value))
 		{
 			char* end = nullptr;
-			const uint64_t mb = std::strtoull(value, &end, 10);
-			const uint64_t kb = mb * 1024ull;
+			const uint64 mb = std::strtoull(value, &end, 10);
+			const uint64 kb = mb * 1024ull;
 			if (end != value && kb >= minKb && kb <= maxKb)
-				return static_cast<uint32_t>(kb * 1024ull);
+				return static_cast<uint32>(kb * 1024ull);
 		}
 		if (ConfigRaw(envKb, value, sizeof value))
 		{
 			char* end = nullptr;
-			const uint64_t kb = std::strtoull(value, &end, 10);
+			const uint64 kb = std::strtoull(value, &end, 10);
 			if (end != value && kb >= minKb && kb <= maxKb)
-				return static_cast<uint32_t>(kb * 1024ull);
+				return static_cast<uint32>(kb * 1024ull);
 		}
 		return defBytes;
 	}
 
-	const char* ResolveTexture(uint32_t fileDataId);
+	const char* ResolveTexture(uint32 fileDataId);
 }

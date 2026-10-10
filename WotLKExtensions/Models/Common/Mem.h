@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <windows.h>
 #include <cstddef>
 #include <cstdint>
@@ -98,7 +100,7 @@ namespace ModernM2::Mem
      * @param len    number of bytes to write.
      * @return true if the write succeeded.
      */
-    inline bool Fill(void* dst, uint8_t value, size_t len)
+    inline bool Fill(void* dst, uint8 value, size_t len)
     {
         return WithWritable(dst, len, [&] { std::memset(dst, value, len); });
     }

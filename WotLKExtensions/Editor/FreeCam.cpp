@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Editor/FreeCam.h>
 
 #include <ClientData/Bindings.h>
@@ -10,6 +11,7 @@
 #include <ClientData/ObjectManager.h>
 #include <ClientData/VectorMath.h>
 #include <ClientData/WorldFrame.h>
+#include <ClientData/WowObjects.h>
 #include <ClientDetours.h>
 #include <CustomLua.h>
 #include <SharedDefines.h>
@@ -27,37 +29,16 @@ namespace FreeCam
 
 	namespace
 	{
-		// Client KEY codes. Printable keys are ASCII, the numpad block starts at 0x100.
-		constexpr uint32_t kKeySpace = 32;
-		constexpr uint32_t kKeyMinus = 45;
-		constexpr uint32_t kKeyEquals = 61;
-		constexpr uint32_t kKeyA = 65;
-		constexpr uint32_t kKeyD = 68;
-		constexpr uint32_t kKeyE = 69;
-		constexpr uint32_t kKeyQ = 81;
-		constexpr uint32_t kKeyS = 83;
-		constexpr uint32_t kKeyW = 87;
-		constexpr uint32_t kKeyX = 88;
-		constexpr uint32_t kKeyNumpadPlus = 266;
-		constexpr uint32_t kKeyNumpadMinus = 267;
 
 		struct EventDataKey
 		{
-			uint32_t key;
-			uint32_t metaKeyState;
-			uint32_t repeat;
-			uint32_t time;
+			uint32 key;
+			uint32 metaKeyState;
+			uint32 repeat;
+			uint32 time;
 		};
 
-		constexpr uint32_t kMsgMoveHeartbeat = 0xEE;
-		constexpr uint32_t kHeartbeatIntervalMs = 250;
-
-		// CMovement_C hanging off the player, same block MovementForce writes.
-		constexpr uint32_t kMovementOffset = 0x788;
-		constexpr uint32_t kPosOffset = 0x10;
-		constexpr uint32_t kAnchorOffset = 0x4C;
-		constexpr uint32_t kFlagsOffset = 0x44;
-		constexpr uint32_t kFlagDisableGravity = 0x400;
+		constexpr uint32 kHeartbeatIntervalMs = 250;
 
 		constexpr float kMinSpeed = 1.0f;
 		constexpr float kMaxSpeed = 4000.0f;
@@ -89,7 +70,7 @@ namespace FreeCam
 			bool characterHidden = false;
 			bool gravityForced = false;
 			bool gravityWasSet = false;
-			uint32_t lastHeartbeatMs = 0;
+			uint32 lastHeartbeatMs = 0;
 
 			bool eventsRegistered = false;
 		};
@@ -111,24 +92,24 @@ namespace FreeCam
 			CGChat::AddChatMessage(message, 0, 0, 0, nullptr, 0, nullptr, 0, 0, 0, 0, 0, nullptr);
 		}
 
-		bool* SlotForKey(uint32_t key)
+		bool* SlotForKey(uint32 key)
 		{
 			FreeCamState& state = State();
 			switch (key)
 			{
-			case kKeyW:
+			case KEY_W:
 				return &state.forward;
-			case kKeyS:
+			case KEY_S:
 				return &state.back;
-			case kKeyA:
+			case KEY_A:
 				return &state.left;
-			case kKeyD:
+			case KEY_D:
 				return &state.right;
-			case kKeySpace:
-			case kKeyE:
+			case KEY_SPACE:
+			case KEY_E:
 				return &state.up;
-			case kKeyX:
-			case kKeyQ:
+			case KEY_X:
+			case KEY_Q:
 				return &state.down;
 			default:
 				return nullptr;
@@ -160,15 +141,15 @@ namespace FreeCam
 
 		// Speed steps by a factor rather than a fixed amount, so the same key is usable at 5
 		// yards a second and at 500. Held repeats change it silently to keep chat quiet.
-		bool HandleSpeedKey(uint32_t key, bool announce)
+		bool HandleSpeedKey(uint32 key, bool announce)
 		{
-			if (key == kKeyEquals || key == kKeyNumpadPlus)
+			if (key == KEY_EQUALS || key == KEY_NUMPAD_PLUS)
 			{
 				SetSpeed(State().speed * kSpeedStep, announce);
 				return true;
 			}
 
-			if (key == kKeyMinus || key == kKeyNumpadMinus)
+			if (key == KEY_MINUS || key == KEY_NUMPAD_MINUS)
 			{
 				SetSpeed(State().speed / kSpeedStep, announce);
 				return true;
@@ -177,7 +158,7 @@ namespace FreeCam
 			return false;
 		}
 
-		int32_t OnKeyDown(const void* data, void*)
+		int32 OnKeyDown(const void* data, void*)
 		{
 			FreeCamState& state = State();
 			if (!state.active || !data || Bindings::KeyboardIsCaptured())
@@ -197,7 +178,7 @@ namespace FreeCam
 			return 0;
 		}
 
-		int32_t OnKeyUp(const void* data, void*)
+		int32 OnKeyUp(const void* data, void*)
 		{
 			FreeCamState& state = State();
 			if (!state.active || !data)
@@ -215,7 +196,7 @@ namespace FreeCam
 			return 0;
 		}
 
-		int32_t OnKeyRepeat(const void* data, void*)
+		int32 OnKeyRepeat(const void* data, void*)
 		{
 			FreeCamState& state = State();
 			if (!state.active || !data || Bindings::KeyboardIsCaptured())
@@ -298,23 +279,23 @@ namespace FreeCam
 		void SyncCharacter(C3Vector const& target)
 		{
 			FreeCamState& state = State();
-			CGObject_C* player = ObjectManager::GetActivePlayerObject();
+			WowPlayer player = WowPlayer::Active();
 			if (!player)
 				return;
 
-			uint8_t* movement = reinterpret_cast<uint8_t*>(player) + kMovementOffset;
-			float* position = reinterpret_cast<float*>(movement + kPosOffset);
-			float* anchor = reinterpret_cast<float*>(movement + kAnchorOffset);
-			uint32_t* flags = reinterpret_cast<uint32_t*>(movement + kFlagsOffset);
+			MovementInfo* movement = player.Movement();
+			float* position = &movement->position.x;
+			float* anchor = &movement->anchor.x;
+			uint32* flags = &movement->movementFlags;
 
 			// Left to fall, the character drops the moment it is dropped in mid air and fights
 			// the sync into a yo-yo. The flag goes back to whatever it was on the way out.
 			if (!state.gravityForced)
 			{
-				state.gravityWasSet = (*flags & kFlagDisableGravity) != 0;
+				state.gravityWasSet = (*flags & MOVEMENTFLAG_DISABLE_GRAVITY) != 0;
 				state.gravityForced = true;
 			}
-			*flags |= kFlagDisableGravity;
+			*flags |= MOVEMENTFLAG_DISABLE_GRAVITY;
 
 			float dx = target.x - position[0];
 			float dy = target.y - position[1];
@@ -340,11 +321,11 @@ namespace FreeCam
 				anchor[2] += mz;
 			}
 
-			uint32_t nowMs = uint32_t(OsGetAsyncTimeMs());
+			uint32 nowMs = uint32(OsGetAsyncTimeMs());
 			if (nowMs - state.lastHeartbeatMs >= kHeartbeatIntervalMs)
 			{
 				state.lastHeartbeatMs = nowMs;
-				CGUnit_C::SendMovementUpdate(player, nowMs, kMsgMoveHeartbeat, 0.0f, 0, 0, 0, 0xFF);
+				CGUnit_C::SendMovementUpdate(player.Raw(), nowMs, MSG_MOVE_HEARTBEAT, 0.0f, 0, 0, 0, 0xFF);
 			}
 		}
 
@@ -356,13 +337,11 @@ namespace FreeCam
 
 			state.gravityForced = false;
 
-			CGObject_C* player = ObjectManager::GetActivePlayerObject();
+			WowPlayer player = WowPlayer::Active();
 			if (!player || state.gravityWasSet)
 				return;
 
-			uint32_t* flags =
-			    reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(player) + kMovementOffset + kFlagsOffset);
-			*flags &= ~kFlagDisableGravity;
+			player.Movement()->movementFlags &= ~MOVEMENTFLAG_DISABLE_GRAVITY;
 		}
 
 		void Fly(CGCamera* camera, float seconds)
@@ -433,11 +412,11 @@ namespace FreeCam
 
 		bool PlayerPosition(C3Vector& out)
 		{
-			CGObject_C* player = ObjectManager::GetActivePlayerObject();
+			WowPlayer player = WowPlayer::Active();
 			if (!player)
 				return false;
 
-			player->GetPosition(out);
+			out = player.Position();
 			return true;
 		}
 

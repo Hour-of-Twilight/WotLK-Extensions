@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <ClientData/MathTypes.h>
 #include <ClientData/ObjectFields.h>
 #include <cmath>
@@ -10,23 +12,23 @@ namespace ClientData
 	{
 	public:
 		template <typename T>
-		T& GetValue(uint32_t index) const
+		T& GetValue(uint32 index) const
 		{
 			return *((T*)&m_data[index]);
 		}
 
-		void SetValueBytes(uint32_t index, uint8_t offset, uint8_t value)
+		void SetValueBytes(uint32 index, uint8 offset, uint8 value)
 		{
 			if (!m_data || offset >= 4)
 				return;
 
-			uint32_t& current = m_data[index];
-			uint8_t currentByte = static_cast<uint8_t>((current >> (offset * 8)) & 0xFF);
+			uint32& current = m_data[index];
+			uint8 currentByte = static_cast<uint8>((current >> (offset * 8)) & 0xFF);
 			if (currentByte == value)
 				return;
 
 			current &= ~(0xFFu << (offset * 8));
-			current |= (uint32_t(value) << (offset * 8));
+			current |= (uint32(value) << (offset * 8));
 		}
 
 		virtual ~CGObject_C();
@@ -34,7 +36,7 @@ namespace ClientData
 		virtual void Reenable();
 		virtual void PostReenable();
 		virtual void HandleOutOfRange();
-		virtual void UpdateWorldObject(uint32_t x);
+		virtual void UpdateWorldObject(uint32 x);
 		virtual void ShouldFadeout();
 		// force != 0 skips the needs-update check and rebuilds the model outright: new CM2Model
 		// from the scene, geosets and skin re-applied, character component dropped and rebuilt.
@@ -47,7 +49,7 @@ namespace ClientData
 		virtual float GetFacing();
 		virtual float GetRawFacing();
 		virtual float GetScale();
-		virtual uint64_t GetTransportGUID();
+		virtual uint64 GetTransportGUID();
 		virtual void GetRotation();
 		virtual void SetFrameOfReference();
 		virtual bool IsQuestGiver();
@@ -103,6 +105,16 @@ namespace ClientData
 			return m_typeID;
 		}
 
+		uint32* GetDescriptors() const
+		{
+			return m_data;
+		}
+
+		uint64 GetGuid() const
+		{
+			return m_data ? *reinterpret_cast<const uint64*>(m_data) : 0;
+		}
+
 		float distance(CGObject_C* other)
 		{
 			if (!other)
@@ -120,11 +132,11 @@ namespace ClientData
 		}
 
 	private:
-		uint32_t m_field4;
-		uint32_t* m_data;
-		uint32_t m_fieldC;
-		uint32_t m_field10;
+		uint32 m_field4;
+		uint32* m_data;
+		uint32 m_fieldC;
+		uint32 m_field10;
 		TypeID m_typeID;
-		uint32_t m_field18[46];
+		uint32 m_field18[46];
 	};
 }

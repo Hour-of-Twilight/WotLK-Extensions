@@ -1,4 +1,6 @@
 #pragma once
+
+#include <Defines.h>
 #include "SharedDefines.h"
 #include <unordered_map>
 #include <unordered_set>
@@ -15,10 +17,10 @@ public:
 	static bool RelaxEquippedItemRequirements(SpellRow* spell);
 	// mutates spell in place, true if the caster's mods moved it onto another power type
 	static bool ApplyPowerTypeMod(SpellRow* spell);
-	static uint32_t GetCustomAttributes(uint32_t spellId);
-	static uint32_t GetCustomAttributes2(uint32_t spellId);
+	static uint32 GetCustomAttributes(uint32 spellId);
+	static uint32 GetCustomAttributes2(uint32 spellId);
 	static bool IsDualWielding();
-	static bool MeetsCustomAttributeRequirements(SpellRow* spell, int32_t reportError, void* spellCast);
+	static bool MeetsCustomAttributeRequirements(SpellRow* spell, int32 reportError, void* spellCast);
 	static void AddDualWieldTooltipLine(void* tooltip, SpellRow* spell);
 	static void Apply();
 };

@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "ArchivePatcher.h"
 
 #include "ArchiveManifest.h"
@@ -54,7 +55,7 @@ namespace Streaming::ArchivePatcher
 		else
 		{
 			transientName = Text::NarrowAcp(job.archivePath);
-			if (!MopaqOpenArchive(transientName.c_str(), 0, (uint32_t)(ARCHIVE_OPEN_DEFAULT | ARCHIVE_OPEN_WRITABLE), &raw) || !raw)
+			if (!MopaqOpenArchive(transientName.c_str(), 0, (uint32)(ARCHIVE_OPEN_DEFAULT | ARCHIVE_OPEN_WRITABLE), &raw) || !raw)
 			{
 				res.error = "cannot open unmounted archive for writing";
 				return res;
@@ -71,7 +72,7 @@ namespace Streaming::ArchivePatcher
 				ok = false;
 				break;
 			}
-			if (!AddFile(raw, w.name.c_str(), data.data(), (uint32_t)data.size(),
+			if (!AddFile(raw, w.name.c_str(), data.data(), (uint32)data.size(),
 			        ARCHIVE_ADD_REPLACE_EXISTING | ARCHIVE_ADD_COMPRESS))
 			{
 				res.error = "write failed for " + w.name;
@@ -82,7 +83,7 @@ namespace Streaming::ArchivePatcher
 		}
 
 		if (ok && !AddFile(raw, ArchiveManifest::kFileName, job.targetManifest.data(),
-		              (uint32_t)job.targetManifest.size(), ARCHIVE_ADD_REPLACE_EXISTING | ARCHIVE_ADD_COMPRESS))
+		              (uint32)job.targetManifest.size(), ARCHIVE_ADD_REPLACE_EXISTING | ARCHIVE_ADD_COMPRESS))
 		{
 			res.error = "manifest write failed";
 			ok = false;

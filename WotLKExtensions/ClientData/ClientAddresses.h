@@ -1,4 +1,6 @@
 #pragma once
+
+#include <Defines.h>
 #include <Macros.h>
 #include <ClientData/GameStructs.h>
 #include <ClientData/DBCRows.h>
@@ -28,51 +30,51 @@ CLIENT_ADDRESS(void*, dword_AF5254, 0x00AF5254)
 CLIENT_ADDRESS(void*, spellCast, 0x00D3F4E4)
 CLIENT_ADDRESS(WowClientDB_ItemRec, g_itemDB, 0x00AD3D4C)
 CLIENT_ADDRESS(void*, WDB_CACHE_ITEM, 0x00C5D828)
-CLIENT_ADDRESS(uint8_t, g_comboPointCount, 0x00BD084D)
-CLIENT_ADDRESS(uint64_t, CGGameUI__m_lockedTarget, 0x00BD07B0)
-CLIENT_ADDRESS(uint64_t, CGBankInfo__m_banker, 0x00BEB9A0)
-CLIENT_ADDRESS(uint64_t, CGMerchantInfo__m_merchant, 0x00BFA3E8)
-CLIENT_ADDRESS(uint8_t, CGMailInfo__m_sendMailShowing, 0x00BEB1B9)
-CLIENT_ADDRESS(uint64_t, CGMailInfo__m_object, 0x00BEB030)
-CLIENT_ADDRESS(uint8_t, CGAuctionHouse__m_auctionsTabShowing, 0x00C0F3F5)
-CLIENT_ADDRESS(uint64_t, CGAuctionHouse__m_auctioneer, 0x00C0F3E8)
-CLIENT_ADDRESS(uint64_t, CGTradeInfo__m_tradingPlayer, 0x00BFA658)
-CLIENT_ADDRESS(uint64_t, CGGuildBankInfo__m_banker, 0x00C1DC10)
-CLIENT_ADDRESS(int32_t, CGGameUI__m_iCurrentMapID, 0x00BD088C)
-CLIENT_ADDRESS(uint32_t, g_whoDisplayCount, 0xC7BFE0)
-CLIENT_ADDRESS(uint32_t, g_whoMatchCount, 0xC7BFE4)
-CLIENT_ADDRESS(uint32_t, g_whoFilterActive, 0xC7BFEC)
-CLIENT_ADDRESS(char, g_clientWhoNames, 0xC79FD8)     // char[50][0x30]
-CLIENT_ADDRESS(char, g_clientWhoGuilds, 0xC7A008)    // char[50][0x60]
-CLIENT_ADDRESS(uint32_t, g_clientWhoLevel, 0xC7A068) // uint32[50] stride 0xA4
-CLIENT_ADDRESS(uint32_t, g_clientWhoRace, 0xC7A06C)
-CLIENT_ADDRESS(uint32_t, g_clientWhoClass, 0xC7A070)
-CLIENT_ADDRESS(uint32_t, g_clientWhoSex, 0xC7A074)
-CLIENT_ADDRESS(uint32_t, g_clientWhoZone, 0xC7A078)
+CLIENT_ADDRESS(uint8, g_comboPointCount, 0x00BD084D)
+CLIENT_ADDRESS(uint64, CGGameUI__m_lockedTarget, 0x00BD07B0)
+CLIENT_ADDRESS(uint64, CGBankInfo__m_banker, 0x00BEB9A0)
+CLIENT_ADDRESS(uint64, CGMerchantInfo__m_merchant, 0x00BFA3E8)
+CLIENT_ADDRESS(uint8, CGMailInfo__m_sendMailShowing, 0x00BEB1B9)
+CLIENT_ADDRESS(uint64, CGMailInfo__m_object, 0x00BEB030)
+CLIENT_ADDRESS(uint8, CGAuctionHouse__m_auctionsTabShowing, 0x00C0F3F5)
+CLIENT_ADDRESS(uint64, CGAuctionHouse__m_auctioneer, 0x00C0F3E8)
+CLIENT_ADDRESS(uint64, CGTradeInfo__m_tradingPlayer, 0x00BFA658)
+CLIENT_ADDRESS(uint64, CGGuildBankInfo__m_banker, 0x00C1DC10)
+CLIENT_ADDRESS(int32, CGGameUI__m_iCurrentMapID, 0x00BD088C)
+CLIENT_ADDRESS(uint32, g_whoDisplayCount, 0xC7BFE0)
+CLIENT_ADDRESS(uint32, g_whoMatchCount, 0xC7BFE4)
+CLIENT_ADDRESS(uint32, g_whoFilterActive, 0xC7BFEC)
+CLIENT_ADDRESS(char, g_clientWhoNames, 0xC79FD8)   // char[50][0x30]
+CLIENT_ADDRESS(char, g_clientWhoGuilds, 0xC7A008)  // char[50][0x60]
+CLIENT_ADDRESS(uint32, g_clientWhoLevel, 0xC7A068) // uint32[50] stride 0xA4
+CLIENT_ADDRESS(uint32, g_clientWhoRace, 0xC7A06C)
+CLIENT_ADDRESS(uint32, g_clientWhoClass, 0xC7A070)
+CLIENT_ADDRESS(uint32, g_clientWhoSex, 0xC7A074)
+CLIENT_ADDRESS(uint32, g_clientWhoZone, 0xC7A078)
 CLIENT_ADDRESS(WoWClientDB, g_areaTableDB, 0x00AD3134)
 CLIENT_ADDRESS(WoWClientDB, g_chrClassesDB, 0x00AD3404)
 CLIENT_ADDRESS(WoWClientDB, g_chrRacesDB, 0x00AD3428)
 CLIENT_ADDRESS(void*, g_friendList, 0x00C79F98)
 CLIENT_ADDRESS(void, WDB_CACHE_GUILD, 0x00C5D9C0)
-CLIENT_ADDRESS(uint32_t, g_guildRosterCount, 0x00C22AB0)
-CLIENT_ADDRESS(uint32_t, g_guildRosterOnline, 0x00C22AB4)
+CLIENT_ADDRESS(uint32, g_guildRosterCount, 0x00C22AB0)
+CLIENT_ADDRESS(uint32, g_guildRosterOnline, 0x00C22AB4)
 CLIENT_ADDRESS(void*, g_guildRosterObject, 0x00C22AD8)
-CLIENT_ADDRESS(uint32_t, g_guildRosterCapacity, 0x00C22ADC)
+CLIENT_ADDRESS(uint32, g_guildRosterCapacity, 0x00C22ADC)
 CLIENT_ADDRESS(void*, g_guildRosterArray, 0x00C22AE0)
 CLIENT_ADDRESS(bool, g_isDBCCompressed, 0x00C5DEA0)
 CLIENT_ADDRESS(void, CDataStore__v_table, 0x009E0E24)
 CLIENT_ADDRESS(void, g_gemPropertiesDB, 0x00AD39A4)
-CLIENT_ADDRESS(uint32_t, g_socketInfoGuidLow, 0x00C20FE0)
-CLIENT_ADDRESS(uint32_t, g_socketInfoGuidHigh, 0x00C20FE4)
-CLIENT_ADDRESS(uint32_t, g_socketInfoPtr, 0x00C20FE8)
+CLIENT_ADDRESS(uint32, g_socketInfoGuidLow, 0x00C20FE0)
+CLIENT_ADDRESS(uint32, g_socketInfoGuidHigh, 0x00C20FE4)
+CLIENT_ADDRESS(uint32, g_socketInfoPtr, 0x00C20FE8)
 CLIENT_ADDRESS(void*, dword_B6B1A0, 0x00B6B1A0)
-CLIENT_ADDRESS(uint8_t, unk_C5D388, 0x00C5D388) // CGItemStatsSummary compare cache, 2 slots stride 0x14C
-CLIENT_ADDRESS(int, dword_AD2EBC, 0x00AD2EBC)   // index of the compare cache slot written last
-CLIENT_ADDRESS(float, flt_9EA624, 0x009EA624)   // epsilon the item delta code compares dps against
+CLIENT_ADDRESS(uint8, unk_C5D388, 0x00C5D388) // CGItemStatsSummary compare cache, 2 slots stride 0x14C
+CLIENT_ADDRESS(int, dword_AD2EBC, 0x00AD2EBC) // index of the compare cache slot written last
+CLIENT_ADDRESS(float, flt_9EA624, 0x009EA624) // epsilon the item delta code compares dps against
 
-inline uint8_t* GetFriendListBase()
+inline uint8* GetFriendListBase()
 {
-	return *reinterpret_cast<uint8_t**>(0x00C79F98);
+	return *reinterpret_cast<uint8**>(0x00C79F98);
 }
 
 constexpr uint32 AFK_TIMER_ADDR = 0x00B499A4;

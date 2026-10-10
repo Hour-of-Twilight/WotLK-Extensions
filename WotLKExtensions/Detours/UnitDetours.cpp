@@ -1,22 +1,26 @@
+#include <Defines.h>
 #include "UnitDetours.h"
 #include <ClientDetours.h>
 #include <ClientData/Animation.h>
 #include <ClientData/ClientFunctions.h>
 #include <ClientData/UnitCombat.h>
+#include <ClientData/WowObjects.h>
 #include <SharedDefines.h>
 #include <UnitLevelCache.h>
 #include <Character/AnimationFixes.h>
 #include <cstdlib>
 
 using namespace ClientData::UnitCombat;
+using ClientData::WowPlayer;
+using ClientData::WowUnit;
 
-static const uint8_t* GetNameplateLevelColor(int displayLevel, int playerLevel)
+static const uint8* GetNameplateLevelColor(int displayLevel, int playerLevel)
 {
-	static const uint8_t kRed[4] = { 0x19, 0x19, 0xFF, 0xFF };
-	static const uint8_t kOrange[4] = { 0x3F, 0x7F, 0xFF, 0xFF };
-	static const uint8_t kYellow[4] = { 0x00, 0xFF, 0xFF, 0xFF };
-	static const uint8_t kGreen[4] = { 0x3F, 0xB2, 0x3F, 0xFF };
-	static const uint8_t kGray[4] = { 0x7F, 0x7F, 0x7F, 0xFF };
+	static const uint8 kRed[4] = { 0x19, 0x19, 0xFF, 0xFF };
+	static const uint8 kOrange[4] = { 0x3F, 0x7F, 0xFF, 0xFF };
+	static const uint8 kYellow[4] = { 0x00, 0xFF, 0xFF, 0xFF };
+	static const uint8 kGreen[4] = { 0x3F, 0xB2, 0x3F, 0xFF };
+	static const uint8 kGray[4] = { 0x7F, 0x7F, 0x7F, 0xFF };
 
 	// Indexed by playerLevel / 5; entries past the table clamp to 8.
 	static const int kGrayDiff[20] = { 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 };
@@ -41,28 +45,24 @@ CLIENT_DETOUR_THISCALL(CGNamePlateFrame__UpdateLevelDisplay, 0x0098EF10, void, (
 	if (!self || !unit)
 		return;
 
-	CGUnit* cgUnit = static_cast<CGUnit*>(unit);
-	CGUnit* cgPlayer = reinterpret_cast<CGUnit*>(ClntObjMgr::GetActivePlayerObj());
-	if (!cgPlayer)
+	WowUnit target(unit);
+	WowPlayer player = WowPlayer::Active();
+	if (!target || !player)
 		return;
 
-	if (!cgUnit->objectBase.ObjectData || !cgPlayer->objectBase.ObjectData)
-		return;
-
-	uint8_t* selfBytes = reinterpret_cast<uint8_t*>(self);
-	uint8_t* levelText = *reinterpret_cast<uint8_t**>(selfBytes + 0x2D4);
-	uint8_t* skullIcon = *reinterpret_cast<uint8_t**>(selfBytes + 0x2B4);
+	uint8* selfBytes = reinterpret_cast<uint8*>(self);
+	uint8* levelText = *reinterpret_cast<uint8**>(selfBytes + 0x2D4);
+	uint8* skullIcon = *reinterpret_cast<uint8**>(selfBytes + 0x2B4);
 	if (!levelText || !skullIcon)
 		return;
 
-	uint64_t guid = cgUnit->objectBase.ObjectData->OBJECT_FIELD_GUID;
-	uint32_t dlvl = sUnitLevelCache.GetUnitItemLevelOrDungeonLevel(guid);
+	uint64 guid = target.Guid();
+	uint32 dlvl = sUnitLevelCache.GetUnitItemLevelOrDungeonLevel(guid);
 	if (!dlvl)
 		UnitLevelCache::EnsureRequested(guid);
-	int displayLevel = dlvl ? static_cast<int>(dlvl)
-	                        : (cgUnit->unitData ? static_cast<int>(cgUnit->unitData->level) : 0);
+	int displayLevel = static_cast<int>(dlvl ? dlvl : target.Level());
 
-	bool showLevel = !CGUnit_C::IsBossMob(cgUnit);
+	bool showLevel = !target.IsBoss();
 
 	if (showLevel)
 	{
@@ -71,14 +71,13 @@ CLIENT_DETOUR_THISCALL(CGNamePlateFrame__UpdateLevelDisplay, 0x0098EF10, void, (
 		skullIcon[0xCC] &= 0xEF;
 		CSimpleRegion::HideThis(skullIcon);
 
-		uint64_t playerGuid = cgPlayer->objectBase.ObjectData->OBJECT_FIELD_GUID;
-		uint32_t playerIlvl = sUnitLevelCache.GetPlayerItemLevel(playerGuid);
+		uint64 playerGuid = player.Guid();
+		uint32 playerIlvl = sUnitLevelCache.GetPlayerItemLevel(playerGuid);
 		if (!playerIlvl)
 			UnitLevelCache::EnsureRequested(playerGuid);
-		int playerLevel = playerIlvl ? static_cast<int>(playerIlvl)
-		                             : (cgPlayer->unitData ? static_cast<int>(cgPlayer->unitData->level) : 0);
-		const uint8_t* color = GetNameplateLevelColor(displayLevel, playerLevel);
-		CSimpleRegion::SetVertexColor(levelText, const_cast<uint8_t*>(color));
+		int playerLevel = static_cast<int>(playerIlvl ? playerIlvl : player.Level());
+		const uint8* color = GetNameplateLevelColor(displayLevel, playerLevel);
+		CSimpleRegion::SetVertexColor(levelText, const_cast<uint8*>(color));
 
 		char buf[32];
 		sprintf_s(buf, "%d", displayLevel);
@@ -97,23 +96,21 @@ CLIENT_DETOUR_THISCALL(CGUnit_C__DoPowerRegen, 0x00728A20, void, (int elapsedMs)
 {
 	CGUnit_C__DoPowerRegen(self, elapsedMs);
 
-	CGUnit* unit = static_cast<CGUnit*>(self);
-	if (!unit || !unit->unitData || self != ClntObjMgr::GetActivePlayerObj())
+	WowPlayer player(self);
+	if (!player || self != ClntObjMgr::GetActivePlayerObj())
 		return;
 
-	UnitFields* fields = unit->unitData;
-
-	if (fields->unitBytes0.powerTypeID == POWER_FOCUS)
+	if (player.PowerType() == POWER_FOCUS)
 		return;
 
-	uint32_t maxFocus = fields->unitMaxPowers[POWER_FOCUS];
-	if (maxFocus == 0 || !(fields->unitFlags2 & UNIT_FLAG2_REGENERATE_POWER))
+	uint32 maxFocus = player.MaxPower(POWER_FOCUS);
+	if (maxFocus == 0 || !player.HasUnitFlag2(UNIT_FLAG2_REGENERATE_POWER))
 		return;
 
-	if (CGPlayer_C::IsDeadOrGhost(static_cast<CGPlayer*>(self)))
+	if (player.IsDeadOrGhost())
 		return;
 
-	double ratePerSecond = CGUnit_C::GetPowerRegen(&unit->unitData, POWER_FOCUS, 0);
+	double ratePerSecond = CGUnit_C::GetPowerRegen(&player.Unit()->unitData, POWER_FOCUS, 0);
 	if (ratePerSecond == 0.0)
 		return;
 
@@ -125,18 +122,18 @@ CLIENT_DETOUR_THISCALL(CGUnit_C__DoPowerRegen, 0x00728A20, void, (int elapsedMs)
 		return;
 	sFocusFraction -= static_cast<float>(whole);
 
-	int newValue = CGUnit_C::GetPredictedPower(unit, POWER_FOCUS) + whole;
+	int newValue = player.PredictedPower(POWER_FOCUS) + whole;
 	if (newValue < 0)
 		newValue = 0;
 	else if (newValue > static_cast<int>(maxFocus))
 		newValue = static_cast<int>(maxFocus);
 
-	CGUnit_C::SetPredictedPowerSlot(unit, POWER_FOCUS, newValue);
+	CGUnit_C::SetPredictedPowerSlot(player.Unit(), POWER_FOCUS, newValue);
 }
 
 CLIENT_DETOUR_THISCALL(CGUnit_C__PlayAttackerRound, 0x00755130, void, (void* round))
 {
-	if (!HasAnimatableModel(self))
+	if (!WowUnit(self).IsAlive())
 		return;
 
 	AttackerRound* r = static_cast<AttackerRound*>(round);
@@ -254,22 +251,39 @@ CLIENT_DETOUR_THISCALL_NOARGS(CGUnit_C__GetReadyWeaponStance, 0x00714DD0, int)
 	}
 }
 
+CLIENT_DETOUR_THISCALL(CGUnit_C__DestroyUnitMount, 0x0073D940, void, (int updateCollision))
+{
+	WowUnit unit(self);
+	bool hadMount = unit.MountModel() != nullptr;
+
+	CGUnit_C__DestroyUnitMount(self, updateCollision);
+
+	if (!hadMount)
+		return;
+
+	int32& mountDisplayId = unit.CachedMountDisplayId();
+	int32 savedDisplayId = mountDisplayId;
+	mountDisplayId = 0;
+	CGUnit_C::UpdateSelectionRadius(self);
+	mountDisplayId = savedDisplayId;
+}
+
 CLIENT_DETOUR(Script_UnitLevel, 0x0060F9E0, __cdecl, int, (lua_State * L))
 {
 	const char* token = FrameScript::ToLString(L, 1, false);
 	if (token)
 	{
-		uint64_t guid = 0;
+		uint64 guid = 0;
 		Script_GetGUIDFromToken(token, &guid, 0);
 		if (guid)
 		{
-			uint32_t lvl = sUnitLevelCache.GetUnitItemLevelOrDungeonLevel(guid);
+			uint32 lvl = sUnitLevelCache.GetUnitItemLevelOrDungeonLevel(guid);
 			if (!lvl)
 				UnitLevelCache::EnsureRequested(guid);
 			else
 			{
-				void* unit = ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT);
-				if (unit && !CGUnit_C::IsBossMob(unit))
+				WowUnit unit = WowUnit::FromGuid(guid);
+				if (unit && !unit.IsBoss())
 				{
 					FrameScript::PushNumber(L, static_cast<double>(lvl));
 					return 1;
@@ -284,17 +298,17 @@ CLIENT_DETOUR(CGUnit_C__GetDisplayClassName, 0x0072AAB0, __cdecl, const char*, (
 {
 	static constexpr uintptr_t kChrClassesDB = 0x00AD3404 + 0x18;
 
-	if (unit && unit->objectBase.ObjectData && unit->unitData)
+	if (WowUnit target{ unit })
 	{
-		uint64_t guid = unit->objectBase.ObjectData->OBJECT_FIELD_GUID;
-		uint8_t subClass = sUnitLevelCache.GetPlayerSubClass(guid);
+		uint64 guid = target.Guid();
+		uint8 subClass = sUnitLevelCache.GetPlayerSubClass(guid);
 		if (!subClass)
 			UnitLevelCache::EnsureRequested(guid);
 		else
 		{
 			void* row = ClientDB::GetRow(reinterpret_cast<void*>(kChrClassesDB), subClass);
 			if (row)
-				return CGUnit_C::GetDisplayClassNameFromRecord(row, unit->unitData->unitBytes0.genderID, nullptr);
+				return CGUnit_C::GetDisplayClassNameFromRecord(row, target.Gender(), nullptr);
 		}
 	}
 
@@ -303,10 +317,10 @@ CLIENT_DETOUR(CGUnit_C__GetDisplayClassName, 0x0072AAB0, __cdecl, const char*, (
 
 CLIENT_DETOUR(PostInitObject, 0x004D63B0, __cdecl, void*, (CDataStore * createBlock, int isCreate2))
 {
-	uint64_t guid = 0;
+	uint64 guid = 0;
 	if (createBlock)
 	{
-		int32_t savedRead = createBlock->m_read;
+		int32 savedRead = createBlock->m_read;
 		CDataStore_C::GetWowGUID(createBlock, &guid);
 		createBlock->m_read = savedRead;
 	}

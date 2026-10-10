@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 #include "Models/Load/NativeLoad.h"
 #include "Models/Compat/LiveM2.h"
@@ -64,11 +65,11 @@ namespace
         if (!effect) return true;
         __try
         {
-            volatile uint8_t head = *static_cast<uint8_t*>(effect);
-            volatile uint32_t vertexTable = *reinterpret_cast<uint32_t*>(
-                static_cast<uint8_t*>(effect) + 0x2C);
-            volatile uint32_t pixelTable = *reinterpret_cast<uint32_t*>(
-                static_cast<uint8_t*>(effect) + 0x194);
+            volatile uint8 head = *static_cast<uint8*>(effect);
+            volatile uint32 vertexTable = *reinterpret_cast<uint32*>(
+                static_cast<uint8*>(effect) + 0x2C);
+            volatile uint32 pixelTable = *reinterpret_cast<uint32*>(
+                static_cast<uint8*>(effect) + 0x194);
             (void)head;
             (void)vertexTable;
             (void)pixelTable;
@@ -97,20 +98,20 @@ namespace
         // Diagnose and clear values that are already invalid here; the sorter guard (HitTestSort.cpp)
         // covers keys that become stale later (for example across an effect-manager/device lifecycle
         // transition).
-        uint32_t invalid = 0;
-        uint32_t firstIndex = 0;
+        uint32 invalid = 0;
+        uint32 firstIndex = 0;
         void* firstEffect = nullptr;
         char path[128]{};
         __try
         {
-            auto* bytes = static_cast<uint8_t*>(model);
+            auto* bytes = static_cast<uint8*>(model);
             auto* mdl = static_cast<m2::M2Model*>(model);
             auto* skin = static_cast<ModernM2::Client::M2SkinProfile*>(mdl->skin);
             auto** effects = *reinterpret_cast<void***>(bytes + m2::kOffModelSubMeshCopy);
             if (skin && effects)
             {
-                const uint32_t count = std::min<uint32_t>(skin->batchCount, 0x4000u);
-                for (uint32_t i = 0; i < count; ++i)
+                const uint32 count = std::min<uint32>(skin->batchCount, 0x4000u);
+                for (uint32 i = 0; i < count; ++i)
                 {
                     void* effect = effects[i];
                     if (effect && !ProbeEffectObject(effect))
@@ -154,8 +155,8 @@ namespace
     {
         if (batchPtr)
         {
-            uint16_t shaderId = *reinterpret_cast<uint16_t*>(
-                static_cast<uint8_t*>(batchPtr) + 2);
+            uint16 shaderId = *reinterpret_cast<uint16*>(
+                static_cast<uint8*>(batchPtr) + 2);
             if ((shaderId & 0x8000u) && (shaderId & 0x7FFFu) > 3u)
                 return nullptr;
         }

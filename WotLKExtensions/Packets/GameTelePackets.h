@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -22,12 +24,12 @@ private:
 
 	struct TeleEntry
 	{
-		uint32_t id = 0;
+		uint32 id = 0;
 		std::string name;
-		uint32_t mapId = 0;
+		uint32 mapId = 0;
 	};
 
-	static void Handler_SMSG_GAME_TELE_LIST(void*, uint32_t, uint32_t, CDataStore* pkt);
+	static void Handler_SMSG_GAME_TELE_LIST(void*, uint32, uint32, CDataStore* pkt);
 	static int RequestGameTeles(lua_State* L);
 	static int GetGameTeleCount(lua_State* L);
 	static int GetGameTeleInfo(lua_State* L);

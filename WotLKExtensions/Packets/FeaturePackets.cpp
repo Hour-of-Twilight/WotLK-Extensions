@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "FeaturePackets.h"
 #include "Packet.h"
 #include <CustomPacket.h>
@@ -11,9 +12,9 @@ FeaturePackets& FeaturePackets::Instance()
 	return instance;
 }
 
-void FeaturePackets::Handler_SMSG_FEATURE_TOGGLE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void FeaturePackets::Handler_SMSG_FEATURE_TOGGLE(void*, uint32, uint32, CDataStore* pkt)
 {
-	uint32_t mask = Packet(pkt).GetUInt32();
+	uint32 mask = Packet(pkt).GetUInt32();
 
 	Instance().m_mask = mask;
 	Instance().m_hasData = true;
@@ -32,14 +33,14 @@ int FeaturePackets::HasFeatureFlags(lua_State* L)
 	return 1;
 }
 
-bool FeaturePackets::IsEnabled(uint32_t featureId) const
+bool FeaturePackets::IsEnabled(uint32 featureId) const
 {
 	return m_hasData && (m_mask & (1u << featureId)) != 0;
 }
 
 int FeaturePackets::IsFeatureEnabled(lua_State* L)
 {
-	uint32_t featureId = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 featureId = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	FrameScript::PushBoolean(L, Instance().IsEnabled(featureId));
 	return 1;
 }

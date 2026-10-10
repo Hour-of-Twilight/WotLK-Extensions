@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 /**
@@ -43,13 +45,13 @@ namespace ModernM2::Shadow
 {
     struct Stats
     {
-        uint32_t shadowDraws;      ///< shadow-map batch draws seen (0 => the hook never fires)
-        uint32_t influencesZero;   ///< draws whose section arrived with boneInfluences == 0
-        uint32_t influencesFixed;  ///< of those, ones this module lifted to 1 in place
-        uint32_t overrideSections; ///< draws whose section came from the model+0x2D0 override arrays
-        uint32_t staleAnim;        ///< draws where the instance's last-animated frame != scene frame
-        uint32_t paletteMismatch;  ///< draws where palette slot 0 != the per-frame view root
-        uint32_t faults;           ///< SEH faults swallowed (the draw still ran untouched)
+        uint32 shadowDraws;      ///< shadow-map batch draws seen (0 => the hook never fires)
+        uint32 influencesZero;   ///< draws whose section arrived with boneInfluences == 0
+        uint32 influencesFixed;  ///< of those, ones this module lifted to 1 in place
+        uint32 overrideSections; ///< draws whose section came from the model+0x2D0 override arrays
+        uint32 staleAnim;        ///< draws where the instance's last-animated frame != scene frame
+        uint32 paletteMismatch;  ///< draws where palette slot 0 != the per-frame view root
+        uint32 faults;           ///< SEH faults swallowed (the draw still ran untouched)
     };
 
     /**

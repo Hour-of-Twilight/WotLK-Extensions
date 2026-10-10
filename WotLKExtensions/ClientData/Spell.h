@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <Macros.h>
 
 #include <cstdint>
@@ -8,129 +10,129 @@ namespace ClientData
 {
 	struct SpellRow
 	{
-		uint32_t m_ID;
-		uint32_t m_category;
-		uint32_t m_dispelType;
-		uint32_t m_mechanic;
-		uint32_t m_attributes;
-		uint32_t m_attributesEx;
-		uint32_t m_attributesExB;
-		uint32_t m_attributesExC;
-		uint32_t m_attributesExD;
-		uint32_t m_attributesExE;
-		uint32_t m_attributesExF;
-		uint32_t m_attributesExG;
-		uint32_t m_shapeshiftMask[2];
-		uint32_t m_shapeshiftExclude[2];
-		uint32_t m_targets;
-		uint32_t m_targetCreatureType;
-		uint32_t m_requiresSpellFocus;
-		uint32_t m_facingCasterFlags;
-		uint32_t m_casterAuraState;
-		uint32_t m_targetAuraState;
-		uint32_t m_excludeCasterAuraState;
-		uint32_t m_excludeTargetAuraState;
-		uint32_t m_casterAuraSpell;
-		uint32_t m_targetAuraSpell;
-		uint32_t m_excludeCasterAuraSpell;
-		uint32_t m_excludeTargetAuraSpell;
-		uint32_t m_castingTimeIndex;
-		uint32_t m_recoveryTime;
-		uint32_t m_categoryRecoveryTime;
-		uint32_t m_interruptFlags;
-		uint32_t m_auraInterruptFlags;
-		uint32_t m_channelInterruptFlags;
-		uint32_t m_procTypeMask;
-		uint32_t m_procChance;
-		uint32_t m_procCharges;
-		uint32_t m_maxLevel;
-		uint32_t m_baseLevel;
-		uint32_t m_spellLevel;
-		uint32_t m_durationIndex;
-		uint32_t m_powerType;
-		uint32_t m_manaCost;
-		uint32_t m_manaCostPerLevel;
-		uint32_t m_manaPerSecond;
-		uint32_t m_manaPerSecondPerLevel;
-		uint32_t m_rangeIndex;
+		uint32 m_ID;
+		uint32 m_category;
+		uint32 m_dispelType;
+		uint32 m_mechanic;
+		uint32 m_attributes;
+		uint32 m_attributesEx;
+		uint32 m_attributesExB;
+		uint32 m_attributesExC;
+		uint32 m_attributesExD;
+		uint32 m_attributesExE;
+		uint32 m_attributesExF;
+		uint32 m_attributesExG;
+		uint32 m_shapeshiftMask[2];
+		uint32 m_shapeshiftExclude[2];
+		uint32 m_targets;
+		uint32 m_targetCreatureType;
+		uint32 m_requiresSpellFocus;
+		uint32 m_facingCasterFlags;
+		uint32 m_casterAuraState;
+		uint32 m_targetAuraState;
+		uint32 m_excludeCasterAuraState;
+		uint32 m_excludeTargetAuraState;
+		uint32 m_casterAuraSpell;
+		uint32 m_targetAuraSpell;
+		uint32 m_excludeCasterAuraSpell;
+		uint32 m_excludeTargetAuraSpell;
+		uint32 m_castingTimeIndex;
+		uint32 m_recoveryTime;
+		uint32 m_categoryRecoveryTime;
+		uint32 m_interruptFlags;
+		uint32 m_auraInterruptFlags;
+		uint32 m_channelInterruptFlags;
+		uint32 m_procTypeMask;
+		uint32 m_procChance;
+		uint32 m_procCharges;
+		uint32 m_maxLevel;
+		uint32 m_baseLevel;
+		uint32 m_spellLevel;
+		uint32 m_durationIndex;
+		uint32 m_powerType;
+		uint32 m_manaCost;
+		uint32 m_manaCostPerLevel;
+		uint32 m_manaPerSecond;
+		uint32 m_manaPerSecondPerLevel;
+		uint32 m_rangeIndex;
 		float m_speed;
-		uint32_t m_modalNextSpell;
-		uint32_t m_cumulativeAura;
-		uint32_t m_totem[2];
-		uint32_t m_reagent[8];
-		uint32_t m_reagentCount[8];
-		uint32_t m_equippedItemClass;
-		uint32_t m_equippedItemSubclass;
-		uint32_t m_equippedItemInvTypes;
-		uint32_t m_effect[3];
-		uint32_t m_effectDieSides[3];
+		uint32 m_modalNextSpell;
+		uint32 m_cumulativeAura;
+		uint32 m_totem[2];
+		uint32 m_reagent[8];
+		uint32 m_reagentCount[8];
+		uint32 m_equippedItemClass;
+		uint32 m_equippedItemSubclass;
+		uint32 m_equippedItemInvTypes;
+		uint32 m_effect[3];
+		uint32 m_effectDieSides[3];
 		float m_effectRealPointsPerLevel[3];
-		uint32_t m_effectBasePoints[3];
-		uint32_t m_effectMechanic[3];
-		uint32_t m_implicitTargetA[3];
-		uint32_t m_implicitTargetB[3];
-		uint32_t m_effectRadiusIndex[3];
-		uint32_t m_effectAura[3];
-		uint32_t m_effectAuraPeriod[3];
+		uint32 m_effectBasePoints[3];
+		uint32 m_effectMechanic[3];
+		uint32 m_implicitTargetA[3];
+		uint32 m_implicitTargetB[3];
+		uint32 m_effectRadiusIndex[3];
+		uint32 m_effectAura[3];
+		uint32 m_effectAuraPeriod[3];
 		float m_effectAmplitude[3];
-		uint32_t m_effectChainTargets[3];
-		uint32_t m_effectItemType[3];
-		uint32_t m_effectMiscValue[3];
-		uint32_t m_effectMiscValueB[3];
-		uint32_t m_effectTriggerSpell[3];
+		uint32 m_effectChainTargets[3];
+		uint32 m_effectItemType[3];
+		uint32 m_effectMiscValue[3];
+		uint32 m_effectMiscValueB[3];
+		uint32 m_effectTriggerSpell[3];
 		float m_effectPointsPerCombo[3];
-		uint32_t m_effectSpellClassMaskA[3];
-		uint32_t m_effectSpellClassMaskB[3];
-		uint32_t m_effectSpellClassMaskC[3];
-		uint32_t m_spellVisualID[2];
-		uint32_t m_spellIconID;
-		uint32_t m_activeIconID;
-		uint32_t m_spellPriority;
+		uint32 m_effectSpellClassMaskA[3];
+		uint32 m_effectSpellClassMaskB[3];
+		uint32 m_effectSpellClassMaskC[3];
+		uint32 m_spellVisualID[2];
+		uint32 m_spellIconID;
+		uint32 m_activeIconID;
+		uint32 m_spellPriority;
 		char* m_name_lang;
 		char* m_nameSubtext_lang;
 		char* m_description_lang;
 		char* m_auraDescription_lang;
-		uint32_t m_manaCostPct;
-		uint32_t m_startRecoveryCategory;
-		uint32_t m_startRecoveryTime;
-		uint32_t m_maxTargetLevel;
-		uint32_t m_spellClassSet;
-		uint32_t m_spellClassMask[3];
-		uint32_t m_maxTargets;
-		uint32_t m_defenseType;
-		uint32_t m_preventionType;
-		uint32_t m_stanceBarOrder;
+		uint32 m_manaCostPct;
+		uint32 m_startRecoveryCategory;
+		uint32 m_startRecoveryTime;
+		uint32 m_maxTargetLevel;
+		uint32 m_spellClassSet;
+		uint32 m_spellClassMask[3];
+		uint32 m_maxTargets;
+		uint32 m_defenseType;
+		uint32 m_preventionType;
+		uint32 m_stanceBarOrder;
 		float m_effectChainAmplitude[3];
-		uint32_t m_minFactionID;
-		uint32_t m_minReputation;
-		uint32_t m_requiredAuraVision;
-		uint32_t m_requiredTotemCategoryID[2];
-		uint32_t m_requiredAreasID;
-		uint32_t m_schoolMask;
-		uint32_t m_runeCostID;
-		uint32_t m_spellMissileID;
-		uint32_t m_powerDisplayID;
+		uint32 m_minFactionID;
+		uint32 m_minReputation;
+		uint32 m_requiredAuraVision;
+		uint32 m_requiredTotemCategoryID[2];
+		uint32 m_requiredAreasID;
+		uint32 m_schoolMask;
+		uint32 m_runeCostID;
+		uint32 m_spellMissileID;
+		uint32 m_powerDisplayID;
 		float m_effectBonusCoefficient[3];
-		uint32_t m_descriptionVariablesID;
-		uint32_t m_difficulty;
+		uint32 m_descriptionVariablesID;
+		uint32 m_difficulty;
 	};
 
 	struct AuraData
 	{
-		uint64_t creator;
-		uint32_t spellId;
-		uint8_t flags;
-		uint8_t level;
-		uint8_t stackCount;
-		uint8_t ukn;
-		int32_t duration;
-		int32_t endTime;
+		uint64 creator;
+		uint32 spellId;
+		uint8 flags;
+		uint8 level;
+		uint8 stackCount;
+		uint8 ukn;
+		int32 duration;
+		int32 endTime;
 	};
 
 	struct PendingSpellCastData
 	{
 		char pad0[0x18];
-		uint32_t spellId;
+		uint32 spellId;
 	};
 
 	struct PendingSpellCast
@@ -139,7 +141,7 @@ namespace ClientData
 		PendingSpellCastData data;
 	};
 
-	enum SpellAttr0 : uint32_t
+	enum SpellAttr0 : uint32
 	{
 		SPELL_ATTR0_REQ_AMMO = 0x00000002,
 		SPELL_ATTR0_ON_NEXT_SWING = 0x00000004,
@@ -150,24 +152,24 @@ namespace ClientData
 		SPELL_ATTR0_ON_NEXT_SWING_2 = 0x00000400,
 	};
 
-	enum SpellAttr1 : uint32_t
+	enum SpellAttr1 : uint32
 	{
 		SPELL_ATTR1_CHANNELED_1 = 0x00000004,
 		SPELL_ATTR1_CHANNELED_2 = 0x00000040,
 	};
 
-	enum SpellAttr2 : uint32_t
+	enum SpellAttr2 : uint32
 	{
 		SPELL_ATTR2_AUTOREPEAT_FLAG = 0x00000020,
 	};
 
-	enum SpellAttr3 : uint32_t
+	enum SpellAttr3 : uint32
 	{
 		SPELL_ATTR3_MAIN_HAND = 0x00000400,
 		SPELL_ATTR3_REQ_OFFHAND = 0x01000000,
 	};
 
-	enum SpellAttr0Cu : uint32_t
+	enum SpellAttr0Cu : uint32
 	{
 		SPELL_ATTR0_CU_ENCHANT_PROC = 0x00000001,
 		SPELL_ATTR0_CU_CONE_BACK = 0x00000002,
@@ -205,7 +207,7 @@ namespace ClientData
 		SPELL_ATTR0_CU_NEGATIVE = SPELL_ATTR0_CU_NEGATIVE_EFF0 | SPELL_ATTR0_CU_NEGATIVE_EFF1 | SPELL_ATTR0_CU_NEGATIVE_EFF2,
 	};
 
-	enum SpellAttr1Cu : uint32_t
+	enum SpellAttr1Cu : uint32
 	{
 		SPELL_ATTR1_CU_REQUIRES_COMBAT = 0x00000001,
 		SPELL_ATTR1_CU_NO_ATTACK_BLOCK = 0x00000002,
@@ -241,7 +243,7 @@ namespace ClientData
 		SPELL_ATTR1_CU_UNUSED63 = 0x80000000,
 	};
 
-	enum SpellAttr2Cu : uint32_t
+	enum SpellAttr2Cu : uint32
 	{
 		SPELL_ATTR2_CU_TREAT_AS_INSTANT = 0x00000001,
 		SPELL_ATTR2_CU_FORCE_HIDE_CASTBAR = 0x00000002,
@@ -291,35 +293,35 @@ namespace ClientData::SpellCooldowns
 	{
 		Entry* m_prevLink;
 		Entry* m_next;
-		uint32_t m_spellId;
-		uint32_t m_itemId;
-		uint32_t m_startTime;
-		uint32_t m_duration;
-		uint32_t m_categoryId;
-		uint32_t m_categoryStart;
-		uint32_t m_categoryDuration;
-		uint8_t m_onHold;
-		uint8_t m_pad[3];
-		uint32_t m_gcdCategory;
-		uint32_t m_gcdDuration;
+		uint32 m_spellId;
+		uint32 m_itemId;
+		uint32 m_startTime;
+		uint32 m_duration;
+		uint32 m_categoryId;
+		uint32 m_categoryStart;
+		uint32 m_categoryDuration;
+		uint8 m_onHold;
+		uint8 m_pad[3];
+		uint32 m_gcdCategory;
+		uint32 m_gcdDuration;
 	};
 
 	struct History
 	{
-		uint32_t m_unk00;
-		uint32_t m_unk04;
+		uint32 m_unk00;
+		uint32 m_unk04;
 		Entry* m_head;
-		uint32_t m_unk0C;
-		uint32_t m_unk10;
+		uint32 m_unk0C;
+		uint32 m_unk10;
 		Entry* m_free;
 	};
 
 	// s_SpellHistoryPlayer, index 0 is the player and index 1 the pet.
 	CLIENT_ADDRESS(History, s_spellHistory, 0x00D3F5AC)
 
-	constexpr uint32_t PlayerHistory = 0;
-	constexpr uint32_t PetHistory = 1;
-	constexpr uint32_t HistoryCount = 2;
+	constexpr uint32 PlayerHistory = 0;
+	constexpr uint32 PetHistory = 1;
+	constexpr uint32 HistoryCount = 2;
 
 	// The client stops walking on a null pointer or one with bit 0 set, which is how the tail
 	// sentinel links back to the list.
@@ -328,7 +330,7 @@ namespace ClientData::SpellCooldowns
 		return (!entry || (reinterpret_cast<uintptr_t>(entry) & 1)) ? nullptr : entry;
 	}
 
-	inline Entry* First(uint32_t historyIndex)
+	inline Entry* First(uint32 historyIndex)
 	{
 		return Valid(s_spellHistory[historyIndex].m_head);
 	}

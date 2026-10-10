@@ -1,20 +1,24 @@
+#include <Defines.h>
 #include "SpellDescriptionVars.h"
 
 #include <Packets/AuraValuesCache.h>
 #include <Packets/UnitLevelCache.h>
+#include <ClientData/WowObjects.h>
 #include <Util.h>
 
 #include <cstring>
 
+using ClientData::WowPlayer;
+
 // CFormula::CompileElement, the linear scan that turns a ${} name into an opcode
-static constexpr uint32_t kNameTableOperand = 0x00576B63; // disp32 of "mov eax, table[esi*4]"
-static constexpr uint32_t kNameCountOperand = 0x00576B7C; // imm32 of "cmp esi, 140"
+static constexpr uint32 kNameTableOperand = 0x00576B63; // disp32 of "mov eax, table[esi*4]"
+static constexpr uint32 kNameCountOperand = 0x00576B7C; // imm32 of "cmp esi, 140"
 
 // CFormula::GetVariableValue, the opcode to value switch
-static constexpr uint32_t kGetVariableValue = 0x005782D0;
+static constexpr uint32 kGetVariableValue = 0x005782D0;
 static constexpr size_t kPrologueLength = 6; // push ebp / mov ebp, esp / sub esp, 34h
 
-static constexpr uint32_t kFirstOpcode = 22;
+static constexpr uint32 kFirstOpcode = 22;
 static constexpr size_t kMaxNames = 256 - kFirstOpcode;
 
 // Both live in our data section so the client can read them once the operands are patched. The
@@ -39,7 +43,7 @@ static bool __cdecl DispatchFormulaVariable(FormulaContext* ctx)
 	// the value stack keeps its index in the slot just past its 32 entries and grows downwards.
 	// the client never bounds checks it, a formula deep enough to underflow would write off the
 	// end of CFormula::Evaluate's frame
-	int32_t* sp = reinterpret_cast<int32_t*>(ctx->valueStack + 32);
+	int32* sp = reinterpret_cast<int32*>(ctx->valueStack + 32);
 	if (*sp > 0)
 	{
 		*sp -= 1;
@@ -76,77 +80,55 @@ __declspec(naked) void CFormula__GetVariableValue_Hook()
 }
 
 // jmp rel32 to hook, nops out to len so nothing lands mid instruction
-static void WriteJumpPatch(uint32_t at, void* hook, size_t len)
+static void WriteJumpPatch(uint32 at, void* hook, size_t len)
 {
-	uint8_t patch[16];
-	int32_t rel = static_cast<int32_t>(reinterpret_cast<uintptr_t>(hook) - (at + 5));
+	uint8 patch[16];
+	int32 rel = static_cast<int32>(reinterpret_cast<uintptr_t>(hook) - (at + 5));
 	patch[0] = 0xE9;
 	std::memcpy(&patch[1], &rel, sizeof(rel));
 	std::memset(&patch[5], 0x90, len - 5);
 	Util::OverwriteBytesAtAddress(at, patch, len);
 }
 
-static UnitFields* ActivePlayerFields()
-{
-	CGPlayer* player = ClntObjMgr::GetActivePlayerObj();
-	return player ? player->unitBase.unitData : nullptr;
-}
-
-// The player descriptor block is a second array hanging off CGPlayer+0x1008, not an extension of
-// the unit one. Script_GetDodgeChance reads it the same way.
-static PlayerFields* ActivePlayerPlayerFields()
-{
-	CGPlayer* player = ClntObjMgr::GetActivePlayerObj();
-	return player ? player->PlayerData : nullptr;
-}
-
 static float VarCurrentHealth(const FormulaContext&)
 {
-	UnitFields* fields = ActivePlayerFields();
-	return fields ? static_cast<float>(fields->unitCurrHealth) : 0.0f;
+	return static_cast<float>(WowPlayer::Active().Health());
 }
 
 static float VarMaxHealth(const FormulaContext&)
 {
-	UnitFields* fields = ActivePlayerFields();
-	return fields ? static_cast<float>(fields->unitMaxHealth) : 0.0f;
+	return static_cast<float>(WowPlayer::Active().MaxHealth());
 }
 
 static float VarCurrentMana(const FormulaContext&)
 {
-	UnitFields* fields = ActivePlayerFields();
-	return fields ? static_cast<float>(fields->unitCurrPowers[POWER_MANA]) : 0.0f;
+	return static_cast<float>(WowPlayer::Active().Power(POWER_MANA));
 }
 
 static float VarMaxMana(const FormulaContext&)
 {
-	UnitFields* fields = ActivePlayerFields();
-	return fields ? static_cast<float>(fields->unitMaxPowers[POWER_MANA]) : 0.0f;
+	return static_cast<float>(WowPlayer::Active().MaxPower(POWER_MANA));
 }
 
 static float VarCurrentFocus(const FormulaContext&)
 {
-	UnitFields* fields = ActivePlayerFields();
-	return fields ? static_cast<float>(fields->unitCurrPowers[POWER_FOCUS]) : 0.0f;
+	return static_cast<float>(WowPlayer::Active().Power(POWER_FOCUS));
 }
 
 static float VarMaxFocus(const FormulaContext&)
 {
-	UnitFields* fields = ActivePlayerFields();
-	return fields ? static_cast<float>(fields->unitMaxPowers[POWER_FOCUS]) : 0.0f;
+	return static_cast<float>(WowPlayer::Active().MaxPower(POWER_FOCUS));
 }
 
 // Already a percentage, so ${$dodge}.2 gives you "5.23" not a fraction.
 static float VarDodge(const FormulaContext&)
 {
-	PlayerFields* fields = ActivePlayerPlayerFields();
-	return fields ? fields->dodgePct : 0.0f;
+	return WowPlayer::Active().DodgePct();
 }
 
 static float VarParry(const FormulaContext&)
 {
-	PlayerFields* fields = ActivePlayerPlayerFields();
-	return fields ? fields->parryPct : 0.0f;
+	return WowPlayer::Active().ParryPct();
 }
 
 // The client runs its ranged damage through floor for $rw and ceil for $RW and then clamps both up
@@ -156,21 +138,18 @@ static float VarParry(const FormulaContext&)
 // now actually gets a decimal.
 static float VarRangedMinDamage(const FormulaContext&)
 {
-	UnitFields* fields = ActivePlayerFields();
-	return fields ? fields->minRangedDamage : 0.0f;
+	return WowPlayer::Active().MinRangedDamage();
 }
 
 static float VarRangedMaxDamage(const FormulaContext&)
 {
-	UnitFields* fields = ActivePlayerFields();
-	return fields ? fields->maxRangedDamage : 0.0f;
+	return WowPlayer::Active().MaxRangedDamage();
 }
 
 // baseAttackTime is main hand, off hand, ranged. Milliseconds on the wire, seconds in a formula.
 static float VarRangedSpeed(const FormulaContext&)
 {
-	UnitFields* fields = ActivePlayerFields();
-	float seconds = fields ? static_cast<float>(fields->baseAttackTime[2]) / 1000.0f : 0.0f;
+	float seconds = static_cast<float>(WowPlayer::Active().BaseAttackTime(2)) / 1000.0f;
 	return seconds < 1.0f ? 1.0f : seconds;
 }
 
@@ -178,7 +157,7 @@ static float VarRangedSpeed(const FormulaContext&)
 // next time the tooltip renders the number is there, which matches how the unit frames use it.
 static float VarItemLevel(const FormulaContext&)
 {
-	uint64_t guid = ClntObjMgr::GetActivePlayer();
+	uint64 guid = ClntObjMgr::GetActivePlayer();
 	if (!guid)
 		return 0.0f;
 
@@ -192,7 +171,7 @@ static float VarItemLevel(const FormulaContext&)
 }
 
 // What $s<n> would have rendered, for when there is no aura in scope or no server data yet.
-static float BaseEffectPoints(const FormulaContext& ctx, uint32_t effectIndex)
+static float BaseEffectPoints(const FormulaContext& ctx, uint32 effectIndex)
 {
 	if (!ctx.spell || effectIndex < 1 || effectIndex > ClientData::Aura::MaxSpellEffects)
 		return 0.0f;
@@ -203,9 +182,9 @@ static float BaseEffectPoints(const FormulaContext& ctx, uint32_t effectIndex)
 	return static_cast<float>(max);
 }
 
-static float AuraAmount(const FormulaContext& ctx, uint32_t effectIndex)
+static float AuraAmount(const FormulaContext& ctx, uint32 effectIndex)
 {
-	int32_t amount = 0;
+	int32 amount = 0;
 	if (ctx.spell && sAuraValuesCache.GetActiveAmount(ctx.spell->m_ID, effectIndex, amount))
 		return static_cast<float>(amount);
 
@@ -229,7 +208,7 @@ static float VarAuraEffect3(const FormulaContext& ctx)
 
 static float VarAuraAbsorb(const FormulaContext& ctx)
 {
-	int32_t amount = 0;
+	int32 amount = 0;
 	if (ctx.spell && sAuraValuesCache.GetActiveAbsorb(ctx.spell->m_ID, ctx.spell, amount))
 		return static_cast<float>(amount);
 
@@ -238,7 +217,7 @@ static float VarAuraAbsorb(const FormulaContext& ctx)
 
 static float VarAuraStacks(const FormulaContext& ctx)
 {
-	int32_t stacks = 0;
+	int32 stacks = 0;
 	if (ctx.spell && sAuraValuesCache.GetActiveStacks(ctx.spell->m_ID, stacks))
 		return static_cast<float>(stacks);
 
@@ -260,7 +239,7 @@ bool SpellDescriptionVars::CaptureClientTable()
 		return true;
 
 	const char** names = *reinterpret_cast<const char***>(kNameTableOperand);
-	uint32_t count = *reinterpret_cast<uint32_t*>(kNameCountOperand);
+	uint32 count = *reinterpret_cast<uint32*>(kNameCountOperand);
 	if (!names || count == 0 || count > kMaxNames)
 		return false;
 
@@ -269,13 +248,13 @@ bool SpellDescriptionVars::CaptureClientTable()
 	m_names.reserve(kMaxNames);
 	m_captured = true;
 
-	Util::OverwriteValue<uint32_t>(kNameTableOperand, reinterpret_cast<uint32_t>(sNames));
+	Util::OverwriteValue<uint32>(kNameTableOperand, reinterpret_cast<uint32>(sNames));
 	return true;
 }
 
 int SpellDescriptionVars::FindIndex(const char* name) const
 {
-	for (uint32_t i = 0; i < m_count; ++i)
+	for (uint32 i = 0; i < m_count; ++i)
 	{
 		if (sNames[i] && std::strcmp(sNames[i], name) == 0)
 			return static_cast<int>(i);
@@ -299,7 +278,7 @@ bool SpellDescriptionVars::Add(const char* name, ValueFn fn)
 		m_names.push_back(name);
 		sNames[index] = m_names.back().c_str();
 		m_count += 1;
-		Util::OverwriteValue<uint32_t>(kNameCountOperand, m_count);
+		Util::OverwriteValue<uint32>(kNameCountOperand, m_count);
 	}
 
 	sHandlers[kFirstOpcode + index] = fn;

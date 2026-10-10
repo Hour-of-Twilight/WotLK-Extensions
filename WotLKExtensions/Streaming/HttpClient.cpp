@@ -9,16 +9,35 @@
 #include <fstream>
 #include <memory>
 #include <vector>
-#include <chrono>
 #include <thread>
 
 namespace Streaming
 {
 	namespace
 	{
+		std::mutex g_sessionMutex;
+		HINTERNET g_session = nullptr;
+
+		HINTERNET SharedSession()
+		{
+			std::lock_guard<std::mutex> lock(g_sessionMutex);
+			if (g_session)
+				return g_session;
+
+			g_session = WinHttpOpen(L"HoTStreaming/1.0",
+			    WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+			    WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+			if (!g_session)
+				g_session = WinHttpOpen(L"HoTStreaming/1.0",
+				    WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+				    WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+			if (g_session)
+				WinHttpSetTimeouts(g_session, 15000, 15000, 30000, 30000);
+			return g_session;
+		}
+
 		struct Conn
 		{
-			HINTERNET session = nullptr;
 			HINTERNET connect = nullptr;
 			HINTERNET request = nullptr;
 			~Conn()
@@ -27,8 +46,6 @@ namespace Streaming
 					WinHttpCloseHandle(request);
 				if (connect)
 					WinHttpCloseHandle(connect);
-				if (session)
-					WinHttpCloseHandle(session);
 			}
 		};
 
@@ -49,19 +66,11 @@ namespace Streaming
 			const bool secure = (uc.nScheme == INTERNET_SCHEME_HTTPS);
 			std::wstring fullPath = std::wstring(path) + extra;
 
-			c.session = WinHttpOpen(L"HoTStreaming/1.0",
-			    WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-			    WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-			if (!c.session)
-				c.session = WinHttpOpen(L"HoTStreaming/1.0",
-				    WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-				    WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-			if (!c.session)
+			HINTERNET session = SharedSession();
+			if (!session)
 				return false;
 
-			WinHttpSetTimeouts(c.session, 15000, 15000, 30000, 30000);
-
-			c.connect = WinHttpConnect(c.session, host, uc.nPort, 0);
+			c.connect = WinHttpConnect(session, host, uc.nPort, 0);
 			if (!c.connect)
 				return false;
 
@@ -113,6 +122,36 @@ namespace Streaming
 			}
 			return true;
 		}
+	}
+
+	DownloadThrottle::DownloadThrottle(std::function<long long()> bytesPerSecond)
+	    : m_bytesPerSecond(std::move(bytesPerSecond)), m_start(std::chrono::steady_clock::now())
+	{
+	}
+
+	void DownloadThrottle::Account(long long bytes)
+	{
+		double sleepSec = 0;
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+			long long cap = m_bytesPerSecond ? m_bytesPerSecond() : 0;
+			if (cap != m_limit)
+			{
+				m_limit = cap;
+				m_bytes = 0;
+				m_start = std::chrono::steady_clock::now();
+			}
+			if (m_limit <= 0)
+				return;
+
+			m_bytes += bytes;
+			double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - m_start).count();
+			double aheadSec = (double)m_bytes / m_limit - elapsed;
+			if (aheadSec > 0.005)
+				sleepSec = aheadSec < 0.5 ? aheadSec : 0.5;
+		}
+		if (sleepSec > 0)
+			std::this_thread::sleep_for(std::chrono::duration<double>(sleepSec));
 	}
 
 	bool HttpGetString(const std::wstring& url, std::string& out)
@@ -172,9 +211,6 @@ namespace Streaming
 			return false;
 
 		long long written = resuming ? opt.resumeFrom : 0;
-		auto start = std::chrono::steady_clock::now();
-		long long throttled = 0;
-		long long limit = 0;
 		std::vector<char> buf(1 << 20);
 
 		for (;;)
@@ -200,26 +236,8 @@ namespace Streaming
 			written += read;
 			if (opt.onBytes)
 				opt.onBytes(written);
-
-			long long cap = opt.bytesPerSecond ? opt.bytesPerSecond() : 0;
-			if (cap != limit)
-			{
-				// Re-base, or bytes spent under the old cap get billed at the new rate.
-				limit = cap;
-				throttled = 0;
-				start = std::chrono::steady_clock::now();
-			}
-
-			if (limit > 0)
-			{
-				throttled += read;
-				double aheadSec = (double)throttled / limit - std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-				if (aheadSec > 0.005)
-				{
-					double s = aheadSec < 0.5 ? aheadSec : 0.5;
-					std::this_thread::sleep_for(std::chrono::duration<double>(s));
-				}
-			}
+			if (opt.throttle)
+				opt.throttle->Account(read);
 		}
 
 		f.close();

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cstdint>
+#include <Defines.h>
 
-enum class QuestLogPatchKind : uint8_t
+enum class QuestLogPatchKind : uint8
 {
 	RelocQuests,
 	RelocPoi,
@@ -15,19 +15,19 @@ enum class QuestLogPatchKind : uint8_t
 
 struct QuestLogPatchSite
 {
-	uint32_t address;
+	uint32 address;
 	QuestLogPatchKind kind;
-	uint32_t expected;
-	uint32_t value;
+	uint32 expected;
+	uint32 value;
 };
 
-constexpr uint32_t kQuestLogSlots = 100;
-constexpr uint32_t kQuestLogEntryCapacity = 160;
-constexpr uint32_t kQuestLogSortTypes = 32;
-constexpr uint32_t kQuestLogPoiSlots = 100;
-constexpr uint32_t kQuestLogOriginalQuestsBase = 0x00C237B0;
-constexpr uint32_t kQuestLogOriginalPoiBase = 0x00C23B00;
-constexpr uint32_t kQuestLogOriginalSortBase = 0x00C23618;
+constexpr uint32 kQuestLogSlots = 100;
+constexpr uint32 kQuestLogEntryCapacity = 160;
+constexpr uint32 kQuestLogSortTypes = 32;
+constexpr uint32 kQuestLogPoiSlots = 100;
+constexpr uint32 kQuestLogOriginalQuestsBase = 0x00C237B0;
+constexpr uint32 kQuestLogOriginalPoiBase = 0x00C23B00;
+constexpr uint32 kQuestLogOriginalSortBase = 0x00C23618;
 
 inline constexpr QuestLogPatchSite kQuestLogPatchSites[] = {
 	{ 0x005DE8D7, QuestLogPatchKind::RelocQuests, 0x00C237B8, 0x00000000 },

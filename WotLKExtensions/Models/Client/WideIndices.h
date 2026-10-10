@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 namespace ModernM2::WideIndices
@@ -30,6 +32,7 @@ namespace ModernM2::WideIndices
 	bool Install();
 
 	DrawBatchScope OnDrawBatchEnter(void* ctx);
+	DrawBatchScope OnShadowBatchEnter(void* instance, const void* section);
 	void OnDrawBatchLeave(const DrawBatchScope& saved);
-	void RemapHitTestRange(uint16_t** indexBegin, uint16_t** indexEnd);
+	void RemapHitTestRange(uint16** indexBegin, uint16** indexEnd);
 }

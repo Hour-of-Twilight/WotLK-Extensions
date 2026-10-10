@@ -14,6 +14,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
@@ -35,7 +37,7 @@ namespace ModernM2::Db2
     class DB2File
     {
     public:
-        explicit DB2File(uint32_t rowSize);
+        explicit DB2File(uint32 rowSize);
         virtual ~DB2File() = default;
 
         // Load "DBFilesClient\<fileName>" through the client's own storage seam (the archive set the
@@ -44,40 +46,40 @@ namespace ModernM2::Db2
         bool Load(const char* fileName);
         // Decode a .db2 already in memory. Used by Load(); also callable directly for bytes obtained
         // some other way.
-        bool LoadBytes(const uint8_t* data, uint32_t size, const char* nameForLog);
+        bool LoadBytes(const uint8* data, uint32 size, const char* nameForLog);
         void Unload();
         bool IsLoaded() const { return m_loaded; }
 
-        int32_t  MinId()    const { return m_minId; }
-        int32_t  MaxId()    const { return m_maxId; }
-        uint32_t RowCount() const { return m_numRows; }
+        int32  MinId()    const { return m_minId; }
+        int32  MaxId()    const { return m_maxId; }
+        uint32 RowCount() const { return m_numRows; }
 
         // Decoded record for a given id (or row index), or nullptr if absent.
-        const void* RowById(int32_t id) const;
-        const void* RowByIndex(uint32_t index) const;
+        const void* RowById(int32 id) const;
+        const void* RowByIndex(uint32 index) const;
         // Id of a row by its index, or -1 if out of range.
-        int32_t IdAt(uint32_t index) const;
+        int32 IdAt(uint32 index) const;
         // Resolve a string-table offset to a C string ("" if out of range).
-        const char* Str(uint32_t offset) const;
+        const char* Str(uint32 offset) const;
 
     protected:
         // A Definition may override this to list the FIELD indices (file order, 0-based) that hold string
         // offsets. It is only needed for WDC2/WDC3 tables, or multi-section tables; a single-section WDC1
         // table stores absolute offsets and needs nothing here.
-        virtual const uint32_t* StringColumns(uint32_t* count) const { *count = 0; return nullptr; }
+        virtual const uint32* StringColumns(uint32* count) const { *count = 0; return nullptr; }
 
-        uint32_t m_rowSize;             // expected decoded record size (= sizeof(Row))
+        uint32 m_rowSize;             // expected decoded record size (= sizeof(Row))
         bool     m_loaded = false;
-        uint32_t m_numRows = 0;
-        int32_t  m_minId = 0x7FFFFFFF;
-        int32_t  m_maxId = -1;
+        uint32 m_numRows = 0;
+        int32  m_minId = 0x7FFFFFFF;
+        int32  m_maxId = -1;
 
         std::vector<char>    m_records; // m_numRows * m_rowSize decoded bytes
-        std::vector<int32_t> m_ids;     // per-row id, parallel to m_records
+        std::vector<int32> m_ids;     // per-row id, parallel to m_records
         std::vector<char>    m_strings; // reconstructed string table
 
         bool m_idsAscending = false;    // ids ascend -> binary search m_ids, no map needed
-        std::unordered_map<int32_t, uint32_t> m_idIndex; // id -> row index (unsorted tables only)
+        std::unordered_map<int32, uint32> m_idIndex; // id -> row index (unsorted tables only)
         double m_readMs = 0.0;
 
     private:
@@ -91,7 +93,7 @@ namespace ModernM2::Db2
     public:
         DB2Table() : DB2File(sizeof(Row)) {}
 
-        const Row* Find(int32_t id)   const { return static_cast<const Row*>(RowById(id)); }
-        const Row* At(uint32_t index) const { return static_cast<const Row*>(RowByIndex(index)); }
+        const Row* Find(int32 id)   const { return static_cast<const Row*>(RowById(id)); }
+        const Row* At(uint32 index) const { return static_cast<const Row*>(RowByIndex(index)); }
     };
 }

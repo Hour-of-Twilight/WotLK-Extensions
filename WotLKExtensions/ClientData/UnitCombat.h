@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <ClientData/GameEnums.h>
 
@@ -9,12 +11,12 @@ namespace ClientData::UnitCombat
 	// CGUnit_C::PlayAttackerRound.
 	struct AttackerRound
 	{
-		uint32_t padding0x00[4];
-		uint32_t hitInfo;
-		uint32_t padding0x14[16];
-		int32_t playSwingFx; // non-zero -> run the swing FX vfunc
-		uint32_t padding0x58;
-		int32_t suppressAnim; // non-zero -> skip (re)playing the swing anim
+		uint32 padding0x00[4];
+		uint32 hitInfo;
+		uint32 padding0x14[16];
+		int32 playSwingFx; // non-zero -> run the swing FX vfunc
+		uint32 padding0x58;
+		int32 suppressAnim; // non-zero -> skip (re)playing the swing anim
 	};
 
 	static_assert(sizeof(AttackerRound) == 0x60, "AttackerRound layout mismatch");
@@ -22,8 +24,8 @@ namespace ClientData::UnitCombat
 	// First two bytes of an item display record.
 	struct EquippedItemRecord
 	{
-		uint8_t itemClass;
-		uint8_t itemSubclass;
+		uint8 itemClass;
+		uint8 itemSubclass;
 	};
 
 	// Slot indices passed to the get-weapon vfunc.
@@ -37,24 +39,13 @@ namespace ClientData::UnitCombat
 	constexpr uintptr_t VF_PLAY_SWING_FX = 0x118;     // (int criticalBit, int)
 	constexpr uintptr_t VF_GET_WEAPON_RECORD = 0x12C; // (int slot, int) -> item display record
 
-	// Model state pointer on CGUnit_C. The counter at +0x48 drops to zero when the
-	// unit has no model to animate.
-	constexpr uintptr_t UNIT_MODEL_STATE = 0xD0;
-	constexpr uintptr_t MODEL_STATE_COUNTER = 0x48;
-
 	using GetWeaponRecordFn = EquippedItemRecord*(__thiscall*)(void* self, int slot, int unused);
 	using PlaySwingFxFn = void(__thiscall*)(void* self, int criticalBit, int unused);
 
 	inline void* GetVFunc(void* unit, uintptr_t byteOffset)
 	{
-		uint8_t* vtable = *reinterpret_cast<uint8_t**>(unit);
+		uint8* vtable = *reinterpret_cast<uint8**>(unit);
 		return *reinterpret_cast<void**>(vtable + byteOffset);
-	}
-
-	inline bool HasAnimatableModel(void* unit)
-	{
-		uint8_t* modelState = *reinterpret_cast<uint8_t**>(static_cast<uint8_t*>(unit) + UNIT_MODEL_STATE);
-		return modelState && *reinterpret_cast<int*>(modelState + MODEL_STATE_COUNTER) > 0;
 	}
 
 	inline EquippedItemRecord* GetEquippedItem(void* unit, WeaponSlot slot)

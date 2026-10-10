@@ -1,9 +1,11 @@
+#include <Defines.h>
 #include "CraftingPackets.h"
 #include "Packet.h"
 
 #include <ClientData/Containers.h>
 #include <ClientData/GameObject.h>
 #include <ClientData/ObjectManager.h>
+#include <ClientData/WowObjects.h>
 #include <CustomLua.h>
 #include <CustomPacket.h>
 #include <Item.h>
@@ -12,37 +14,23 @@
 #include <Windows.h>
 
 namespace Containers = ClientData::Containers;
+using ClientData::WowContainer;
+using ClientData::WowGameObject;
+using ClientData::WowItem;
+using ClientData::WowPlayer;
 
 namespace
 {
-	constexpr uint32_t kObjectFieldGuid = 0;
-	constexpr uint32_t kObjectFieldEntry = 3;
-	constexpr uint32_t kItemFieldStackCount = 14;
-	constexpr uint32_t kRangeCheckIntervalMs = 500;
-	constexpr uint32_t kPendingTimeoutMs = 15000;
-	constexpr uint8_t kScrapItemSkipped = 3;
+	constexpr uint32 kRangeCheckIntervalMs = 500;
+	constexpr uint32 kPendingTimeoutMs = 15000;
+	constexpr uint8 kScrapItemSkipped = 3;
 	constexpr float kRangeTolerance = 1.5f;
-	constexpr uint8_t kOpenFlagCanCraft = 0x01;
-	constexpr uint8_t kResultTimedOut = 255;
+	constexpr uint8 kOpenFlagCanCraft = 0x01;
+	constexpr uint8 kResultTimedOut = 255;
 
-	uint64_t MakeRecipeKey(uint32_t pattern, uint32_t material)
+	uint64 MakeRecipeKey(uint32 pattern, uint32 material)
 	{
-		return (static_cast<uint64_t>(pattern) << 32) | material;
-	}
-
-	uint64_t ItemGuid(void* item)
-	{
-		return static_cast<CGObject_C*>(item)->GetValue<uint64_t>(kObjectFieldGuid);
-	}
-
-	uint32_t ItemEntry(void* item)
-	{
-		return static_cast<CGObject_C*>(item)->GetValue<uint32_t>(kObjectFieldEntry);
-	}
-
-	uint32_t ItemStackCount(void* item)
-	{
-		return static_cast<CGObject_C*>(item)->GetValue<uint32_t>(kItemFieldStackCount);
+		return (static_cast<uint64>(pattern) << 32) | material;
 	}
 
 	int OptionalSlotArg(lua_State* L, int index, int maxSlots)
@@ -64,13 +52,13 @@ CraftingPackets& CraftingPackets::Instance()
 	return instance;
 }
 
-void CraftingPackets::LockItem(uint64_t guid)
+void CraftingPackets::LockItem(uint64 guid)
 {
 	if (guid)
 		CGGameUI::LockItem(guid);
 }
 
-void CraftingPackets::UnlockItem(uint64_t guid)
+void CraftingPackets::UnlockItem(uint64 guid)
 {
 	if (guid)
 		CGGameUI::UnlockItem(guid);
@@ -86,7 +74,7 @@ void CraftingPackets::SignalSlots(Mode mode)
 	FrameXMLExtensions::SignalEvent("HOT_CRAFTING_SLOTS_UPDATE", "%d", static_cast<int>(mode));
 }
 
-bool CraftingPackets::FindItemBagSlot(uint64_t guid, int& outBag, int& outSlot)
+bool CraftingPackets::FindItemBagSlot(uint64 guid, int& outBag, int& outSlot)
 {
 	void* backpack = Containers::GetBackpack();
 	if (!backpack)
@@ -94,8 +82,8 @@ bool CraftingPackets::FindItemBagSlot(uint64_t guid, int& outBag, int& outSlot)
 
 	for (int index = Containers::kBackpackFirstIndex; index <= Containers::kBackpackLastIndex; ++index)
 	{
-		void* item = CGBag_C::GetItemPointer(backpack, index);
-		if (item && ItemGuid(item) == guid)
+		WowItem item(CGBag_C::GetItemPointer(backpack, index));
+		if (item && item.Guid() == guid)
 		{
 			outBag = 0;
 			outSlot = index - Containers::kBackpackFirstIndex + 1;
@@ -105,23 +93,23 @@ bool CraftingPackets::FindItemBagSlot(uint64_t guid, int& outBag, int& outSlot)
 
 	for (int bag = 0; bag < Containers::kMaxEquippedBags; ++bag)
 	{
-		uint64_t bagGuid = CGContainerInfo::GetContainer(bag);
+		uint64 bagGuid = CGContainerInfo::GetContainer(bag);
 		if (!bagGuid)
 			continue;
 
-		CGObject_C* bagObject = ClientData::ObjectManager::ObjectPtr(bagGuid, TYPEMASK_CONTAINER);
+		WowContainer bagObject = WowContainer::FromGuid(bagGuid);
 		if (!bagObject)
 			continue;
 
-		void* container = Containers::GetBag(bagObject);
+		void* container = Containers::GetBag(bagObject.Get());
 		if (!container)
 			continue;
 
-		uint32_t numSlots = Containers::GetNumSlots(bagObject);
-		for (uint32_t index = 0; index < numSlots; ++index)
+		uint32 numSlots = bagObject.NumSlots();
+		for (uint32 index = 0; index < numSlots; ++index)
 		{
-			void* item = CGBag_C::GetItemPointer(container, static_cast<int>(index));
-			if (item && ItemGuid(item) == guid)
+			WowItem item(CGBag_C::GetItemPointer(container, static_cast<int>(index)));
+			if (item && item.Guid() == guid)
 			{
 				outBag = bag + 1;
 				outSlot = static_cast<int>(index) + 1;
@@ -133,24 +121,24 @@ bool CraftingPackets::FindItemBagSlot(uint64_t guid, int& outBag, int& outSlot)
 	return false;
 }
 
-bool CraftingPackets::ResolveItem(uint64_t guid, ItemRef& out)
+bool CraftingPackets::ResolveItem(uint64 guid, ItemRef& out)
 {
 	out = ItemRef();
 	if (!guid)
 		return false;
 
-	CGObject_C* item = ClientData::ObjectManager::ObjectPtr(guid, TYPEMASK_ITEM);
+	WowItem item = WowItem::FromGuid(guid);
 	if (!item)
 		return false;
 
 	out.guid = guid;
-	out.entry = ItemEntry(item);
-	out.count = ItemStackCount(item);
+	out.entry = item.Entry();
+	out.count = item.StackCount();
 	FindItemBagSlot(guid, out.bag, out.slot);
 	return true;
 }
 
-bool CraftingPackets::IsScrapCandidate(uint32_t entry)
+bool CraftingPackets::IsScrapCandidate(uint32 entry)
 {
 	ItemRecord* record = Item::GetItemRecord(static_cast<int>(entry));
 	if (!record)
@@ -158,34 +146,34 @@ bool CraftingPackets::IsScrapCandidate(uint32_t entry)
 
 	switch (record->itemClass)
 	{
-		case 0:
-		case 1:
-		case 6:
-		case 9:
-		case 10:
-		case 11:
-		case 12:
-		case 13:
-		case 14:
-		case 16:
-			return false;
-		default:
-			return true;
+	case 0:
+	case 1:
+	case 6:
+	case 9:
+	case 10:
+	case 11:
+	case 12:
+	case 13:
+	case 14:
+	case 16:
+		return false;
+	default:
+		return true;
 	}
 }
 
-bool CraftingPackets::IsCatalystEntry(uint32_t entry) const
+bool CraftingPackets::IsCatalystEntry(uint32 entry) const
 {
 	return m_catalystLookup.find(entry) != m_catalystLookup.end();
 }
 
-const CraftingPackets::CatalystInfo* CraftingPackets::FindCatalyst(uint32_t entry) const
+const CraftingPackets::CatalystInfo* CraftingPackets::FindCatalyst(uint32 entry) const
 {
 	auto itr = m_catalystLookup.find(entry);
 	return itr != m_catalystLookup.end() ? &itr->second : nullptr;
 }
 
-bool CraftingPackets::StacksWithOtherCatalysts(uint32_t entry, int ignoreSlot) const
+bool CraftingPackets::StacksWithOtherCatalysts(uint32 entry, int ignoreSlot) const
 {
 	const CatalystInfo* info = FindCatalyst(entry);
 	if (!info)
@@ -194,7 +182,7 @@ bool CraftingPackets::StacksWithOtherCatalysts(uint32_t entry, int ignoreSlot) c
 	if (info->type == CATALYST_LEVEL_BOOST)
 		return true;
 
-	for (uint32_t i = 0; i < MaxCatalysts; ++i)
+	for (uint32 i = 0; i < MaxCatalysts; ++i)
 	{
 		if (static_cast<int>(i) == ignoreSlot || !m_catalysts[i])
 			continue;
@@ -211,23 +199,23 @@ bool CraftingPackets::StacksWithOtherCatalysts(uint32_t entry, int ignoreSlot) c
 	return true;
 }
 
-bool CraftingPackets::HasCatalyst(uint64_t guid) const
+bool CraftingPackets::HasCatalyst(uint64 guid) const
 {
-	for (uint64_t slotGuid : m_catalysts)
+	for (uint64 slotGuid : m_catalysts)
 		if (slotGuid && slotGuid == guid)
 			return true;
 	return false;
 }
 
-bool CraftingPackets::HasScrapItem(uint64_t guid) const
+bool CraftingPackets::HasScrapItem(uint64 guid) const
 {
-	for (uint64_t slotGuid : m_scrapItems)
+	for (uint64 slotGuid : m_scrapItems)
 		if (slotGuid && slotGuid == guid)
 			return true;
 	return false;
 }
 
-bool CraftingPackets::PlaceCatalyst(uint64_t guid, uint32_t entry, int preferredSlot)
+bool CraftingPackets::PlaceCatalyst(uint64 guid, uint32 entry, int preferredSlot)
 {
 	if (m_craftPending || m_scrapPending)
 	{
@@ -252,7 +240,7 @@ bool CraftingPackets::PlaceCatalyst(uint64_t guid, uint32_t entry, int preferred
 		slot = preferredSlot;
 	else
 	{
-		for (uint32_t i = 0; i < MaxCatalysts; ++i)
+		for (uint32 i = 0; i < MaxCatalysts; ++i)
 		{
 			if (!m_catalysts[i])
 			{
@@ -282,7 +270,7 @@ bool CraftingPackets::PlaceCatalyst(uint64_t guid, uint32_t entry, int preferred
 	return true;
 }
 
-bool CraftingPackets::PlaceScrapItem(uint64_t guid, uint32_t entry, int preferredSlot)
+bool CraftingPackets::PlaceScrapItem(uint64 guid, uint32 entry, int preferredSlot)
 {
 	if (m_craftPending || m_scrapPending)
 	{
@@ -307,7 +295,7 @@ bool CraftingPackets::PlaceScrapItem(uint64_t guid, uint32_t entry, int preferre
 		slot = preferredSlot;
 	else
 	{
-		for (uint32_t i = 0; i < MaxScrapItems; ++i)
+		for (uint32 i = 0; i < MaxScrapItems; ++i)
 		{
 			if (!m_scrapItems[i])
 			{
@@ -341,22 +329,22 @@ bool CraftingPackets::HandleUseContainerItem(lua_State* L)
 
 	int bag = static_cast<int>(FrameScript::GetNumber(L, 1));
 	int slot = static_cast<int>(FrameScript::GetNumber(L, 2));
-	void* item = Containers::GetLuaContainerItem(bag, slot);
+	WowItem item = WowItem::FromBagSlot(bag, slot);
 	if (!item)
 		return false;
 
-	uint32_t entry = ItemEntry(item);
+	uint32 entry = item.Entry();
 	bool wanted = m_mode == MODE_CRAFTING ? IsCatalystEntry(entry) : IsScrapCandidate(entry);
 	if (!wanted)
 		return false;
 
-	if (Containers::IsItemLocked(item))
+	if (item.IsLocked())
 	{
 		SignalError(CRAFT_ERR_ITEM_LOCKED);
 		return true;
 	}
 
-	uint64_t guid = ItemGuid(item);
+	uint64 guid = item.Guid();
 	bool placed = m_mode == MODE_CRAFTING ? PlaceCatalyst(guid, entry, -1) : PlaceScrapItem(guid, entry, -1);
 	if (placed)
 		LockItem(guid);
@@ -369,15 +357,15 @@ bool CraftingPackets::AddCursorItem(Mode mode, int preferredSlot)
 	if (!m_open)
 		return false;
 
-	uint64_t guid = CGGameUI::GetCursorItem();
+	uint64 guid = CGGameUI::GetCursorItem();
 	if (!guid)
 		return false;
 
-	CGObject_C* item = ClientData::ObjectManager::ObjectPtr(guid, TYPEMASK_ITEM);
+	WowItem item = WowItem::FromGuid(guid);
 	if (!item)
 		return false;
 
-	uint32_t entry = ItemEntry(item);
+	uint32 entry = item.Entry();
 	bool placed = mode == MODE_CRAFTING ? PlaceCatalyst(guid, entry, preferredSlot) : PlaceScrapItem(guid, entry, preferredSlot);
 	if (!placed)
 		return false;
@@ -389,17 +377,17 @@ bool CraftingPackets::AddCursorItem(Mode mode, int preferredSlot)
 
 void CraftingPackets::UnlockAllSlots()
 {
-	for (uint64_t& guid : m_catalysts)
+	for (uint64& guid : m_catalysts)
 		UnlockItem(guid);
-	for (uint64_t& guid : m_scrapItems)
+	for (uint64& guid : m_scrapItems)
 		UnlockItem(guid);
 }
 
 void CraftingPackets::ClearSlots()
 {
-	for (uint64_t& guid : m_catalysts)
+	for (uint64& guid : m_catalysts)
 		guid = 0;
-	for (uint64_t& guid : m_scrapItems)
+	for (uint64& guid : m_scrapItems)
 		guid = 0;
 }
 
@@ -464,8 +452,8 @@ bool CraftingPackets::SendScrap()
 	if (!m_open || m_craftPending || m_scrapPending)
 		return false;
 
-	uint8_t count = 0;
-	for (uint64_t guid : m_scrapItems)
+	uint8 count = 0;
+	for (uint64 guid : m_scrapItems)
 		if (guid)
 			++count;
 
@@ -474,7 +462,7 @@ bool CraftingPackets::SendScrap()
 
 	Packet packet(CMSG_CRAFTING_SCRAP);
 	packet.PutUInt8(count);
-	for (uint64_t guid : m_scrapItems)
+	for (uint64 guid : m_scrapItems)
 		if (guid)
 			packet.PutUInt64(guid);
 	packet.Send();
@@ -486,16 +474,16 @@ bool CraftingPackets::SendScrap()
 
 void CraftingPackets::CheckStationRange()
 {
-	CGObject_C* player = ClientData::ObjectManager::GetActivePlayerObject();
-	CGObject_C* station = m_station ? ClientData::ObjectManager::ObjectPtr(m_station, TYPEMASK_GAMEOBJECT) : nullptr;
-	if (!player || !station || player->distance(station) > m_interactRange + kRangeTolerance)
+	WowPlayer player = WowPlayer::Active();
+	WowGameObject station = WowGameObject::FromGuid(m_station);
+	if (!player || !station || player.DistanceTo(station) > m_interactRange + kRangeTolerance)
 	{
 		CloseInternal(true, true);
 		return;
 	}
 
 	bool catalystsChanged = false;
-	for (uint64_t& guid : m_catalysts)
+	for (uint64& guid : m_catalysts)
 	{
 		if (guid && !ClientData::ObjectManager::ObjectPtr(guid, TYPEMASK_ITEM))
 		{
@@ -505,7 +493,7 @@ void CraftingPackets::CheckStationRange()
 	}
 
 	bool scrapChanged = false;
-	for (uint64_t& guid : m_scrapItems)
+	for (uint64& guid : m_scrapItems)
 	{
 		if (guid && !ClientData::ObjectManager::ObjectPtr(guid, TYPEMASK_ITEM))
 		{
@@ -522,14 +510,14 @@ void CraftingPackets::CheckStationRange()
 
 void CraftingPackets::CheckPendingTimeouts()
 {
-	uint32_t now = GetTickCount();
-	if (m_craftPending && static_cast<int32_t>(now - m_craftPendingUntil) >= 0)
+	uint32 now = GetTickCount();
+	if (m_craftPending && static_cast<int32>(now - m_craftPendingUntil) >= 0)
 	{
 		m_craftPending = false;
 		FrameXMLExtensions::SignalEvent("HOT_CRAFTING_RESULT", "%d%d", static_cast<int>(kResultTimedOut), 0);
 	}
 
-	if (m_scrapPending && static_cast<int32_t>(now - m_scrapPendingUntil) >= 0)
+	if (m_scrapPending && static_cast<int32>(now - m_scrapPendingUntil) >= 0)
 	{
 		m_scrapPending = false;
 		FrameXMLExtensions::SignalEvent("HOT_CRAFTING_SCRAP_RESULT", "%d%d%d", static_cast<int>(kResultTimedOut), 0, 0);
@@ -541,8 +529,8 @@ void CraftingPackets::Tick()
 	if (!m_open)
 		return;
 
-	uint32_t now = GetTickCount();
-	if (static_cast<int32_t>(now - m_nextRangeCheck) >= 0)
+	uint32 now = GetTickCount();
+	if (static_cast<int32>(now - m_nextRangeCheck) >= 0)
 	{
 		m_nextRangeCheck = now + kRangeCheckIntervalMs;
 		CheckStationRange();
@@ -553,7 +541,7 @@ void CraftingPackets::Tick()
 	CheckPendingTimeouts();
 }
 
-void CraftingPackets::Handler_SMSG_CRAFTING_DATA(void*, uint32_t, uint32_t, CDataStore* pkt)
+void CraftingPackets::Handler_SMSG_CRAFTING_DATA(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	CraftingPackets& self = Instance();
@@ -569,9 +557,9 @@ void CraftingPackets::Handler_SMSG_CRAFTING_DATA(void*, uint32_t, uint32_t, CDat
 	self.m_recipeLookup.clear();
 	self.m_catalystLookup.clear();
 
-	uint8_t patternCount = r.GetUInt8();
+	uint8 patternCount = r.GetUInt8();
 	self.m_patterns.reserve(patternCount);
-	for (uint8_t i = 0; i < patternCount; ++i)
+	for (uint8 i = 0; i < patternCount; ++i)
 	{
 		PatternInfo info;
 		info.entry = r.GetUInt32();
@@ -579,9 +567,9 @@ void CraftingPackets::Handler_SMSG_CRAFTING_DATA(void*, uint32_t, uint32_t, CDat
 		self.m_patterns.push_back(info);
 	}
 
-	uint8_t materialCount = r.GetUInt8();
+	uint8 materialCount = r.GetUInt8();
 	self.m_materials.reserve(materialCount);
-	for (uint8_t i = 0; i < materialCount; ++i)
+	for (uint8 i = 0; i < materialCount; ++i)
 	{
 		MaterialInfo info;
 		info.entry = r.GetUInt32();
@@ -589,9 +577,9 @@ void CraftingPackets::Handler_SMSG_CRAFTING_DATA(void*, uint32_t, uint32_t, CDat
 		self.m_materials.push_back(info);
 	}
 
-	uint16_t recipeCount = r.GetUInt16();
+	uint16 recipeCount = r.GetUInt16();
 	self.m_recipes.reserve(recipeCount);
-	for (uint16_t i = 0; i < recipeCount; ++i)
+	for (uint16 i = 0; i < recipeCount; ++i)
 	{
 		RecipeInfo info;
 		info.pattern = r.GetUInt32();
@@ -602,9 +590,9 @@ void CraftingPackets::Handler_SMSG_CRAFTING_DATA(void*, uint32_t, uint32_t, CDat
 		self.m_recipeLookup[MakeRecipeKey(info.pattern, info.material)] = info;
 	}
 
-	uint8_t catalystCount = r.GetUInt8();
+	uint8 catalystCount = r.GetUInt8();
 	self.m_catalystList.reserve(catalystCount);
-	for (uint8_t i = 0; i < catalystCount; ++i)
+	for (uint8 i = 0; i < catalystCount; ++i)
 	{
 		CatalystInfo info;
 		info.entry = r.GetUInt32();
@@ -618,12 +606,12 @@ void CraftingPackets::Handler_SMSG_CRAFTING_DATA(void*, uint32_t, uint32_t, CDat
 	FrameXMLExtensions::SignalEvent("HOT_CRAFTING_DATA_UPDATE", "%d", static_cast<int>(self.m_dataVersion));
 }
 
-void CraftingPackets::Handler_SMSG_CRAFTING_OPEN(void*, uint32_t, uint32_t, CDataStore* pkt)
+void CraftingPackets::Handler_SMSG_CRAFTING_OPEN(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint64_t station = r.GetUInt64();
+	uint64 station = r.GetUInt64();
 	r.GetUInt32();
-	uint8_t flags = r.GetUInt8();
+	uint8 flags = r.GetUInt8();
 
 	CraftingPackets& self = Instance();
 	if (self.m_open)
@@ -643,23 +631,23 @@ void CraftingPackets::Handler_SMSG_CRAFTING_OPEN(void*, uint32_t, uint32_t, CDat
 	FrameXMLExtensions::SignalEvent("HOT_CRAFTING_OPEN", "%d", static_cast<int>(flags));
 }
 
-void CraftingPackets::Handler_SMSG_CRAFTING_CLOSE(void*, uint32_t, uint32_t, CDataStore*)
+void CraftingPackets::Handler_SMSG_CRAFTING_CLOSE(void*, uint32, uint32, CDataStore*)
 {
 	Instance().CloseInternal(false, true);
 }
 
-void CraftingPackets::Handler_SMSG_CRAFTING_RESULT(void*, uint32_t, uint32_t, CDataStore* pkt)
+void CraftingPackets::Handler_SMSG_CRAFTING_RESULT(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint8_t code = r.GetUInt8();
-	uint32_t resultEntry = r.GetUInt32();
+	uint8 code = r.GetUInt8();
+	uint32 resultEntry = r.GetUInt32();
 
 	CraftingPackets& self = Instance();
 	self.m_craftPending = false;
 
 	if (code == 0)
 	{
-		for (uint64_t& guid : self.m_catalysts)
+		for (uint64& guid : self.m_catalysts)
 		{
 			UnlockItem(guid);
 			guid = 0;
@@ -670,11 +658,11 @@ void CraftingPackets::Handler_SMSG_CRAFTING_RESULT(void*, uint32_t, uint32_t, CD
 	FrameXMLExtensions::SignalEvent("HOT_CRAFTING_RESULT", "%d%d", static_cast<int>(code), static_cast<int>(resultEntry));
 }
 
-void CraftingPackets::Handler_SMSG_CRAFTING_SCRAP_RESULT(void*, uint32_t, uint32_t, CDataStore* pkt)
+void CraftingPackets::Handler_SMSG_CRAFTING_SCRAP_RESULT(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint8_t code = r.GetUInt8();
-	uint8_t count = r.GetUInt8();
+	uint8 code = r.GetUInt8();
+	uint8 count = r.GetUInt8();
 
 	CraftingPackets& self = Instance();
 	self.m_scrapPending = false;
@@ -682,10 +670,10 @@ void CraftingPackets::Handler_SMSG_CRAFTING_SCRAP_RESULT(void*, uint32_t, uint32
 	int scrapped = 0;
 	int rejected = 0;
 	bool changed = false;
-	for (uint8_t i = 0; i < count; ++i)
+	for (uint8 i = 0; i < count; ++i)
 	{
-		uint64_t guid = r.GetUInt64();
-		uint8_t result = r.GetUInt8();
+		uint64 guid = r.GetUInt64();
+		uint8 result = r.GetUInt8();
 		if (result == kScrapItemSkipped)
 			continue;
 
@@ -694,7 +682,7 @@ void CraftingPackets::Handler_SMSG_CRAFTING_SCRAP_RESULT(void*, uint32_t, uint32
 		else
 			++rejected;
 
-		for (uint64_t& slotGuid : self.m_scrapItems)
+		for (uint64& slotGuid : self.m_scrapItems)
 		{
 			if (slotGuid == guid)
 			{
@@ -835,8 +823,8 @@ int CraftingPackets::Script_CraftingGetRecipe(lua_State* L)
 		return 1;
 	}
 
-	uint32_t pattern = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
-	uint32_t material = static_cast<uint32_t>(FrameScript::GetNumber(L, 2));
+	uint32 pattern = static_cast<uint32>(FrameScript::GetNumber(L, 1));
+	uint32 material = static_cast<uint32>(FrameScript::GetNumber(L, 2));
 	CraftingPackets& self = Instance();
 	auto it = self.m_recipeLookup.find(MakeRecipeKey(pattern, material));
 	if (it == self.m_recipeLookup.end())
@@ -858,7 +846,7 @@ int CraftingPackets::Script_CraftingGetCatalystInfo(lua_State* L)
 		return 1;
 	}
 
-	uint32_t entry = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 entry = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	CraftingPackets& self = Instance();
 	auto it = self.m_catalystLookup.find(entry);
 	if (it == self.m_catalystLookup.end())
@@ -876,9 +864,9 @@ int CraftingPackets::Script_CraftingGetCatalystInfo(lua_State* L)
 int CraftingPackets::Script_CraftingSetPattern(lua_State* L)
 {
 	CraftingPackets& self = Instance();
-	uint32_t entry = 0;
+	uint32 entry = 0;
 	if (FrameScript::GetTop(L) >= 1 && FrameScript::IsNumber(L, 1))
-		entry = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+		entry = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 
 	bool known = false;
 	for (const PatternInfo& info : self.m_patterns)
@@ -892,9 +880,9 @@ int CraftingPackets::Script_CraftingSetPattern(lua_State* L)
 int CraftingPackets::Script_CraftingSetMaterial(lua_State* L)
 {
 	CraftingPackets& self = Instance();
-	uint32_t entry = 0;
+	uint32 entry = 0;
 	if (FrameScript::GetTop(L) >= 1 && FrameScript::IsNumber(L, 1))
-		entry = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+		entry = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 
 	bool known = false;
 	for (const MaterialInfo& info : self.m_materials)
@@ -921,7 +909,7 @@ int CraftingPackets::Script_CraftingGetSelection(lua_State* L)
 	return 2;
 }
 
-int CraftingPackets::PushItemRef(lua_State* L, uint64_t guid)
+int CraftingPackets::PushItemRef(lua_State* L, uint64 guid)
 {
 	ItemRef ref;
 	if (!ResolveItem(guid, ref))
@@ -1001,7 +989,7 @@ int CraftingPackets::Script_CraftingGetScrapItem(lua_State* L)
 int CraftingPackets::Script_CraftingGetNumScrapItems(lua_State* L)
 {
 	int count = 0;
-	for (uint64_t guid : Instance().m_scrapItems)
+	for (uint64 guid : Instance().m_scrapItems)
 		if (guid)
 			++count;
 
@@ -1047,7 +1035,7 @@ int CraftingPackets::Script_CraftingClearSlots(lua_State* L)
 
 	if ((mode == -1 || mode == MODE_CRAFTING) && !self.m_craftPending)
 	{
-		for (uint64_t& guid : self.m_catalysts)
+		for (uint64& guid : self.m_catalysts)
 		{
 			UnlockItem(guid);
 			guid = 0;
@@ -1057,7 +1045,7 @@ int CraftingPackets::Script_CraftingClearSlots(lua_State* L)
 
 	if ((mode == -1 || mode == MODE_SCRAPPING) && !self.m_scrapPending)
 	{
-		for (uint64_t& guid : self.m_scrapItems)
+		for (uint64& guid : self.m_scrapItems)
 		{
 			UnlockItem(guid);
 			guid = 0;

@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <cstddef>
 
@@ -88,13 +90,13 @@ namespace ModernM2::Offsets::M2
     // destructor's matching free call stays valid. Call-site constants replicated from kInit:
     // name ".\\M2Shared.cpp", line 0x2DC, flags 8.
     constexpr uintptr_t kSMemAlloc = 0x0076E540;
-    using SMemAllocFn = void*(__stdcall*)(uint32_t size, const char* name, uint32_t line, uint32_t flags);
+    using SMemAllocFn = void*(__stdcall*)(uint32 size, const char* name, uint32 line, uint32 flags);
     constexpr size_t   kOffModelExtSeqCount  = 0x24; // uint32: sequences whose data streams from .anim
     constexpr size_t   kOffModelExtSeqArray  = 0x28; // -> allocator-owned u32 array (count * 4)
     constexpr size_t   kOffModelExtSeqCursor = 0x2C; // uint32: zeroed by kInit's tail
 
     // Per-field header readers driven by kInit's offset->pointer walk. Shared cdecl shape:
-    //   int Read*(uint8_t* base, uint32_t size, void* header, M2Array* arr)
+    //   int Read*(uint8* base, uint32 size, void* header, M2Array* arr)
     // Each validates arr->offset (+ count * stride) against size, then rewrites arr->offset into
     // base + offset (a raw pointer) -- count == 0 zeroes the pointer. The track-bearing readers
     // (bones/colors/transparency/uvanim/attachments/events/lights/ribbons) additionally fix the
@@ -127,7 +129,7 @@ namespace ModernM2::Offsets::M2
     constexpr uintptr_t kReadCameras      = 0x00839EF0;
     // Ribbons (stride 0xB0, identical 264 vs 272-274): the reader IS the already-curated
     // kRibbonDeRelocate (0x83A460); reuse that constant.
-    using M2_HeaderReadFn = int(__cdecl*)(uint8_t* base, uint32_t size, void* header, void* array);
+    using M2_HeaderReadFn = int(__cdecl*)(uint8* base, uint32 size, void* header, void* array);
 
     // Load-vs-rebase state global read by every header reader: 0xFFFFFFFF during the load-time walk
     // (fix outer arrays + in-model inners), a sequence index while kPerSeqDeReloc re-drives one
@@ -137,7 +139,7 @@ namespace ModernM2::Offsets::M2
 
     constexpr uintptr_t kSceneTriangleHitTest = 0x0081D510;
     using M2_SceneTriangleHitTestFn = int(__fastcall*)(
-        void* scratch, void* edx, uint16_t* indexBegin, uint16_t* indexEnd, int vertexBase,
+        void* scratch, void* edx, uint16* indexBegin, uint16* indexEnd, int vertexBase,
         float* point, int mode, int candidate, float* bestDepth, int currentHit);
 
     // .skin filename builder (pathStem, profileIndex, outBuf): copies the path, strips the extension,
@@ -149,7 +151,7 @@ namespace ModernM2::Offsets::M2
     // already-open buffer of its own (any filename) calls kFinishLoadingSkinProfile directly instead.
     constexpr uintptr_t kLoadSkinProfile = 0x0083CB40;
     // Size of the engine sibling-file path buffer the builders write into.
-    constexpr uint32_t  kSkinPathBufSize = 0x108;
+    constexpr uint32  kSkinPathBufSize = 0x108;
     // Parses the raw skin buffer already sitting at model+0x170 (fileSize bytes) in place -- the five
     // M2Array pairs at +4/+0xc/+0x14/+0x1c/+0x24 (vertexLookup/indices/bones/submeshes/batches,
     // strides 2/2/4/0x30/0x18) rewritten from file offsets to absolute pointers -- then calls
@@ -157,7 +159,7 @@ namespace ModernM2::Offsets::M2
     // kLoadSkinProfile's async completion; callable directly for a buffer sourced any other way (a
     // sibling LOD skin, a name that doesn't fit "%s%02d.skin"). thiscall(model, fileSize) -> bool.
     constexpr uintptr_t kFinishLoadingSkinProfile = 0x00838490;
-    using M2_FinishLoadingSkinProfileFn = int(__fastcall*)(void* model, void* edx, uint32_t fileSize);
+    using M2_FinishLoadingSkinProfileFn = int(__fastcall*)(void* model, void* edx, uint32 fileSize);
 
     // --- ground-shadow pass (the "shadow swings with the camera" bug) -------------------------
     // Projected-decal draw entry. NOT a shadow function despite the name it once carried elsewhere --
@@ -228,10 +230,10 @@ namespace ModernM2::Offsets::M2
     struct ParticleStrideSite
     {
         uintptr_t va;        ///< instruction address
-        uint8_t   length;    ///< 6 or 7 bytes; the thunk call is 5, remainder padded with nop
-        uint8_t   headerReg; ///< index into kStrideHeaderSrc below
-        uint8_t   opKind;    ///< index into kStrideOp below
-        int8_t    disp;      ///< frame displacement for the [ebp+disp] forms, else 0
+        uint8   length;    ///< 6 or 7 bytes; the thunk call is 5, remainder padded with nop
+        uint8   headerReg; ///< index into kStrideHeaderSrc below
+        uint8   opKind;    ///< index into kStrideOp below
+        int8    disp;      ///< frame displacement for the [ebp+disp] forms, else 0
     };
 
     // Where the MD20 header pointer lives AT each site, and what the original instruction did.
@@ -263,9 +265,9 @@ namespace ModernM2::Offsets::M2
         { 0x00825470, 6, 5, 2,  0 },
     };
 
-    constexpr uint32_t kParticleStrideClient = 0x1DC; // v264
-    constexpr uint32_t kParticleStrideModern = 0x1EC; // v272-274
-    constexpr uint32_t kParticleModernMinVer = 272;   // gate: header[0x04] > 271
+    constexpr uint32 kParticleStrideClient = 0x1DC; // v264
+    constexpr uint32 kParticleStrideModern = 0x1EC; // v272-274
+    constexpr uint32 kParticleModernMinVer = 272;   // gate: header[0x04] > 271
 
     // --- camera record stride by source era ---------------------------------------------------
     // Unlike the emitter, the wider source camera is not the client record with fields appended: the
@@ -273,9 +275,9 @@ namespace ModernM2::Offsets::M2
     // every field from +0x08 on sits 4 bytes earlier in the source form. 0x64 - 4 + 0x14 = 0x74.
     // The native reader reshapes each record to the client layout at load (fov filled from the first
     // key of the source track), so nothing downstream ever steps 0x74.
-    constexpr uint32_t kCameraStrideClient = 0x64;  // v264
-    constexpr uint32_t kCameraStrideModern = 0x74;  // v272-274
-    constexpr uint32_t kCameraModernMinVer = 272;   // gate: header[0x04] > 271
+    constexpr uint32 kCameraStrideClient = 0x64;  // v264
+    constexpr uint32 kCameraStrideModern = 0x74;  // v272-274
+    constexpr uint32 kCameraModernMinVer = 272;   // gate: header[0x04] > 271
 
     // --- packed multi-texture textureId read sites ------------------------------------------
     // With emitter flag 0x10000000 the textureId at record+0x16 is three packed 5-bit ids, so the raw
@@ -290,10 +292,10 @@ namespace ModernM2::Offsets::M2
     // id2/id3 drive multi-texture particle blending the target renderer has no path for, so id1 is the
     // whole of what this client can consume.
     constexpr uintptr_t kParticleTexIdInitLoaded  = 0x00833ED9; // mov ecx,[eax+0x174]  (6 bytes)
-    constexpr uint32_t  kParticleTexIdInitLen     = 6;
+    constexpr uint32  kParticleTexIdInitLen     = 6;
     constexpr uintptr_t kParticleTexIdReplaceTex  = 0x00825349; // movzx eax,[ecx+edx+0x16] (5 bytes)
-    constexpr uint32_t  kParticleTexIdReplaceLen  = 5;
-    constexpr uint32_t  kParticleFlagMultiTex     = 0x10000000;
+    constexpr uint32  kParticleTexIdReplaceLen  = 5;
+    constexpr uint32  kParticleFlagMultiTex     = 0x10000000;
 
     // Z-source setter for a plane particle emitter -- 39 bytes, exactly two callers (0x00830BFD in the
     // single-threaded particle animate, 0x00833CF3 in the post-load sizing pass). Modern content
@@ -327,13 +329,13 @@ namespace ModernM2::Offsets::M2
     // and is cleared for every blended one.
     constexpr size_t   kOffEmitterBlendState     = 0xD0;
     constexpr size_t   kOffEmitterMaterialFlags  = 0xD4;
-    constexpr uint32_t kEmitterMaterialAlphaTest = 0x4;
+    constexpr uint32 kEmitterMaterialAlphaTest = 0x4;
     constexpr size_t kOffEmitterHeadCellBlock = 0xEC;  // -> the record's head-cell count+offset pair
     constexpr size_t kOffEmitterAtlasRows     = 0x120;
     constexpr size_t kOffEmitterAtlasCols     = 0x124;
     constexpr size_t kOffEmitterFlags         = 0x134;
     constexpr size_t kOffEmitterParentModel   = 0x184; // frame of reference passed to EmitNewParticles
-    constexpr uint32_t kParticleRecordStride  = 0x20;
+    constexpr uint32 kParticleRecordStride  = 0x20;
     constexpr size_t kOffParticleAge          = 0x00;  // seconds; the particle dies once it reaches lifespan
     constexpr size_t kOffParticlePosition     = 0x04;
     constexpr size_t kOffParticleVelocity     = 0x10;
@@ -355,7 +357,7 @@ namespace ModernM2::Offsets::M2
     // the emission period past the lifetime and the effect goes dark between particles.
     constexpr uintptr_t kEmitNewParticles = 0x0097D8C0;
     using M2_EmitNewParticlesFn = void(__fastcall*)(void* emitter, void* edx, float dt, void* frame);
-    constexpr uint32_t kEmitterIgnoreDistance = 0x400000;
+    constexpr uint32 kEmitterIgnoreDistance = 0x400000;
     constexpr float    kEmitterRateFloor      = 0.25f;
 
     // Emitter pool sync -- vtable SLOT 0 of every emitter kind, called once per frame per enabled
@@ -374,7 +376,7 @@ namespace ModernM2::Offsets::M2
     // SyncAllocation(count) grows the pool to count, and only ever grows: it early-outs when the
     // current size already covers the request, so re-requesting a larger size is safe and idempotent.
     constexpr uintptr_t kEmitterSyncAllocation = 0x0097E480;
-    using M2_EmitterSyncAllocationFn = void(__fastcall*)(void* emitter, void* edx, uint32_t count);
+    using M2_EmitterSyncAllocationFn = void(__fastcall*)(void* emitter, void* edx, uint32 count);
     // The model's post-load sizing pass -- builds every emitter of a loaded model, then wires each
     // one's record pointers into it. Native this-in-ECX, no stack arguments. It maps the record's
     // blend mode through a SEVEN-case jump table (0x008344DC, source modes 0..6) into a device blend state;
@@ -383,13 +385,13 @@ namespace ModernM2::Offsets::M2
     // lands there. The record's own field offsets are needed to tell that case apart afterwards,
     // because the default arm and a genuine mode 0 leave identical results behind.
     constexpr uintptr_t kInitializeLoaded = 0x00832EA0;
-    using M2_InitializeLoadedFn = uint32_t(__fastcall*)(void* model, void* edx);
+    using M2_InitializeLoadedFn = uint32(__fastcall*)(void* model, void* edx);
     constexpr size_t kParticleRecBlendMode = 0x028;
     constexpr size_t kParticleRecHeadCells = 0x13C; // what kOffEmitterHeadCellBlock points at
-    constexpr uint8_t kParticleBlendModeMax = 6;    // highest source mode the jump table covers
+    constexpr uint8 kParticleBlendModeMax = 6;    // highest source mode the jump table covers
 
     constexpr float    kEmitterPoolHeadroom = 1.15f;
-    constexpr uint32_t kEmitterPoolCeiling  = 0x1000;
+    constexpr uint32 kEmitterPoolCeiling  = 0x1000;
     constexpr size_t   kOffEmitterChildCount = 0x6C;
     constexpr size_t   kOffEmitterChildArray = 0x70; // INLINE array of particle emitter*, not a pointer
 
@@ -416,7 +418,7 @@ namespace ModernM2::Offsets::M2
     constexpr uintptr_t kAnimBufferAlloc = 0x0083DE50;
     constexpr uintptr_t kBufferAlloc     = 0x0083DE50; // alias: same allocator, used for buffer swaps
     constexpr uintptr_t kBufferFree      = 0x0083DE90; // free a kBufferAlloc pointer (recovers base via [ptr-1])
-    using M2_BufferAllocFn = void*(__cdecl*)(uint32_t size, const char* tag, int line);
+    using M2_BufferAllocFn = void*(__cdecl*)(uint32 size, const char* tag, int line);
     using M2_BufferFreeFn  = void (__cdecl*)(void* ptr);
 
     // I/O record field offsets used by the rebase: the buffer base and its byte size.
@@ -572,7 +574,7 @@ namespace ModernM2::Offsets::M2
     // ~0x0082204A, the batch-doodad-compatible-count pass ~0x00827F3B); both call sites verified to
     // enter at x87 depth 0, so this has no FPU hazard to worry about in a detour.
     constexpr uintptr_t kIsBatchDoodadCompatible = 0x00824550;
-    using M2_IsBatchDoodadCompatibleFn = int(__fastcall*)(void* instance, void* edx, uint8_t* submeshFlags);
+    using M2_IsBatchDoodadCompatibleFn = int(__fastcall*)(void* instance, void* edx, uint8* submeshFlags);
 
     // Draw-context material setup(this): native thiscall, ZERO stack args, ret (bare, no pop). `this`
     // is a scene-render-shaped draw-context object, forwarded unchanged from the caller's own `this`
@@ -643,8 +645,8 @@ namespace ModernM2::Offsets::M2
     constexpr uintptr_t kSamplerBind = 0x00685F50;
     // Sampler selectors for the engine bind path: s0 = 0x15, consecutive. The native ribbon loop binds
     // only s0; the extra layers of a multi-texture ribbon are bound to s1/s2 so they survive one pass.
-    constexpr uint32_t kSamplerSelS1 = 0x16;
-    constexpr uint32_t kSamplerSelS2 = 0x17;
+    constexpr uint32 kSamplerSelS1 = 0x16;
+    constexpr uint32 kSamplerSelS2 = 0x17;
 
     // --- attachment / render-context functions ---
     // CreateSceneModel(scene, path, flags): loads (or takes a shared reference to) the model named by
@@ -674,7 +676,7 @@ namespace ModernM2::Offsets::M2
     // replay the clearing half of that wiring at minimum.
     constexpr uintptr_t kSetSequenceCallback = 0x00823FE0;
     constexpr uintptr_t kSetEventCallback    = 0x00824060;
-    using M2_SetCallbackFn = void(__fastcall*)(void* renderCtx, void* edx, void* fn, void* userData, uint32_t extra);
+    using M2_SetCallbackFn = void(__fastcall*)(void* renderCtx, void* edx, void* fn, void* userData, uint32 extra);
     // SetBoneSequence(slot, seqId, prevSeqId, prevSubSeqId, blendTime, loop, primary). __thiscall,
     // ECX=the M2 instance, 7 stack params (ret 0x1c = 28 bytes). 67 real callers spanning character
     // creation/selection, hand micro-animations, and general gameplay code -- the client's
@@ -721,10 +723,10 @@ namespace ModernM2::Offsets::M2
     //     site (a doodad respawn: SetBoneSequence(-1, 0, -1, 0, 1.0f, 1, 1), i.e. slot=-1, seqId=0/
     //     Stand, primary=1). NOT independently confirmed the way slot/seqId/primary now are.
     constexpr uintptr_t kSetBoneSequence = 0x00832AB0;
-    using M2_SetBoneSequenceFn = void(__fastcall*)(void* instance, void* edx, uint32_t slot,
-                                                     uint32_t seqId, uint32_t prevSeqId,
-                                                     uint32_t prevSubSeqId, float blendTime,
-                                                     uint32_t loop, uint32_t primary);
+    using M2_SetBoneSequenceFn = void(__fastcall*)(void* instance, void* edx, uint32 slot,
+                                                     uint32 seqId, uint32 prevSeqId,
+                                                     uint32 prevSubSeqId, float blendTime,
+                                                     uint32 loop, uint32 primary);
     // GetSequenceIndexByAnimId_Variation(header, seqId, variationSkip) -> local sequence-array index
     // (0xFFFF if not found). NOT a member-function-style call the way most of this file's functions
     // are: all 3 real parameters are stack args, callee-cleaned (single `ret 0xc`) -- at least one
@@ -741,8 +743,8 @@ namespace ModernM2::Offsets::M2
     // in a variationSkip-bounded loop while resolving a *variation* request -- this is what
     // confirmed nextAnimation's offset and chain-index role.
     constexpr uintptr_t kGetSequenceIndexByAnimIdVariation = 0x008260C0;
-    using M2_GetSequenceIndexByAnimIdVariationFn = uint16_t(__fastcall*)(
-        void* ecxUnused, void* edxUnused, void* header, uint32_t seqId, uint32_t variationSkip);
+    using M2_GetSequenceIndexByAnimIdVariationFn = uint16(__fastcall*)(
+        void* ecxUnused, void* edxUnused, void* header, uint32 seqId, uint32 variationSkip);
     // BindTexSlot(renderCtx, modelPtr): binds the M2 model resource to texture slot key 2 (main texture).
     constexpr uintptr_t kBindTexSlot        = 0x00825260;
     // LoadResource(path, flags): loads a texture/resource by virtual path through the texture-create path.
@@ -804,12 +806,12 @@ namespace ModernM2::Offsets::M2
     constexpr size_t kOffInstTransStage     = 0x1AC; // float[3]: staged translation
 
     // Init-flag bits (kOffInstInitFlags) the palette build and its cadence logic consult.
-    constexpr uint32_t kInstFlagLive       = 0x1;      // instance participates in animation at all
-    constexpr uint32_t kInstFlagAnimDirty  = 0x400;    // pending state change; cleared by the full build tail
-    constexpr uint32_t kInstFlagSimplePath = 0x1000;   // routed to the single-bone fast-path build
-    constexpr uint32_t kInstFlagChildBase  = 0x40000;  // unslotted child rides the parent's palette slot 0
-    constexpr uint32_t kInstFlagFixedTrans = 0x80000;  // staged translation ignores the caller's offset
-    constexpr uint32_t kInstFlagFixedSpeed = 0x100000; // staged speed ignores the caller's multiplier
+    constexpr uint32 kInstFlagLive       = 0x1;      // instance participates in animation at all
+    constexpr uint32 kInstFlagAnimDirty  = 0x400;    // pending state change; cleared by the full build tail
+    constexpr uint32 kInstFlagSimplePath = 0x1000;   // routed to the single-bone fast-path build
+    constexpr uint32 kInstFlagChildBase  = 0x40000;  // unslotted child rides the parent's palette slot 0
+    constexpr uint32 kInstFlagFixedTrans = 0x80000;  // staged translation ignores the caller's offset
+    constexpr uint32 kInstFlagFixedSpeed = 0x100000; // staged speed ignores the caller's multiplier
     constexpr size_t kOffInstBonePalette    = 0x98;  // -> bone matrices, row-major 4x4
     constexpr size_t kBonePaletteStride     = 0x40;  // one bone matrix
     // Model->world placement, an INLINE 64-byte matrix (the shadow loop reads &instance+0xb4).
@@ -892,7 +894,7 @@ namespace ModernM2::Offsets::M2
     constexpr size_t kOffHdrGlobalFlags    = 0x10; // bit 0x20 = model carries physics
     // Global-flag bit 0x4: the staged speed/scale/translation ignore the caller's arguments and
     // come from the instance's base fields alone (the palette build's alternate staging branch).
-    constexpr uint32_t kHdrFlagFixedStaging = 0x4;
+    constexpr uint32 kHdrFlagFixedStaging = 0x4;
     constexpr size_t kOffHdrSeqCount       = 0x1C; // sequence records
     constexpr size_t kOffHdrSeqPtr         = 0x20; // -> sequence records (stride kSeqStride)
     constexpr size_t kSeqStride            = 0x40;
@@ -962,11 +964,11 @@ namespace ModernM2::Offsets::M2
     constexpr size_t   kOffBoneRotTrack   = 0x24; // rotation track head
     constexpr size_t   kOffBoneScaleTrack = 0x38; // scale track head
     constexpr size_t   kOffBonePivot      = 0x4C; // pivot (bone origin in bind space)
-    constexpr uint32_t kBoneBillboardMask = 0x78; // spherical + cylindrical-lock bits
+    constexpr uint32 kBoneBillboardMask = 0x78; // spherical + cylindrical-lock bits
     // Effective bone flags = runtime override mask OR'd with the static flags. Masks the build tests:
-    constexpr uint32_t kBoneIgnoreParentMask = 0x07;  // rebuild against the instance root instead of the parent
-    constexpr uint32_t kBoneAnimatedMask     = 0x280; // bone carries its own local transform
-    constexpr uint32_t kBoneProceduralFlag   = 0x80;  // multiplies in the externally supplied matrix
+    constexpr uint32 kBoneIgnoreParentMask = 0x07;  // rebuild against the instance root instead of the parent
+    constexpr uint32 kBoneAnimatedMask     = 0x280; // bone carries its own local transform
+    constexpr uint32 kBoneProceduralFlag   = 0x80;  // multiplies in the externally supplied matrix
 
     // --- runtime bone-state block (per bone, stride kRuntimeBoneStride) ---
     // The persisted sampling records the recomposition walk reads instead of re-sampling tracks;
@@ -1029,15 +1031,15 @@ namespace ModernM2::Offsets::M2
     /**
      * @brief I/O record read by the per-sequence rebase: the loaded buffer base and its byte size.
      *
-     * Pointer-valued fields are stored as uint32_t, not void*, everywhere except the LAST field of a
+     * Pointer-valued fields are stored as uint32, not void*, everywhere except the LAST field of a
      * struct: with more than one such field, sizeof(void*) would drive the padding between them, and
-     * this header is 32/64-bit-neutral (sizeof(uint32_t) is not).
+     * this header is 32/64-bit-neutral (sizeof(uint32) is not).
      */
     struct IoRecord
     {
-        uint8_t  _pad00[kOffRecordBuffer];
-        uint32_t buffer;           // kOffRecordBuffer (loaded bytes base)
-        uint32_t size;             // kOffRecordSize (byte count)
+        uint8  _pad00[kOffRecordBuffer];
+        uint32 buffer;           // kOffRecordBuffer (loaded bytes base)
+        uint32 size;             // kOffRecordSize (byte count)
     };
     static_assert(offsetof(IoRecord, buffer) == kOffRecordBuffer, "IoRecord.buffer");
     static_assert(offsetof(IoRecord, size)   == kOffRecordSize,   "IoRecord.size");
@@ -1045,7 +1047,7 @@ namespace ModernM2::Offsets::M2
     /** @brief Async load node: holds the I/O record pointer. */
     struct LoadNode
     {
-        uint8_t  _pad00[kOffNodeRecord];
+        uint8  _pad00[kOffNodeRecord];
         void*    record;           // kOffNodeRecord -> IoRecord
     };
     static_assert(offsetof(LoadNode, record) == kOffNodeRecord, "LoadNode.record");
@@ -1053,11 +1055,11 @@ namespace ModernM2::Offsets::M2
     /** @brief SetupBatchAlpha draw context: the current element, the instance, and the live material. */
     struct DrawContext
     {
-        uint8_t  _pad00[kOffRenderCtxElement];
+        uint8  _pad00[kOffRenderCtxElement];
         void*    element;          // kOffRenderCtxElement -> current M2Element (see kOffElementAlpha/BatchIndex)
-        uint8_t  _pad54[kOffDrawCtxInstance - (kOffRenderCtxElement + sizeof(void*))];
+        uint8  _pad54[kOffDrawCtxInstance - (kOffRenderCtxElement + sizeof(void*))];
         void*    instance;         // kOffDrawCtxInstance -> M2Instance
-        uint8_t  _pad64[kOffDrawCtxMaterial - (kOffDrawCtxInstance + sizeof(void*))];
+        uint8  _pad64[kOffDrawCtxMaterial - (kOffDrawCtxInstance + sizeof(void*))];
         void*    material;         // kOffDrawCtxMaterial -> Material
     };
     static_assert(offsetof(DrawContext, element)   == kOffRenderCtxElement, "DrawContext.element");
@@ -1067,8 +1069,8 @@ namespace ModernM2::Offsets::M2
     /** @brief Live material record: the blend mode the draw uses to pick the alpha-test reference. */
     struct Material
     {
-        uint8_t  _pad00[kOffMaterialBlend];
-        uint16_t blend;            // kOffMaterialBlend (1 = alpha key)
+        uint8  _pad00[kOffMaterialBlend];
+        uint16 blend;            // kOffMaterialBlend (1 = alpha key)
     };
     static_assert(offsetof(Material, blend) == kOffMaterialBlend, "Material.blend");
 
@@ -1079,50 +1081,50 @@ namespace ModernM2::Offsets::M2
      *        logic touch: flags, links, anchors, the bone-state/palette pointers, the inline
      *        placement/root matrices and the staged speed/scale/translation block.
      *
-     * Pointer-valued fields are stored as uint32_t, not void*, everywhere except the LAST field of a
+     * Pointer-valued fields are stored as uint32, not void*, everywhere except the LAST field of a
      * struct: with more than one such field, sizeof(void*) would drive the padding between them, and
-     * this header is 32/64-bit-neutral (sizeof(uint32_t) is not). A pad between two fixed-width fields
+     * this header is 32/64-bit-neutral (sizeof(uint32) is not). A pad between two fixed-width fields
      * is only ever added when it is non-zero: MSVC's C2229 rejects a zero-length array as a non-trailing
      * member, so two adjacent fixed-width fields are left with no pad between them and rely on the
      * static_assert below to catch a future offset change instead.
      */
     struct M2Instance
     {
-        uint8_t  _pad00[kOffInstOwnerFlags];
-        uint32_t ownerFlags;       // kOffInstOwnerFlags (bit 0x20 = created via the map's doodad-
+        uint8  _pad00[kOffInstOwnerFlags];
+        uint32 ownerFlags;       // kOffInstOwnerFlags (bit 0x20 = created via the map's doodad-
                                     // placement creation family -- exclusive to ADT/WMO-placed static
                                     // doodads, confirmed across all 50 scene model-creation call sites
                                     // in the client; never set by unit/mount/missile/spell-visual/UI
                                     // creation paths)
-        uint8_t  _pad04[kOffInstInitFlags - (kOffInstOwnerFlags + sizeof(uint32_t))];
-        uint32_t initFlags;        // kOffInstInitFlags (kInstFlag* bits)
-        uint8_t  _pad14[kOffInstScene - (kOffInstInitFlags + sizeof(uint32_t))];
-        uint32_t scene;            // kOffInstScene -> owning scene
-        uint32_t model;            // kOffInstModel -> M2Model (shared model object)
-        uint8_t  _pad30[kOffInstCmdRingHead - (kOffInstModel + sizeof(uint32_t))];
-        uint32_t cmdRingHead;      // kOffInstCmdRingHead (== cmdRingTail when no deferred commands)
-        uint32_t cmdRingTail;      // kOffInstCmdRingTail
-        uint32_t lastAnimFrame;    // kOffInstLastAnimFrame (0 = never posed)
-        uint8_t  _pad40[kOffInstParent - (kOffInstLastAnimFrame + sizeof(uint32_t))];
-        uint32_t parent;           // kOffInstParent -> native parent M2 instance
-        uint32_t attachEnable;     // kOffInstAttachEnable -> enable records (stride 0xC, u8 at +0x8)
-        uint8_t  _pad50[kOffInstAttachSlot - (kOffInstAttachEnable + sizeof(uint32_t))];
-        uint32_t attachSlot;       // kOffInstAttachSlot (0xFFFF = not slot-attached)
-        uint32_t attachedHead;     // kOffInstAttachedHead -> first attached child
-        uint8_t  _pad5c[kOffInstAttachedNext - (kOffInstAttachedHead + sizeof(uint32_t))];
-        uint32_t attachedNext;     // kOffInstAttachedNext -> next sibling under the same parent
-        uint32_t freezeAnchor;     // kOffInstFreezeAnchor (nonzero = externally frozen pose)
-        uint8_t  _pad68[kOffInstViewDistSq - (kOffInstFreezeAnchor + sizeof(uint32_t))];
+        uint8  _pad04[kOffInstInitFlags - (kOffInstOwnerFlags + sizeof(uint32))];
+        uint32 initFlags;        // kOffInstInitFlags (kInstFlag* bits)
+        uint8  _pad14[kOffInstScene - (kOffInstInitFlags + sizeof(uint32))];
+        uint32 scene;            // kOffInstScene -> owning scene
+        uint32 model;            // kOffInstModel -> M2Model (shared model object)
+        uint8  _pad30[kOffInstCmdRingHead - (kOffInstModel + sizeof(uint32))];
+        uint32 cmdRingHead;      // kOffInstCmdRingHead (== cmdRingTail when no deferred commands)
+        uint32 cmdRingTail;      // kOffInstCmdRingTail
+        uint32 lastAnimFrame;    // kOffInstLastAnimFrame (0 = never posed)
+        uint8  _pad40[kOffInstParent - (kOffInstLastAnimFrame + sizeof(uint32))];
+        uint32 parent;           // kOffInstParent -> native parent M2 instance
+        uint32 attachEnable;     // kOffInstAttachEnable -> enable records (stride 0xC, u8 at +0x8)
+        uint8  _pad50[kOffInstAttachSlot - (kOffInstAttachEnable + sizeof(uint32))];
+        uint32 attachSlot;       // kOffInstAttachSlot (0xFFFF = not slot-attached)
+        uint32 attachedHead;     // kOffInstAttachedHead -> first attached child
+        uint8  _pad5c[kOffInstAttachedNext - (kOffInstAttachedHead + sizeof(uint32))];
+        uint32 attachedNext;     // kOffInstAttachedNext -> next sibling under the same parent
+        uint32 freezeAnchor;     // kOffInstFreezeAnchor (nonzero = externally frozen pose)
+        uint8  _pad68[kOffInstViewDistSq - (kOffInstFreezeAnchor + sizeof(uint32))];
         float    viewDistSq;       // kOffInstViewDistSq
-        uint8_t  _pad8c[kOffInstConstTrackGate - (kOffInstViewDistSq + sizeof(float))];
-        uint32_t constTrackGate;   // kOffInstConstTrackGate
-        uint32_t boneStates;       // kOffInstBoneStates -> RuntimeBone[boneCount]
-        uint32_t bonePalettePtr;   // kOffInstBonePalette -> heap bone-matrix buffer (row-major 4x4, kBonePaletteStride each)
-        uint8_t  _pad9c[kOffInstPlacement - (kOffInstBonePalette + sizeof(uint32_t))];
+        uint8  _pad8c[kOffInstConstTrackGate - (kOffInstViewDistSq + sizeof(float))];
+        uint32 constTrackGate;   // kOffInstConstTrackGate
+        uint32 boneStates;       // kOffInstBoneStates -> RuntimeBone[boneCount]
+        uint32 bonePalettePtr;   // kOffInstBonePalette -> heap bone-matrix buffer (row-major 4x4, kBonePaletteStride each)
+        uint8  _pad9c[kOffInstPlacement - (kOffInstBonePalette + sizeof(uint32))];
         float    placement[16];    // kOffInstPlacement (inline model->world matrix)
         float    viewRoot[16];     // kOffInstViewRoot (inline placement * view matrix)
-        uint8_t  _pad134[kOffInstTexBinding - (kOffInstViewRoot + 16 * sizeof(float))];
-        uint32_t texBinding;       // kOffInstTexBinding (mirrored from the parent each build)
+        uint8  _pad134[kOffInstTexBinding - (kOffInstViewRoot + 16 * sizeof(float))];
+        uint32 texBinding;       // kOffInstTexBinding (mirrored from the parent each build)
         float    speedBase;        // kOffInstSpeedBase
         float    alphaBase;        // kOffInstAlphaBase
         float    scaleBase[3];     // kOffInstScaleBase
@@ -1164,10 +1166,10 @@ namespace ModernM2::Offsets::M2
     /** @brief Scene clock/frame block read by the per-frame build and its cadence decisions. */
     struct M2SceneClock
     {
-        uint8_t  _pad00[kOffSceneClock];
-        uint32_t clock;            // kOffSceneClock (absolute animation clock, ms)
-        uint32_t delta;            // this frame's clock delta
-        uint32_t frame;            // kOffSceneFrame
+        uint8  _pad00[kOffSceneClock];
+        uint32 clock;            // kOffSceneClock (absolute animation clock, ms)
+        uint32 delta;            // this frame's clock delta
+        uint32 frame;            // kOffSceneFrame
     };
     static_assert(offsetof(M2SceneClock, clock) == kOffSceneClock, "M2SceneClock.clock");
     static_assert(offsetof(M2SceneClock, frame) == kOffSceneFrame, "M2SceneClock.frame");
@@ -1175,13 +1177,13 @@ namespace ModernM2::Offsets::M2
     /** @brief Runtime model: flags, path stem, the parsed .m2 buffer, its size, and the live skin profile. */
     struct M2Model
     {
-        uint8_t  _pad00[kOffModelFlags];
-        uint32_t flags;            // kOffModelFlags (bit 2 selects the sibling-file open flag)
-        uint8_t  _pad0c[kOffModelPathStem - (kOffModelFlags + sizeof(uint32_t))];
+        uint8  _pad00[kOffModelFlags];
+        uint32 flags;            // kOffModelFlags (bit 2 selects the sibling-file open flag)
+        uint8  _pad0c[kOffModelPathStem - (kOffModelFlags + sizeof(uint32))];
         char     pathStem[kOffModelHeader - kOffModelPathStem]; // kOffModelPathStem (inline path stem, no extension)
         void*    header;           // kOffModelHeader -> raw .m2 file buffer (parsed in place)
-        uint8_t  _pad154[kOffModelFileSize - (kOffModelHeader + sizeof(void*))];
-        uint32_t fileSize;         // kOffModelFileSize (byte size of the buffer at kOffModelHeader)
+        uint8  _pad154[kOffModelFileSize - (kOffModelHeader + sizeof(void*))];
+        uint32 fileSize;         // kOffModelFileSize (byte size of the buffer at kOffModelHeader)
         void*    skin;             // kOffModelSkin -> live parsed skin profile
     };
     static_assert(offsetof(M2Model, flags)    == kOffModelFlags,    "M2Model.flags");
@@ -1194,20 +1196,20 @@ namespace ModernM2::Offsets::M2
      *         bone-index-by-id LUT. */
     struct M2FileHeader
     {
-        uint8_t  _pad00[kOffHdrGlobalFlags];
-        uint32_t globalFlags;       // kOffHdrGlobalFlags (bit 0x20 = physics; kHdrFlagFixedStaging)
-        uint8_t  _pad14[kOffHdrSeqCount - (kOffHdrGlobalFlags + sizeof(uint32_t))];
-        uint32_t seqCount;          // kOffHdrSeqCount
+        uint8  _pad00[kOffHdrGlobalFlags];
+        uint32 globalFlags;       // kOffHdrGlobalFlags (bit 0x20 = physics; kHdrFlagFixedStaging)
+        uint8  _pad14[kOffHdrSeqCount - (kOffHdrGlobalFlags + sizeof(uint32))];
+        uint32 seqCount;          // kOffHdrSeqCount
         void*    seqPtr;            // kOffHdrSeqPtr -> M2SequenceRec records (stride kSeqStride)
-        uint8_t  _pad24[kOffHdrBoneCount - (kOffHdrSeqPtr + sizeof(void*))];
-        uint32_t boneCount;         // kOffHdrBoneCount
+        uint8  _pad24[kOffHdrBoneCount - (kOffHdrSeqPtr + sizeof(void*))];
+        uint32 boneCount;         // kOffHdrBoneCount
         void*    boneArray;         // kOffHdrBoneArray -> M2Bone records (post-fixup data ptr)
-        uint32_t keyBoneCount;      // kOffHdrKeyBoneCount
+        uint32 keyBoneCount;      // kOffHdrKeyBoneCount
         void*    keyBoneArray;      // kOffHdrKeyBoneArray -> int16 array, -1 = no such key bone
-        uint8_t  _pad3c[kOffHdrAttachCount - (kOffHdrKeyBoneArray + sizeof(void*))];
-        uint32_t attachCount;       // kOffHdrAttachCount
-        uint32_t attachPtr;         // kOffHdrAttachPtr -> M2Attachment records
-        uint32_t boneIdxLutCount;   // kOffHdrBoneIdxLutCount (number of entries in the LUT)
+        uint8  _pad3c[kOffHdrAttachCount - (kOffHdrKeyBoneArray + sizeof(void*))];
+        uint32 attachCount;       // kOffHdrAttachCount
+        uint32 attachPtr;         // kOffHdrAttachPtr -> M2Attachment records
+        uint32 boneIdxLutCount;   // kOffHdrBoneIdxLutCount (number of entries in the LUT)
         void*    boneIdxLutPtr;     // kOffHdrBoneIdxLutPtr -> uint16 array indexed by key_bone_id
     };
     static_assert(offsetof(M2FileHeader, globalFlags)    == kOffHdrGlobalFlags,     "M2FileHeader.globalFlags");
@@ -1226,17 +1228,17 @@ namespace ModernM2::Offsets::M2
      * @brief In-model track head: interpolation, global-sequence link, and the per-sequence outer
      *        arrays (timestamps + values). outerCount == 0 means the track carries no data at all.
      *
-     * outerPtr is stored as uint32_t, not void*: it is not the last field, and a real pointer there
+     * outerPtr is stored as uint32, not void*: it is not the last field, and a real pointer there
      * would let sizeof(void*) drive valuesOuterCount/valuesOuterPtr's offsets, breaking the fixed 0x14
      * size every M2Bone/M2Attachment track-head member below is checked against.
      */
     struct M2TrackHead
     {
-        uint16_t interp;           // interpolation type
-        uint16_t globalSeq;        // global-sequence index (0xFFFF = sequence-driven)
-        uint32_t outerCount;       // kOffTrackTimestampsCount relative to the head
-        uint32_t outerPtr;         // kOffTrackTimestampsPtr
-        uint32_t valuesOuterCount; // kOffTrackValuesCount
+        uint16 interp;           // interpolation type
+        uint16 globalSeq;        // global-sequence index (0xFFFF = sequence-driven)
+        uint32 outerCount;       // kOffTrackTimestampsCount relative to the head
+        uint32 outerPtr;         // kOffTrackTimestampsPtr
+        uint32 valuesOuterCount; // kOffTrackValuesCount
         void*    valuesOuterPtr;   // kOffTrackValuesPtr
     };
     static_assert(sizeof(M2TrackHead) == 0x14, "M2TrackHead size");
@@ -1244,11 +1246,11 @@ namespace ModernM2::Offsets::M2
     /** @brief Bone record in the header bone array (stride kBoneStride). */
     struct M2Bone
     {
-        int32_t     keyBoneId;     // kOffBoneKeyId (canonical slot id; negative = no key bone)
-        uint32_t    flags;         // kOffBoneFlags
-        int16_t     parent;        // kOffBoneParent (0xFFFF = root)
-        uint8_t     _pad0a[kOffBoneNameCrc - (kOffBoneParent + sizeof(int16_t))];
-        uint32_t    nameCrc;       // kOffBoneNameCrc (CRC32 of the bone name, for name-based remap)
+        int32     keyBoneId;     // kOffBoneKeyId (canonical slot id; negative = no key bone)
+        uint32    flags;         // kOffBoneFlags
+        int16     parent;        // kOffBoneParent (0xFFFF = root)
+        uint8     _pad0a[kOffBoneNameCrc - (kOffBoneParent + sizeof(int16))];
+        uint32    nameCrc;       // kOffBoneNameCrc (CRC32 of the bone name, for name-based remap)
         M2TrackHead transTrack;    // kOffBoneTransTrack
         M2TrackHead rotTrack;      // kOffBoneRotTrack
         M2TrackHead scaleTrack;    // kOffBoneScaleTrack
@@ -1268,9 +1270,9 @@ namespace ModernM2::Offsets::M2
      *         child instance rides, plus the enable track sampled during full builds. */
     struct M2Attachment
     {
-        uint32_t    id;
-        uint16_t    bone;          // kOffAttachBone
-        uint16_t    _pad06;
+        uint32    id;
+        uint16    bone;          // kOffAttachBone
+        uint16    _pad06;
         float       pos[3];        // kOffAttachPos
         M2TrackHead enableTrack;
     };
@@ -1285,21 +1287,21 @@ namespace ModernM2::Offsets::M2
      *         community-documented field names for their confirmed positions. */
     struct M2SequenceRec
     {
-        uint16_t seqId;            // kOffSeqId -- the value SetBoneSequence/lookup functions match against
-        uint16_t subId;            // kOffSeqSubId
-        uint32_t length;           // kOffSeqLength, milliseconds
+        uint16 seqId;            // kOffSeqId -- the value SetBoneSequence/lookup functions match against
+        uint16 subId;            // kOffSeqSubId
+        uint32 length;           // kOffSeqLength, milliseconds
         float    movingSpeed;      // kOffSeqMovingSpeed
-        uint32_t flags;            // kOffSeqFlags (bit 0x40 = alias -- see aliasNext)
-        int16_t  frequency;        // kOffSeqFrequency
-        uint16_t _pad12;
-        uint32_t rangeMin;         // kOffSeqRangeMin
-        uint32_t rangeMax;         // kOffSeqRangeMax
-        uint32_t blendTime;        // kOffSeqBlendTime
+        uint32 flags;            // kOffSeqFlags (bit 0x40 = alias -- see aliasNext)
+        int16  frequency;        // kOffSeqFrequency
+        uint16 _pad12;
+        uint32 rangeMin;         // kOffSeqRangeMin
+        uint32 rangeMax;         // kOffSeqRangeMax
+        uint32 blendTime;        // kOffSeqBlendTime
         float    bboxMin[3];       // kOffSeqBBoxMin
         float    bboxMax[3];       // kOffSeqBBoxMax
         float    bboxRadius;       // kOffSeqBBoxRadius
-        int16_t  nextAnimation;    // kOffSeqNextAnimation: variation-chain index, -1 = none
-        uint16_t aliasNext;        // kOffSeqAliasNext: alias-chain target when flags bit 0x40 is set
+        int16  nextAnimation;    // kOffSeqNextAnimation: variation-chain index, -1 = none
+        uint16 aliasNext;        // kOffSeqAliasNext: alias-chain target when flags bit 0x40 is set
     };
     static_assert(offsetof(M2SequenceRec, seqId)         == kOffSeqId,            "M2SequenceRec.seqId");
     static_assert(offsetof(M2SequenceRec, subId)         == kOffSeqSubId,         "M2SequenceRec.subId");
@@ -1320,10 +1322,10 @@ namespace ModernM2::Offsets::M2
     /** @brief Track object read by the evaluators: the timestamp and value sub-arrays (count + ptr each). */
     struct M2Track
     {
-        uint8_t   _pad00[kOffTrackTimestampsCount];
-        uint32_t  timestampsCount; // kOffTrackTimestampsCount
-        uint32_t  timestampsPtr;   // kOffTrackTimestampsPtr
-        uint32_t  valuesCount;     // kOffTrackValuesCount
+        uint8   _pad00[kOffTrackTimestampsCount];
+        uint32  timestampsCount; // kOffTrackTimestampsCount
+        uint32  timestampsPtr;   // kOffTrackTimestampsPtr
+        uint32  valuesCount;     // kOffTrackValuesCount
         void*     valuesPtr;       // kOffTrackValuesPtr
     };
     static_assert(offsetof(M2Track, timestampsCount) == kOffTrackTimestampsCount, "M2Track.timestampsCount");
@@ -1335,34 +1337,34 @@ namespace ModernM2::Offsets::M2
      *         recomposition walk consumes, and the sequence/blend anchors the cadence scan reads. */
     struct RuntimeBone
     {
-        uint32_t transHint[2];     // key-search hints (channel A/B)
+        uint32 transHint[2];     // key-search hints (channel A/B)
         float    transValue[3];    // kOffRtBoneTransValue: last sampled translation
-        uint32_t rotHint[2];
+        uint32 rotHint[2];
         float    quatValue[4];     // kOffRtBoneQuatValue: last sampled rotation
-        uint32_t scaleHint[2];
+        uint32 scaleHint[2];
         float    scaleValue[3];    // kOffRtBoneScaleValue: last sampled scale
-        uint32_t time;             // current channel-A time within the sequence (ms)
-        uint16_t animIndex;        // kOffRuntimeBoneAnimIdx: per-animation inner-slot selector
-        uint16_t boneIndex;
-        uint16_t assignedSeq;      // kOffRtBoneAssignedSeq (0xFFFF = inherit from the parent bone)
-        uint8_t  clampDone;
-        uint8_t  callbackFlag;
-        int32_t  seqStart;         // kOffRtBoneSeqStart (absolute clock ms)
-        int32_t  seqEnd;           // kOffRtBoneSeqEnd (absolute clock ms)
+        uint32 time;             // current channel-A time within the sequence (ms)
+        uint16 animIndex;        // kOffRuntimeBoneAnimIdx: per-animation inner-slot selector
+        uint16 boneIndex;
+        uint16 assignedSeq;      // kOffRtBoneAssignedSeq (0xFFFF = inherit from the parent bone)
+        uint8  clampDone;
+        uint8  callbackFlag;
+        int32  seqStart;         // kOffRtBoneSeqStart (absolute clock ms)
+        int32  seqEnd;           // kOffRtBoneSeqEnd (absolute clock ms)
         float    timeScale;        // kOffRtBoneTimeScale
         float    invSpeed;
-        int32_t  timeOffset;       // kOffRtBoneTimeOffset
-        int32_t  repeatCount;
-        uint32_t timeB;            // channel-B (blend-from) mirror of +0x40..+0x5C
-        uint16_t animIndexB;
-        uint8_t  _pad6a[kOffRtBoneBlendSeq - 0x6A];
-        uint16_t blendSeq;         // kOffRtBoneBlendSeq (0xFFFF = no blend running)
-        uint8_t  _pad6e[kOffRtBoneProcMatrix - (kOffRtBoneBlendSeq + sizeof(uint16_t))];
-        uint32_t procMatrix;       // kOffRtBoneProcMatrix (-> externally driven 4x4; 0 = none)
-        uint32_t flagMask;         // kOffRtBoneFlagMask (OR'd into the static bone flags)
-        uint32_t pendingSeq;       // kOffRtBonePendingSeq (0xFFFFFFFF idle)
-        uint16_t prevSeqId;        // kOffRtBonePrevSeqId
-        uint8_t  _pad96[kOffRtBoneBlendWeight - (kOffRtBonePrevSeqId + sizeof(uint16_t))];
+        int32  timeOffset;       // kOffRtBoneTimeOffset
+        int32  repeatCount;
+        uint32 timeB;            // channel-B (blend-from) mirror of +0x40..+0x5C
+        uint16 animIndexB;
+        uint8  _pad6a[kOffRtBoneBlendSeq - 0x6A];
+        uint16 blendSeq;         // kOffRtBoneBlendSeq (0xFFFF = no blend running)
+        uint8  _pad6e[kOffRtBoneProcMatrix - (kOffRtBoneBlendSeq + sizeof(uint16))];
+        uint32 procMatrix;       // kOffRtBoneProcMatrix (-> externally driven 4x4; 0 = none)
+        uint32 flagMask;         // kOffRtBoneFlagMask (OR'd into the static bone flags)
+        uint32 pendingSeq;       // kOffRtBonePendingSeq (0xFFFFFFFF idle)
+        uint16 prevSeqId;        // kOffRtBonePrevSeqId
+        uint8  _pad96[kOffRtBoneBlendWeight - (kOffRtBonePrevSeqId + sizeof(uint16))];
         float    blendWeight;      // kOffRtBoneBlendWeight (0 = no blend contribution)
     };
     static_assert(offsetof(RuntimeBone, transValue)  == kOffRtBoneTransValue,  "RuntimeBone.transValue");
@@ -1385,9 +1387,9 @@ namespace ModernM2::Offsets::M2
     /** @brief Ribbon emitter: the draw-loop layer count and the per-layer texture-handle array pointer. */
     struct RibbonEmitter
     {
-        uint8_t  _pad00[kOffRibbonLayerCount];
-        uint32_t layerCount;       // kOffRibbonLayerCount (draw-loop bound)
-        uint8_t  _pad11c[kOffRibbonTexHandlePtr - (kOffRibbonLayerCount + sizeof(uint32_t))];
+        uint8  _pad00[kOffRibbonLayerCount];
+        uint32 layerCount;       // kOffRibbonLayerCount (draw-loop bound)
+        uint8  _pad11c[kOffRibbonTexHandlePtr - (kOffRibbonLayerCount + sizeof(uint32))];
         void**   texHandles;       // kOffRibbonTexHandlePtr -> per-layer texture-handle array (stride 4)
     };
     static_assert(offsetof(RibbonEmitter, layerCount) == kOffRibbonLayerCount,   "RibbonEmitter.layerCount");
@@ -1396,10 +1398,10 @@ namespace ModernM2::Offsets::M2
     /** @brief Character model object: race/gender ids and the root scene node pointer. */
     struct CharModelObject
     {
-        uint8_t  _pad00[kOffCmoRace];
-        uint32_t raceId;           // kOffCmoRace
-        uint32_t genderId;         // kOffCmoGender (0 = male, 1 = female)
-        uint8_t  _pad20[kOffCmoSceneNode - (kOffCmoGender + sizeof(uint32_t))];
+        uint8  _pad00[kOffCmoRace];
+        uint32 raceId;           // kOffCmoRace
+        uint32 genderId;         // kOffCmoGender (0 = male, 1 = female)
+        uint8  _pad20[kOffCmoSceneNode - (kOffCmoGender + sizeof(uint32))];
         void*    sceneNode;        // kOffCmoSceneNode -> SceneNode
     };
     static_assert(offsetof(CharModelObject, raceId)    == kOffCmoRace,      "CharModelObject.raceId");
@@ -1409,7 +1411,7 @@ namespace ModernM2::Offsets::M2
     /** @brief Scene node: the CharModelObject that owns this node. */
     struct SceneNode
     {
-        uint8_t  _pad00[kOffSceneNodeOwner];
+        uint8  _pad00[kOffSceneNodeOwner];
         void*    owner;            // kOffSceneNodeOwner -> CharModelObject
     };
     static_assert(offsetof(SceneNode, owner) == kOffSceneNodeOwner, "SceneNode.owner");
@@ -1434,23 +1436,23 @@ namespace ModernM2::Offsets::M2
     // Texture-handle resolver (handle, ...).
     using M2_TexResolveFn = void*(__cdecl*)(void* handle, int a, int b);
     // Sampler bind: native this-in-ECX.
-    using M2_SamplerBindFn = void(__fastcall*)(void* device, void* edx, uint32_t selector, void* tex);
+    using M2_SamplerBindFn = void(__fastcall*)(void* device, void* edx, uint32 selector, void* tex);
 
     // --- attachment / resource signatures ---
     // CreateSceneModel(scene, edx, path, 0): ret 8 (2 stack args: path + trailing zero).
-    using M2_CreateSceneModelFn = void*(__fastcall*)(void* scene, void* edx, void* path, uint32_t zero);
+    using M2_CreateSceneModelFn = void*(__fastcall*)(void* scene, void* edx, void* path, uint32 zero);
     // Deprecated spelling, kept so no published name disappears.
     using M2_GetRenderCtxFn     = M2_CreateSceneModelFn;
     // AttachToScene(renderCtx, edx, subObj, slot, 0, 0): ret 16 (4 stack args: subObj, slot, 0, 0).
-    using M2_AttachToSceneFn    = void (__fastcall*)(void* renderCtx, void* edx, void* subObj, uint32_t slot, uint32_t zero1, uint32_t zero2);
+    using M2_AttachToSceneFn    = void (__fastcall*)(void* renderCtx, void* edx, void* subObj, uint32 slot, uint32 zero1, uint32 zero2);
     // DetachSlot(subObj, edx, slot): detaches the M2 from a scene slot, releasing its render ctx.
-    using M2_DetachSlotFn       = void (__fastcall*)(void* subObj, void* edx, uint32_t slot);
+    using M2_DetachSlotFn       = void (__fastcall*)(void* subObj, void* edx, uint32 slot);
     // ReleaseRenderCtx(renderCtx, edx): releases a render context.
     using M2_ReleaseRenderCtxFn = void (__fastcall*)(void* renderCtx, void* edx);
     // BindTexSlot(renderCtx, edx, key, modelPtr): ret 8 (key=2, then modelPtr on stack).
-    using M2_BindTexSlotFn      = void (__fastcall*)(void* renderCtx, void* edx, uint32_t key, void* modelPtr);
+    using M2_BindTexSlotFn      = void (__fastcall*)(void* renderCtx, void* edx, uint32 key, void* modelPtr);
     // LoadResource(path, flags, statusOut, flags2): same call shape as Gx::TextureCreate.
-    using M2_LoadResourceFn     = void*(__cdecl*)(const char* path, uint32_t flags, int* statusOut, uint32_t flags2);
+    using M2_LoadResourceFn     = void*(__cdecl*)(const char* path, uint32 flags, int* statusOut, uint32 flags2);
     // ReleaseResource(resource): releases a resource handle returned by LoadResource.
     using M2_ReleaseResourceFn  = void (__cdecl*)(void* resource);
 
@@ -1461,14 +1463,14 @@ namespace ModernM2::Offsets::M2
     // from the current animation pose. fastcall, 5 stack args, ret 0x14. Hook POST-order to
     // override the engine's fill (e.g. CharSweep for collection M2s attached to a character).
     using M2_BuildBonePaletteFn = void (__fastcall*)(void* renderCtx, void* edx,
-        void* sa1, void* sa2, void* sa3, uint32_t sa4, uint32_t sa5);
+        void* sa1, void* sa2, void* sa3, uint32 sa4, uint32 sa5);
     using M2_RenderBatchShadowMapFn = void (__fastcall*)(
-        void* instance, void* edx, uint32_t batchMode, void* skinBatch, void* drawList,
-        uint32_t drawIndex, void* skinSection, void* previousSection);
+        void* instance, void* edx, uint32 batchMode, void* skinBatch, void* drawList,
+        uint32 drawIndex, void* skinSection, void* previousSection);
     // SlotDispatch(cmo, edx, modelSlot, itemDataPtr, postFlag): equip-slot handler; loads the model.
-    using M2_SlotDispatchFn     = void (__fastcall*)(void* cmo, void* edx, uint32_t modelSlot, void* itemDataPtr, uint32_t postFlag);
+    using M2_SlotDispatchFn     = void (__fastcall*)(void* cmo, void* edx, uint32 modelSlot, void* itemDataPtr, uint32 postFlag);
     // SlotClear(cmo, edx, equipSlotWow): clears a WoW equipment slot on the CMO.
-    using M2_SlotClearFn        = void (__fastcall*)(void* cmo, void* edx, uint32_t equipSlotWow);
+    using M2_SlotClearFn        = void (__fastcall*)(void* cmo, void* edx, uint32 equipSlotWow);
 
     // character component: geosets, item slots, baked textures
     /// The gate that rejects character customization data, which must be widened for values beyond the
@@ -1513,7 +1515,7 @@ namespace ModernM2::Offsets::M2
     /// setters. This array IS the stock client's customization vocabulary; slot 0x11 is substituted
     /// with 1703 when the component's own eye-glow condition holds.
     constexpr size_t kOffCharComponentGeosetSlots          = 0x144;
-    constexpr uint32_t kCharComponentGeosetSlotCount       = 19;
+    constexpr uint32 kCharComponentGeosetSlotCount       = 19;
     /// Intercept unequip so extension-added visual slots are torn down with the stock ones. __thiscall,
     /// 1 stack arg.
     constexpr uintptr_t kCharRemoveItem                    = 0x004EE460;
@@ -1594,20 +1596,20 @@ namespace ModernM2::Offsets::M2
     /// through that description. It selects the blit, and only the four values below exist; anything
     /// else silently paints nothing.
     constexpr size_t kOffSourceDescMode = 5;
-    constexpr uint8_t kSourceModeOpaque       = 0; ///< no alpha: the whole rectangle is overwritten
+    constexpr uint8 kSourceModeOpaque       = 0; ///< no alpha: the whole rectangle is overwritten
     /// One alpha bit per pixel, in a plane of its own after the index plane: the pixel is written
     /// opaque or it is left alone. Reducing, that is a test and nothing more; magnifying, the bit is
     /// expanded to 0 or 255, averaged across the seams like any other channel and then weighed.
-    constexpr uint8_t kSourceModeMasked       = 1;
+    constexpr uint8 kSourceModeMasked       = 1;
     /// Four alpha bits per pixel, two to a byte in that same trailing plane, low nibble first. Each
     /// nibble is expanded to `n | n << 4` before it weighs anything, which is why this mode and the
     /// one below share their arithmetic once a source's alpha is a byte.
-    constexpr uint8_t kSourceModeBlend        = 4;
+    constexpr uint8 kSourceModeBlend        = 4;
     /// One alpha byte per pixel in that trailing plane. Both weighted modes combine as
     /// `(source * a + destination * (255 - a)) >> 8` per channel -- a shift by eight over weights
     /// that run to 255, so an opaque source pixel lands one part in 256 short of itself -- and state
     /// the destination's own alpha as 255.
-    constexpr uint8_t kSourceModeIndexedAlpha = 8;
+    constexpr uint8 kSourceModeIndexedAlpha = 8;
     /// The source's palette, or null. Both copies resolve it BEFORE looking at anything else, and a
     /// source that has none is dropped there: the magnifying copy returns outright, the reducing one
     /// calls a fill that is not even handed the source. Neither ever reaches its format dispatch. So
@@ -1683,7 +1685,7 @@ namespace ModernM2::Offsets::M2
     constexpr size_t kOffTexEntryFlags      = 0xB0;
     /// Set on an entry whose image must not be read. Both the palette and the level lookup refuse on
     /// it before they touch the image at all.
-    constexpr uint32_t kTexEntryUnreadable  = 0x00100000;
+    constexpr uint32 kTexEntryUnreadable  = 0x00100000;
     /// Where each composition region lands on the sheet: {x, y, width, height} per region, built at
     /// load. This is the arrangement the composited sheet is painted in, and a reworked model's UVs
     /// are authored against a different one -- comparing the two is what says how they correspond.
@@ -1710,7 +1712,7 @@ namespace ModernM2::Offsets::M2
     /// figure the client fills them from.
     constexpr uintptr_t kTextureAllocMippedImg             = 0x004B7220;
     /// The pixel format the composition image is allocated with.
-    constexpr uint32_t  kCharComposeFormat                 = 2;
+    constexpr uint32  kCharComposeFormat                 = 2;
     /// Whether the compressed image exists at all; the threaded one needs this and threading both.
     constexpr uintptr_t kCharComposeCompressionOn          = 0x00B6B4E4;
 
@@ -1725,12 +1727,12 @@ namespace ModernM2::Offsets::M2
     /// dirty mask has an eleventh bit set, which is what makes twelve look plausible from that side;
     /// nothing ever reads an eleventh rectangle. Immediately after the table is component setup data,
     /// so treating it as one entry longer writes over that instead.
-    constexpr uint32_t  kCharRegionCount                   = 10;
+    constexpr uint32  kCharRegionCount                   = 10;
 
     /// Section record: three texture paths and the flags the callers test.
     constexpr size_t kOffSectionTexturePaths = 0x10; ///< char*[3], one per composition slot
     constexpr size_t kOffSectionFlags        = 0x1C;
-    constexpr uint32_t kSectionSlotCount     = 3;
+    constexpr uint32 kSectionSlotCount     = 3;
 
     /// Component fields the load above writes.
     constexpr size_t kOffCharComponentRace    = 0x18;
@@ -1750,17 +1752,17 @@ namespace ModernM2::Offsets::M2
     /// for.
     constexpr size_t kOffCharComponentRebuild  = 0x08;
     /// The sheet is owed a recomposition.
-    constexpr uint8_t kCharRebuildSheet   = 0x01;
+    constexpr uint8 kCharRebuildSheet   = 0x01;
     /// The geometry is owed a fresh decision about which pieces are visible.
     ///
     /// The two are NOT independent, and the asymmetry is easy to get backwards: the per-frame entry
     /// tests the sheet bit first and only reaches the geometry branch when that bit is clear and no
     /// region is dirty. So asking for the sheet alone also postpones the geometry, and asking for
     /// geometry by setting the sheet bit asks for the one thing that cannot happen.
-    constexpr uint8_t kCharRebuildGeosets = 0x04;
+    constexpr uint8 kCharRebuildGeosets = 0x04;
     /// How many of the ten regions the stock arrangement spends on the body. The two past it are the
     /// scalp, which a layout that is not square gives a block of its own beside the arrangement.
-    constexpr uint32_t kCharStockRegionCount = 8;
+    constexpr uint32 kCharStockRegionCount = 8;
     constexpr size_t kOffCharComponentSheet    = 0x190;
     constexpr size_t kOffCharComponentTextures = 0x194;
     /// The component REQUEST, which is what the sheet texture is ultimately fed from: its source
@@ -1940,7 +1942,7 @@ namespace ModernM2::Offsets::M2
     /// a key_bone_id resolved through kOffHdrKeyBoneCount/kOffHdrKeyBoneArray (keyBoneLookup), same
     /// as SetBoneSequence's own slot param; returns kOffRtBonePendingSeq for the resolved bone.
     constexpr uintptr_t kGetBoneSequenceId                 = 0x008267E0;
-    using M2_GetBoneSequenceIdFn = uint32_t(__fastcall*)(void* instance, void* edx, uint32_t slot);
+    using M2_GetBoneSequenceIdFn = uint32(__fastcall*)(void* instance, void* edx, uint32 slot);
     /// React when an animation is cut short rather than ending naturally, which stock code gives no
     /// notification for. __thiscall, 2 stack args.
     constexpr uintptr_t kOnSequenceInterrupted             = 0x008269C0;
@@ -1996,7 +1998,7 @@ namespace ModernM2::Offsets::M2
     /// start therefore has every block past 65535 sourced from the wrong place, which draws as
     /// triangles joining unrelated vertices. client/CM2Shared/WideIndices.cpp detours it and refills
     /// the buffer from the widened start, for the sections whose widened start the skin can contain.
-    using M2_SetModelIndicesFn = uint32_t(__fastcall*)(void* instance, void* edx);
+    using M2_SetModelIndicesFn = uint32(__fastcall*)(void* instance, void* edx);
     /// The two byte-verified read sites, one complete `movzx r32, word ptr [esi+8]` each (4 bytes) --
     /// too short to redirect in place, which is why the fold is done by detouring the whole fill.
     constexpr uintptr_t kSetModelIndicesSrcCopy   = 0x00829091;
@@ -2014,7 +2016,7 @@ namespace ModernM2::Offsets::M2
     /// index-buffer upload for a shared model outright.
     constexpr uintptr_t kSharedSetIndices    = 0x008360A0;
     constexpr uintptr_t kSharedSetIndicesSrc = 0x0083619F;
-    using M2_SharedSetIndicesFn = uint32_t(__fastcall*)(void* model, void* edx);
+    using M2_SharedSetIndicesFn = uint32(__fastcall*)(void* model, void* edx);
     constexpr size_t kOffSharedIndexPool     = 0x178; ///< -> GxPool backing the shared index buffer
     constexpr size_t kOffSharedIndexBuf      = 0x17C; ///< -> the shared index GxBuf (built/valid at +0x1C/+0x1D)
     /// uint32: how many copies of the model one shared index buffer holds, for the batched-doodad
@@ -2027,8 +2029,8 @@ namespace ModernM2::Offsets::M2
     /// copied as they stand; otherwise each submesh is rebased onto its own vertex window.
     constexpr size_t   kOffSharedFileRecord   = 0x04;
     constexpr size_t   kOffM2FileFlags        = 0x04;
-    constexpr uint32_t kM2FileFlagGlobalIndices = 0x8;
-    constexpr uint32_t kM2FileFlagSingleBoneGlobal = 0x40;
+    constexpr uint32 kM2FileFlagGlobalIndices = 0x8;
+    constexpr uint32 kM2FileFlagSingleBoneGlobal = 0x40;
     /// The three sites where kDrawTriangleBatch turns the submesh it is about to draw into the draw
     /// call's StartIndex -- `movzx r32, word ptr [esi+8]` again, feeding a 32-bit field. This is the
     /// last 16-bit link in the index path: the fill sites above decide WHICH triangles land in the
@@ -2048,7 +2050,7 @@ namespace ModernM2::Offsets::M2
     constexpr size_t kGxVtblBufLock       = 0xD8;
     constexpr size_t kGxVtblBufUnlock     = 0xDC;
     using Gx_BufLockFn   = void*(__thiscall*)(void* device, void* buffer);
-    using Gx_BufUnlockFn = void(__thiscall*)(void* device, void* buffer, uint32_t flag);
+    using Gx_BufUnlockFn = void(__thiscall*)(void* device, void* buffer, uint32 flag);
     /// Bind the assembled buffer as the current index source. The receiver is the DEVICE, not the
     /// buffer: it compares against and updates the device's own current-index slot, and the buffer
     /// arrives on the stack (ret 4).
@@ -2094,7 +2096,7 @@ namespace ModernM2::Offsets::M2
     /// queued as a deferred command instead of acting, and replayed later through
     /// kInitializeLoaded's opcode 1.
     using M2_SetGeometryVisibleFn =
-        void(__fastcall*)(void* instance, void* edx, uint32_t idStart, uint32_t idEnd, uint32_t visible);
+        void(__fastcall*)(void* instance, void* edx, uint32 idStart, uint32 idEnd, uint32 visible);
     /// The scan ends by asking for the compacted draw list to be rebuilt, but only when at least one
     /// entry actually flipped: see kUnoptimizeVisibleGeometry above.
     /// Control the merge of visible geosets into a compacted draw list, where batch limits and merge
@@ -2291,7 +2293,7 @@ namespace ModernM2::Offsets::M2
     /// overwrites it outright and uses it as its own loop cursor. Either path walks a submesh's own
     /// range, [vertexStart, vertexStart + vertexCount), rather than the skin's vertices flat.
     constexpr uintptr_t kSharedSetVertices                 = 0x008362B0;
-    using M2_SharedSetVerticesFn = uint32_t(__fastcall*)(void* shared, void* edx, int texCoordSet);
+    using M2_SharedSetVerticesFn = uint32(__fastcall*)(void* shared, void* edx, int texCoordSet);
     /// The vertex GxBuf the fill writes into, and the pool backing it. Both null until the first call
     /// creates them; the buffer then carries kOffGxBufBuilt/kOffGxBufValid like the index one, and the
     /// fill is skipped outright while both stand, leaving only the rebind.

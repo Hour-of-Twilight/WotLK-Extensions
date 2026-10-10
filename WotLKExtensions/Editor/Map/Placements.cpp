@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Editor/Map/Placements.h>
 
 #include <ClientData/SharedDefines.h>
@@ -139,7 +140,7 @@ namespace MapEditor::Placements
 			float entry = 0.0f;
 			float exit = 1.0f;
 
-			for (int32_t axis = 0; axis < 3; ++axis)
+			for (int32 axis = 0; axis < 3; ++axis)
 			{
 				if (std::fabs(d[axis]) < 1e-6f)
 				{
@@ -187,7 +188,7 @@ namespace MapEditor::Placements
 			return mat;
 		}
 
-		uint16_t PackScale(float scale)
+		uint16 PackScale(float scale)
 		{
 			float raw = scale * 1024.0f;
 			if (raw < 1.0f)
@@ -195,10 +196,10 @@ namespace MapEditor::Placements
 			if (raw > 65535.0f)
 				raw = 65535.0f;
 
-			return static_cast<uint16_t>(raw + 0.5f);
+			return static_cast<uint16>(raw + 0.5f);
 		}
 
-		Adt::TopChunk* FindTop(Adt::AdtDocument& doc, uint32_t id)
+		Adt::TopChunk* FindTop(Adt::AdtDocument& doc, uint32 id)
 		{
 			for (Adt::TopChunk& top : doc.order)
 			{
@@ -237,8 +238,8 @@ namespace MapEditor::Placements
 		// (dword_CE04A4, seeded at 0x0079E88B), and Blizzard's own file ids are all small, so the
 		// middle of the range belongs to nobody. New placements start there and the ceiling keeps
 		// a runtime id that wandered into view from dragging the counter up with it.
-		constexpr uint32_t kUniqueIdBase = 0x40000000;
-		constexpr uint32_t kUniqueIdCeiling = 0x80000000;
+		constexpr uint32 kUniqueIdBase = 0x40000000;
+		constexpr uint32 kUniqueIdCeiling = 0x80000000;
 
 		// A WMO the game files do not have, or one we could not read, gets a box this big. Too
 		// large only means it is considered for drawing sooner than it needs to be, too small means
@@ -298,7 +299,7 @@ namespace MapEditor::Placements
 		// at any rotation.
 		float MapObjRadius(std::string const& path)
 		{
-			std::vector<uint8_t> bytes;
+			std::vector<uint8> bytes;
 			std::string ignored;
 			if (!Adt::ReadFileBytes(path.c_str(), bytes, ignored))
 				return kUnknownMapObjRadius;
@@ -306,8 +307,8 @@ namespace MapEditor::Placements
 			size_t at = 0;
 			while (at + 8 <= bytes.size())
 			{
-				uint32_t id = 0;
-				uint32_t size = 0;
+				uint32 id = 0;
+				uint32 size = 0;
 				std::memcpy(&id, bytes.data() + at, sizeof(id));
 				std::memcpy(&size, bytes.data() + at + 4, sizeof(size));
 				at += 8;
@@ -342,7 +343,7 @@ namespace MapEditor::Placements
 		// Inserts a top level chunk the tile does not have. Where it lands in the file barely
 		// matters, since the client finds everything through MHDR offsets the writer recomputes,
 		// but keeping the usual order means other tools still read the tile.
-		Adt::TopChunk* EnsureTop(Adt::AdtDocument& doc, uint32_t id, uint32_t after)
+		Adt::TopChunk* EnsureTop(Adt::AdtDocument& doc, uint32 id, uint32 after)
 		{
 			if (Adt::TopChunk* existing = FindTop(doc, id))
 				return existing;
@@ -372,18 +373,18 @@ namespace MapEditor::Placements
 		// MMDX and MWMO are a run of NUL terminated paths, MMID and MWID a parallel array of byte
 		// offsets into that run. An MDDF or MODF nameId indexes the offset array, which makes it a
 		// number that only means anything inside its own tile.
-		char const* DocName(Session::OpenTile& tile, bool doodad, uint32_t nameId)
+		char const* DocName(Session::OpenTile& tile, bool doodad, uint32 nameId)
 		{
 			Adt::TopChunk* ids = FindTop(tile.doc, doodad ? Adt::kMMID : Adt::kMWID);
 			Adt::TopChunk* blob = FindTop(tile.doc, doodad ? Adt::kMMDX : Adt::kMWMO);
 			if (!ids || !blob)
 				return nullptr;
 
-			if ((static_cast<size_t>(nameId) + 1) * sizeof(uint32_t) > ids->data.size())
+			if ((static_cast<size_t>(nameId) + 1) * sizeof(uint32) > ids->data.size())
 				return nullptr;
 
-			uint32_t offset = 0;
-			std::memcpy(&offset, ids->data.data() + nameId * sizeof(uint32_t), sizeof(offset));
+			uint32 offset = 0;
+			std::memcpy(&offset, ids->data.data() + nameId * sizeof(uint32), sizeof(offset));
 			if (offset >= blob->data.size())
 				return nullptr;
 
@@ -412,20 +413,20 @@ namespace MapEditor::Placements
 		// The tile's nameId for a model, adding it to the list when the tile has never referenced
 		// that model before. Appending is safe at any point because every offset already stored
 		// points at a byte before the new string, so nothing existing has to move.
-		bool ResolveName(Session::OpenTile& tile, bool doodad, char const* name, uint32_t& nameId)
+		bool ResolveName(Session::OpenTile& tile, bool doodad, char const* name, uint32& nameId)
 		{
-			uint32_t blobId = doodad ? Adt::kMMDX : Adt::kMWMO;
-			uint32_t idsId = doodad ? Adt::kMMID : Adt::kMWID;
+			uint32 blobId = doodad ? Adt::kMMDX : Adt::kMWMO;
+			uint32 idsId = doodad ? Adt::kMMID : Adt::kMWID;
 
 			if (Adt::TopChunk* ids = FindTop(tile.doc, idsId))
 			{
-				size_t count = ids->data.size() / sizeof(uint32_t);
+				size_t count = ids->data.size() / sizeof(uint32);
 				for (size_t i = 0; i < count; ++i)
 				{
-					char const* text = DocName(tile, doodad, static_cast<uint32_t>(i));
+					char const* text = DocName(tile, doodad, static_cast<uint32>(i));
 					if (text && SameName(text, name))
 					{
-						nameId = static_cast<uint32_t>(i);
+						nameId = static_cast<uint32>(i);
 						return true;
 					}
 				}
@@ -441,13 +442,13 @@ namespace MapEditor::Placements
 			if (!blob || !ids)
 				return false;
 
-			uint32_t offset = static_cast<uint32_t>(blob->data.size());
+			uint32 offset = static_cast<uint32>(blob->data.size());
 			size_t length = std::strlen(name);
 			blob->data.insert(blob->data.end(), name, name + length + 1);
 
-			nameId = static_cast<uint32_t>(ids->data.size() / sizeof(uint32_t));
+			nameId = static_cast<uint32>(ids->data.size() / sizeof(uint32));
 
-			uint8_t const* raw = reinterpret_cast<uint8_t const*>(&offset);
+			uint8 const* raw = reinterpret_cast<uint8 const*>(&offset);
 			ids->data.insert(ids->data.end(), raw, raw + sizeof(offset));
 			return true;
 		}
@@ -455,7 +456,7 @@ namespace MapEditor::Placements
 		// The world footprint of one chunk, derived from its indices rather than from the live
 		// chunk, so this still answers for a tile the client has not prepared yet. Both axes count
 		// down from the map edge, which is why the plus corner is the low index one.
-		bool ChunkOverlaps(int32_t tileX, int32_t tileY, int32_t chunkX, int32_t chunkY, CAaBox const& bounds)
+		bool ChunkOverlaps(int32 tileX, int32 tileY, int32 chunkX, int32 chunkY, CAaBox const& bounds)
 		{
 			float maxY = Coords::kMapHalf - static_cast<float>(tileX * 16 + chunkX) * Coords::kChunkSize;
 			float maxX = Coords::kMapHalf - static_cast<float>(tileY * 16 + chunkY) * Coords::kChunkSize;
@@ -466,7 +467,7 @@ namespace MapEditor::Placements
 		// Rewrites one chunk's MCRF. `want` says whether the chunk should list the index at all,
 		// `shift` whether indices above it slide down, which is only true when the entry itself is
 		// leaving MDDF or MODF.
-		void SetRef(Adt::Mcnk& mcnk, bool doodad, uint32_t index, bool want, bool shift)
+		void SetRef(Adt::Mcnk& mcnk, bool doodad, uint32 index, bool want, bool shift)
 		{
 			Adt::SubChunk* mcrf = mcnk.Find(Adt::kMCRF);
 			if (!mcrf)
@@ -475,15 +476,15 @@ namespace MapEditor::Placements
 			size_t doodadRefs = mcnk.header.nDoodadRefs;
 			size_t mapObjRefs = mcnk.header.nMapObjRefs;
 			size_t total = doodadRefs + mapObjRefs;
-			if (mcrf->data.size() < total * sizeof(uint32_t))
+			if (mcrf->data.size() < total * sizeof(uint32))
 				return;
 
-			std::vector<uint32_t> refs(total);
+			std::vector<uint32> refs(total);
 			if (total)
-				std::memcpy(refs.data(), mcrf->data.data(), total * sizeof(uint32_t));
+				std::memcpy(refs.data(), mcrf->data.data(), total * sizeof(uint32));
 
-			std::vector<uint32_t> doodadOut;
-			std::vector<uint32_t> mapObjOut;
+			std::vector<uint32> doodadOut;
+			std::vector<uint32> mapObjOut;
 			doodadOut.reserve(doodadRefs + 1);
 			mapObjOut.reserve(mapObjRefs + 1);
 			bool present = false;
@@ -491,8 +492,8 @@ namespace MapEditor::Placements
 			for (size_t i = 0; i < total; ++i)
 			{
 				bool isDoodad = i < doodadRefs;
-				std::vector<uint32_t>& target = isDoodad ? doodadOut : mapObjOut;
-				uint32_t value = refs[i];
+				std::vector<uint32>& target = isDoodad ? doodadOut : mapObjOut;
+				uint32 value = refs[i];
 
 				if (isDoodad != doodad)
 				{
@@ -516,27 +517,27 @@ namespace MapEditor::Placements
 			if (want && !present)
 				(doodad ? doodadOut : mapObjOut).push_back(index);
 
-			mcnk.header.nDoodadRefs = static_cast<uint32_t>(doodadOut.size());
-			mcnk.header.nMapObjRefs = static_cast<uint32_t>(mapObjOut.size());
+			mcnk.header.nDoodadRefs = static_cast<uint32>(doodadOut.size());
+			mcnk.header.nMapObjRefs = static_cast<uint32>(mapObjOut.size());
 
-			mcrf->data.resize((doodadOut.size() + mapObjOut.size()) * sizeof(uint32_t));
+			mcrf->data.resize((doodadOut.size() + mapObjOut.size()) * sizeof(uint32));
 			if (!doodadOut.empty())
-				std::memcpy(mcrf->data.data(), doodadOut.data(), doodadOut.size() * sizeof(uint32_t));
+				std::memcpy(mcrf->data.data(), doodadOut.data(), doodadOut.size() * sizeof(uint32));
 			if (!mapObjOut.empty())
 			{
-				std::memcpy(mcrf->data.data() + doodadOut.size() * sizeof(uint32_t), mapObjOut.data(),
-				    mapObjOut.size() * sizeof(uint32_t));
+				std::memcpy(mcrf->data.data() + doodadOut.size() * sizeof(uint32), mapObjOut.data(),
+				    mapObjOut.size() * sizeof(uint32));
 			}
 		}
 
 		// Puts the index into exactly the chunks the new footprint covers and takes it out of the
 		// rest. MCRF is what decides whether a chunk draws an instance at all, so without this a
 		// doodad dragged one chunk over simply vanishes the next time the tile loads.
-		void RetargetRefs(Session::OpenTile& tile, bool doodad, uint32_t index, CAaBox const& bounds)
+		void RetargetRefs(Session::OpenTile& tile, bool doodad, uint32 index, CAaBox const& bounds)
 		{
-			for (int32_t chunkY = 0; chunkY < 16; ++chunkY)
+			for (int32 chunkY = 0; chunkY < 16; ++chunkY)
 			{
-				for (int32_t chunkX = 0; chunkX < 16; ++chunkX)
+				for (int32 chunkX = 0; chunkX < 16; ++chunkX)
 				{
 					Adt::Mcnk* mcnk = tile.doc.ChunkAt(chunkX, chunkY);
 					if (!mcnk)
@@ -548,11 +549,11 @@ namespace MapEditor::Placements
 			}
 		}
 
-		void DropRefs(Session::OpenTile& tile, bool doodad, uint32_t index)
+		void DropRefs(Session::OpenTile& tile, bool doodad, uint32 index)
 		{
-			for (int32_t chunkY = 0; chunkY < 16; ++chunkY)
+			for (int32 chunkY = 0; chunkY < 16; ++chunkY)
 			{
-				for (int32_t chunkX = 0; chunkX < 16; ++chunkX)
+				for (int32 chunkX = 0; chunkX < 16; ++chunkX)
 				{
 					if (Adt::Mcnk* mcnk = tile.doc.ChunkAt(chunkX, chunkY))
 						SetRef(*mcnk, doodad, index, false, true);
@@ -568,15 +569,15 @@ namespace MapEditor::Placements
 		{
 			std::unordered_set<void*> seen;
 
-			for (int32_t tileY = 0; tileY < Access::kTilesPerSide; ++tileY)
+			for (int32 tileY = 0; tileY < Access::kTilesPerSide; ++tileY)
 			{
-				for (int32_t tileX = 0; tileX < Access::kTilesPerSide; ++tileX)
+				for (int32 tileX = 0; tileX < Access::kTilesPerSide; ++tileX)
 				{
 					CMapArea* area = Access::GetArea(tileX, tileY);
 					if (!Access::IsAreaReady(area))
 						continue;
 
-					for (int32_t i = 0; i < Access::kChunksPerTile; ++i)
+					for (int32 i = 0; i < Access::kChunksPerTile; ++i)
 					{
 						CMapChunk* chunk = area->mapChunks[i];
 						if (!chunk)
@@ -584,7 +585,7 @@ namespace MapEditor::Placements
 
 						TSExplicitList const& list = doodads ? chunk->doodadDefLink : chunk->mapObjDefLink;
 						Access::ForEachLink(list,
-						    [&](uint8_t* node)
+						    [&](uint8* node)
 						{
 							void* owner = reinterpret_cast<CMapDefChunkLink*>(node)->owner;
 							if (owner && seen.insert(owner).second)
@@ -621,7 +622,7 @@ namespace MapEditor::Placements
 		// The tile whose MDDF or MODF actually lists a placement is the one its position falls in.
 		// A model overlapping the border is listed again in the neighbour with the same uniqueId,
 		// but the client only ever builds one instance, so the containing tile is the one to edit.
-		Session::OpenTile* OwningTile(C3Vector const& world, int32_t& tileX, int32_t& tileY)
+		Session::OpenTile* OwningTile(C3Vector const& world, int32& tileX, int32& tileY)
 		{
 			tileX = Coords::TileX(world);
 			tileY = Coords::TileY(world);
@@ -634,8 +635,8 @@ namespace MapEditor::Placements
 
 		bool RefForDoodad(CMapDoodadDef const* def, Ref& out)
 		{
-			int32_t tileX = 0;
-			int32_t tileY = 0;
+			int32 tileX = 0;
+			int32 tileY = 0;
 			Session::OpenTile* tile = OwningTile(def->position, tileX, tileY);
 			if (!tile)
 				return false;
@@ -650,7 +651,7 @@ namespace MapEditor::Placements
 				out.kind = Kind::Doodad;
 				out.tileX = tileX;
 				out.tileY = tileY;
-				out.index = static_cast<int32_t>(i);
+				out.index = static_cast<int32>(i);
 				out.uniqueId = def->uniqueId;
 				return true;
 			}
@@ -660,8 +661,8 @@ namespace MapEditor::Placements
 
 		bool RefForMapObj(CMapObjDef const* def, Ref& out)
 		{
-			int32_t tileX = 0;
-			int32_t tileY = 0;
+			int32 tileX = 0;
+			int32 tileY = 0;
 			Session::OpenTile* tile = OwningTile(def->position, tileX, tileY);
 			if (!tile)
 				return false;
@@ -676,7 +677,7 @@ namespace MapEditor::Placements
 				out.kind = Kind::MapObj;
 				out.tileX = tileX;
 				out.tileY = tileY;
-				out.index = static_cast<int32_t>(i);
+				out.index = static_cast<int32>(i);
 				out.uniqueId = entries[i].uniqueId;
 				return true;
 			}
@@ -691,21 +692,21 @@ namespace MapEditor::Placements
 			return Access::FindMapObjDef(entry.uniqueId);
 		}
 
-		std::string TileName(int32_t tileX, int32_t tileY)
+		std::string TileName(int32 tileX, int32 tileY)
 		{
 			return std::to_string(tileX) + "_" + std::to_string(tileY);
 		}
 
 		// Appends bytes to a top level chunk and hands back the index the entry landed at.
-		uint32_t AppendEntry(Adt::TopChunk& top, void const* entry, size_t stride)
+		uint32 AppendEntry(Adt::TopChunk& top, void const* entry, size_t stride)
 		{
-			uint32_t index = static_cast<uint32_t>(top.data.size() / stride);
-			uint8_t const* raw = static_cast<uint8_t const*>(entry);
+			uint32 index = static_cast<uint32>(top.data.size() / stride);
+			uint8 const* raw = static_cast<uint8 const*>(entry);
 			top.data.insert(top.data.end(), raw, raw + stride);
 			return index;
 		}
 
-		void RaiseHighest(uint32_t& highest, uint32_t candidate)
+		void RaiseHighest(uint32& highest, uint32 candidate)
 		{
 			if (candidate >= kUniqueIdBase && candidate < kUniqueIdCeiling && candidate >= highest)
 				highest = candidate + 1;
@@ -715,10 +716,10 @@ namespace MapEditor::Placements
 		// currently has loaded. An id minted here could in principle collide with one saved in a
 		// session where that tile was not loaded, but closing that would mean reading all 700
 		// tiles.
-		uint32_t AllocateUniqueId()
+		uint32 AllocateUniqueId()
 		{
-			static uint32_t next = kUniqueIdBase;
-			uint32_t highest = next;
+			static uint32 next = kUniqueIdBase;
+			uint32 highest = next;
 
 			for (Session::OpenTile* tile : Session::AllOpen())
 			{
@@ -737,18 +738,18 @@ namespace MapEditor::Placements
 				}
 			}
 
-			for (int32_t tileY = 0; tileY < Access::kTilesPerSide; ++tileY)
+			for (int32 tileY = 0; tileY < Access::kTilesPerSide; ++tileY)
 			{
-				for (int32_t tileX = 0; tileX < Access::kTilesPerSide; ++tileX)
+				for (int32 tileX = 0; tileX < Access::kTilesPerSide; ++tileX)
 				{
 					CMapArea* area = Access::GetArea(tileX, tileY);
 					if (!Access::IsAreaReady(area))
 						continue;
 
-					for (int32_t i = 0; i < area->doodadDefCount; ++i)
+					for (int32 i = 0; i < area->doodadDefCount; ++i)
 						RaiseHighest(highest, area->doodadDef[i].uniqueId);
 
-					for (int32_t i = 0; i < area->mapObjDefCount; ++i)
+					for (int32 i = 0; i < area->mapObjDefCount; ++i)
 						RaiseHighest(highest, area->mapObjDef[i].uniqueId);
 				}
 			}
@@ -758,9 +759,9 @@ namespace MapEditor::Placements
 		}
 
 		bool InsertDoodad(Session::OpenTile& tile, std::string const& model, Transform const& transform,
-		    uint16_t flags, Ref& out, std::string& error)
+		    uint16 flags, Ref& out, std::string& error)
 		{
-			uint32_t nameId = 0;
+			uint32 nameId = 0;
 			if (!ResolveName(tile, true, model.c_str(), nameId))
 			{
 				error = "could not add " + model + " to tile " + TileName(tile.tileX, tile.tileY);
@@ -776,7 +777,7 @@ namespace MapEditor::Placements
 			entry.flags = flags;
 
 			Adt::TopChunk* top = EnsureTop(tile.doc, Adt::kMDDF, Adt::kMWID);
-			uint32_t index = AppendEntry(*top, &entry, sizeof(entry));
+			uint32 index = AppendEntry(*top, &entry, sizeof(entry));
 
 			// No live instance to measure, so the footprint is a guess. Whatever the model turns
 			// out to be, the chunk it stands on has to list it or it will not draw at all, and the
@@ -787,16 +788,16 @@ namespace MapEditor::Placements
 			out.kind = Kind::Doodad;
 			out.tileX = tile.tileX;
 			out.tileY = tile.tileY;
-			out.index = static_cast<int32_t>(index);
+			out.index = static_cast<int32>(index);
 			out.uniqueId = entry.uniqueId;
 			return true;
 		}
 
 		bool InsertMapObj(Session::OpenTile& tile, std::string const& model, Transform const& transform,
-		    CAaBox const& extents, uint16_t flags, uint16_t doodadSet, uint16_t nameSet, Ref& out,
+		    CAaBox const& extents, uint16 flags, uint16 doodadSet, uint16 nameSet, Ref& out,
 		    std::string& error)
 		{
-			uint32_t nameId = 0;
+			uint32 nameId = 0;
 			if (!ResolveName(tile, false, model.c_str(), nameId))
 			{
 				error = "could not add " + model + " to tile " + TileName(tile.tileX, tile.tileY);
@@ -818,7 +819,7 @@ namespace MapEditor::Placements
 			entry.scale = 1024;
 
 			Adt::TopChunk* top = EnsureTop(tile.doc, Adt::kMODF, Adt::kMDDF);
-			uint32_t index = AppendEntry(*top, &entry, sizeof(entry));
+			uint32 index = AppendEntry(*top, &entry, sizeof(entry));
 
 			CAaBox world = Merge(BoxAround(transform.position, 1.0f),
 			    { Coords::AdtToWorld(extents.b), Coords::AdtToWorld(extents.t) });
@@ -829,7 +830,7 @@ namespace MapEditor::Placements
 			out.kind = Kind::MapObj;
 			out.tileX = tile.tileX;
 			out.tileY = tile.tileY;
-			out.index = static_cast<int32_t>(index);
+			out.index = static_cast<int32>(index);
 			out.uniqueId = entry.uniqueId;
 			return true;
 		}
@@ -858,7 +859,7 @@ namespace MapEditor::Placements
 			// DocName points into the source blob, which ResolveName is about to grow.
 			std::string model = found;
 
-			uint32_t nameId = 0;
+			uint32 nameId = 0;
 			if (!ResolveName(to, true, model.c_str(), nameId))
 			{
 				error = "could not add " + model + " to tile " + TileName(to.tileX, to.tileY);
@@ -876,11 +877,11 @@ namespace MapEditor::Placements
 				return false;
 
 			Adt::TopChunk* top = EnsureTop(to.doc, Adt::kMDDF, Adt::kMWID);
-			uint32_t index = AppendEntry(*top, &entry, sizeof(entry));
+			uint32 index = AppendEntry(*top, &entry, sizeof(entry));
 
 			ref.tileX = to.tileX;
 			ref.tileY = to.tileY;
-			ref.index = static_cast<int32_t>(index);
+			ref.index = static_cast<int32>(index);
 
 			CAaBox bounds = BoxAround(transform.position, 1.0f);
 			if (CMapDoodadDef* def = Access::FindDoodadDef(ref.uniqueId))
@@ -917,7 +918,7 @@ namespace MapEditor::Placements
 
 			std::string model = found;
 
-			uint32_t nameId = 0;
+			uint32 nameId = 0;
 			if (!ResolveName(to, false, model.c_str(), nameId))
 			{
 				error = "could not add " + model + " to tile " + TileName(to.tileX, to.tileY);
@@ -940,11 +941,11 @@ namespace MapEditor::Placements
 				return false;
 
 			Adt::TopChunk* top = EnsureTop(to.doc, Adt::kMODF, Adt::kMDDF);
-			uint32_t index = AppendEntry(*top, &entry, sizeof(entry));
+			uint32 index = AppendEntry(*top, &entry, sizeof(entry));
 
 			ref.tileX = to.tileX;
 			ref.tileY = to.tileY;
-			ref.index = static_cast<int32_t>(index);
+			ref.index = static_cast<int32>(index);
 
 			CAaBox bounds = BoxAround(transform.position, 1.0f);
 			if (CMapObjDef* def = Access::FindMapObjDef(entry.uniqueId))
@@ -967,7 +968,7 @@ namespace MapEditor::Placements
 		// The client's parsed copy cannot follow, area->doodadDef and mapObjDef are fixed size
 		// arrays allocated at load. The visible model is moved directly instead and the arrays
 		// catch up when the tiles next load from disk.
-		bool Migrate(Ref& ref, int32_t destX, int32_t destY, Transform const& transform, std::string& error)
+		bool Migrate(Ref& ref, int32 destX, int32 destY, Transform const& transform, std::string& error)
 		{
 			if (!Access::IsValidTile(destX, destY))
 			{
@@ -1102,7 +1103,7 @@ namespace MapEditor::Placements
 				if (entries[i].uniqueId != ref.uniqueId)
 					continue;
 
-				ref.index = static_cast<int32_t>(i);
+				ref.index = static_cast<int32>(i);
 				return true;
 			}
 
@@ -1118,7 +1119,7 @@ namespace MapEditor::Placements
 			if (entries[i].uniqueId != ref.uniqueId)
 				continue;
 
-			ref.index = static_cast<int32_t>(i);
+			ref.index = static_cast<int32>(i);
 			return true;
 		}
 
@@ -1245,8 +1246,8 @@ namespace MapEditor::Placements
 		if (!tile)
 			return false;
 
-		int32_t destX = Coords::TileX(transform.position);
-		int32_t destY = Coords::TileY(transform.position);
+		int32 destX = Coords::TileX(transform.position);
+		int32 destY = Coords::TileY(transform.position);
 		if (destX != ref.tileX || destY != ref.tileY)
 			return Migrate(ref, destX, destY, transform, error);
 
@@ -1263,7 +1264,7 @@ namespace MapEditor::Placements
 				return false;
 			}
 
-			uint16_t scale = PackScale(transform.scale);
+			uint16 scale = PackScale(transform.scale);
 
 			entries[ref.index].position = adt;
 			entries[ref.index].rotation = transform.rotation;
@@ -1286,7 +1287,7 @@ namespace MapEditor::Placements
 				bounds = Merge(bounds, DoodadBounds(def));
 			}
 
-			RetargetRefs(*tile, true, static_cast<uint32_t>(ref.index), bounds);
+			RetargetRefs(*tile, true, static_cast<uint32>(ref.index), bounds);
 			tile->dirty = true;
 			return true;
 		}
@@ -1324,7 +1325,7 @@ namespace MapEditor::Placements
 			bounds = Merge(bounds, Normalized(def->bbox));
 		}
 
-		RetargetRefs(*tile, false, static_cast<uint32_t>(ref.index), bounds);
+		RetargetRefs(*tile, false, static_cast<uint32>(ref.index), bounds);
 		tile->dirty = true;
 		return true;
 	}
@@ -1397,7 +1398,7 @@ namespace MapEditor::Placements
 			}
 		}
 
-		DropRefs(*tile, doodad, static_cast<uint32_t>(ref.index));
+		DropRefs(*tile, doodad, static_cast<uint32>(ref.index));
 
 		auto begin = top->data.begin() + static_cast<ptrdiff_t>(ref.index * stride);
 		top->data.erase(begin, begin + static_cast<ptrdiff_t>(stride));
@@ -1406,7 +1407,7 @@ namespace MapEditor::Placements
 		return true;
 	}
 
-	int32_t ListNear(C3Vector const& center, float radius, std::vector<Info>& out)
+	int32 ListNear(C3Vector const& center, float radius, std::vector<Info>& out)
 	{
 		out.clear();
 		if (!Access::IsActive())
@@ -1465,7 +1466,7 @@ namespace MapEditor::Placements
 			return a.originDistance < b.originDistance;
 		});
 
-		return static_cast<int32_t>(out.size());
+		return static_cast<int32>(out.size());
 	}
 
 	bool KindForPath(char const* path, Kind& out)
@@ -1517,8 +1518,8 @@ namespace MapEditor::Placements
 			return false;
 		}
 
-		int32_t tileX = Coords::TileX(transform.position);
-		int32_t tileY = Coords::TileY(transform.position);
+		int32 tileX = Coords::TileX(transform.position);
+		int32 tileY = Coords::TileY(transform.position);
 		if (!Access::IsValidTile(tileX, tileY))
 		{
 			error = "that spot is off the edge of the map";
@@ -1554,8 +1555,8 @@ namespace MapEditor::Placements
 		if (!source)
 			return false;
 
-		int32_t tileX = Coords::TileX(transform.position);
-		int32_t tileY = Coords::TileY(transform.position);
+		int32 tileX = Coords::TileX(transform.position);
+		int32 tileY = Coords::TileY(transform.position);
 		if (!Access::IsValidTile(tileX, tileY))
 		{
 			error = "that spot is off the edge of the map";
@@ -1568,7 +1569,7 @@ namespace MapEditor::Placements
 		// a name list, either of which moves the bytes these point at.
 		SMDoodadDef doodadEntry{};
 		SMMapObjDef mapObjEntry{};
-		uint32_t nameId = 0;
+		uint32 nameId = 0;
 
 		if (doodad)
 		{
@@ -1624,7 +1625,7 @@ namespace MapEditor::Placements
 		    mapObjEntry.nameSet, out, error);
 	}
 
-	int32_t ListModels(C3Vector const& center, float radius, std::vector<std::string>& out)
+	int32 ListModels(C3Vector const& center, float radius, std::vector<std::string>& out)
 	{
 		out.clear();
 
@@ -1659,7 +1660,7 @@ namespace MapEditor::Placements
 				out.push_back(info.name);
 		}
 
-		return static_cast<int32_t>(out.size());
+		return static_cast<int32>(out.size());
 	}
 
 	void DebugRay(C3Vector const& start, C3Vector const& end, std::vector<std::string>& lines)
@@ -1687,7 +1688,7 @@ namespace MapEditor::Placements
 
 		std::vector<Candidate> hits;
 
-		auto sweep = [&](bool doodads, int32_t& live, int32_t& resolved)
+		auto sweep = [&](bool doodads, int32& live, int32& resolved)
 		{
 			live = 0;
 			resolved = 0;
@@ -1720,10 +1721,10 @@ namespace MapEditor::Placements
 			});
 		};
 
-		int32_t liveDoodads = 0;
-		int32_t okDoodads = 0;
-		int32_t liveMapObjs = 0;
-		int32_t okMapObjs = 0;
+		int32 liveDoodads = 0;
+		int32 okDoodads = 0;
+		int32 liveMapObjs = 0;
+		int32 okMapObjs = 0;
 		sweep(true, liveDoodads, okDoodads);
 		sweep(false, liveMapObjs, okMapObjs);
 
@@ -1731,7 +1732,7 @@ namespace MapEditor::Placements
 		    liveDoodads, okDoodads, liveMapObjs, okMapObjs);
 		lines.push_back(line);
 
-		std::snprintf(line, sizeof(line), "  ray crosses %d of them", static_cast<int32_t>(hits.size()));
+		std::snprintf(line, sizeof(line), "  ray crosses %d of them", static_cast<int32>(hits.size()));
 		lines.push_back(line);
 
 		std::sort(hits.begin(), hits.end(),

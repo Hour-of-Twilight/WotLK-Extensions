@@ -21,6 +21,7 @@
 // a standalone VirtualAlloc; below the threshold, or with the whole thing disabled, defer to the
 // client's own allocator untouched.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 #include "Models/Client/M2Arena.h"
 
@@ -39,13 +40,13 @@ namespace
     m2::M2_BufferAllocFn g_origM2BufferAlloc = nullptr;
     m2::M2_BufferFreeFn  g_origM2BufferFree  = nullptr;
 
-    constexpr uint32_t kDefaultVirtualM2AllocThreshold = 1u * 1024u * 1024u;
+    constexpr uint32 kDefaultVirtualM2AllocThreshold = 1u * 1024u * 1024u;
 
     struct VirtualM2Allocation
     {
         void* base = nullptr;      // non-null for standalone VirtualAlloc
-        uint32_t arenaOffset = 0;  // valid when base == nullptr
-        uint32_t arenaSize = 0;
+        uint32 arenaOffset = 0;  // valid when base == nullptr
+        uint32 arenaSize = 0;
     };
 
     std::mutex g_virtualM2AllocMutex;
@@ -58,30 +59,30 @@ namespace
         return enabled;
     }
 
-    uint32_t VirtualM2AllocThreshold()
+    uint32 VirtualM2AllocThreshold()
     {
-        static const uint32_t bytes = ModernM2::ConfigBytesMbKb(
+        static const uint32 bytes = ModernM2::ConfigBytesMbKb(
             "HOT_M2_VIRTUAL_ALLOC_THRESHOLD_MB", "HOT_M2_VIRTUAL_ALLOC_THRESHOLD_KB",
             kDefaultVirtualM2AllocThreshold, 64, 2048u * 1024u);
         return bytes;
     }
 
-    void* TryVirtualM2Alloc(uint32_t size)
+    void* TryVirtualM2Alloc(uint32 size)
     {
         const SIZE_T total = static_cast<SIZE_T>(size) + 0x20u;
-        auto* base = static_cast<uint8_t*>(VirtualAlloc(nullptr, total, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+        auto* base = static_cast<uint8*>(VirtualAlloc(nullptr, total, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
         if (!base)
             return nullptr;
 
         const uintptr_t aligned = (reinterpret_cast<uintptr_t>(base) + 0x1Fu) & ~uintptr_t(0x0Fu);
-        auto* ptr = reinterpret_cast<uint8_t*>(aligned);
+        auto* ptr = reinterpret_cast<uint8*>(aligned);
         const uintptr_t shift = reinterpret_cast<uintptr_t>(ptr) - reinterpret_cast<uintptr_t>(base);
         if (shift == 0 || shift > 0xFF)
         {
             VirtualFree(base, 0, MEM_RELEASE);
             return nullptr;
         }
-        ptr[-1] = static_cast<uint8_t>(shift);
+        ptr[-1] = static_cast<uint8>(shift);
 
         std::lock_guard<std::mutex> lock(g_virtualM2AllocMutex);
         g_virtualM2Allocs.emplace(ptr, VirtualM2Allocation{ base, 0, 0 });
@@ -121,12 +122,12 @@ namespace
         g_origM2BufferFree(ptr);
     }
 
-    void* __cdecl hkM2BufferAlloc(uint32_t size, const char* tag, int line)
+    void* __cdecl hkM2BufferAlloc(uint32 size, const char* tag, int line)
     {
         if (size >= VirtualM2AllocThreshold() && LargeM2VirtualAllocEnabled())
         {
             {
-                uint32_t offset = 0, allocSize = 0;
+                uint32 offset = 0, allocSize = 0;
                 if (void* ptr = ModernM2::Arena::Alloc(size, &offset, &allocSize))
                 {
                     {

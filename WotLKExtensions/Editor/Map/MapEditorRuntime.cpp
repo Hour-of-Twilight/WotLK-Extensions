@@ -1,5 +1,6 @@
 ﻿#include <Editor/Map/MapEditorRuntime.h>
 
+#include <Defines.h>
 #include <ClientData/Camera.h>
 #include <ClientData/ClientFunctions.h>
 #include <ClientData/Draw.h>
@@ -8,6 +9,7 @@
 #include <ClientData/GxDevice.h>
 #include <ClientData/ObjectManager.h>
 #include <ClientData/VectorMath.h>
+#include <ClientData/WowObjects.h>
 #include <CustomLua.h>
 #include <Editor/GizmoDraw.h>
 #include <Editor/GizmoPick.h>
@@ -50,11 +52,11 @@ namespace MapEditor::Runtime
 		{
 			bool valid = false;
 			C3Vector position{};
-			int32_t tileX = -1;
-			int32_t tileY = -1;
-			int32_t chunkX = -1;
-			int32_t chunkY = -1;
-			int32_t areaId = 0;
+			int32 tileX = -1;
+			int32 tileY = -1;
+			int32 chunkX = -1;
+			int32 chunkY = -1;
+			int32 areaId = 0;
 		};
 
 		// What a drag with the left button does. Both tools share the brush footprint, the
@@ -107,10 +109,10 @@ namespace MapEditor::Runtime
 
 			// Which of the hovered chunk's layers the paint tool lays down. Layer 0 is the base,
 			// so painting it means clearing everything above it back off.
-			int32_t paintLayer = 1;
+			int32 paintLayer = 1;
 
 			// LiquidType.dbc row the liquid tools lay down. 1 is plain water.
-			uint32_t liquidType = 1;
+			uint32 liquidType = 1;
 
 			// How far above the ground a new surface goes when nobody names a height. Laying it
 			// exactly at the cursor buries it in the terrain it is meant to cover.
@@ -119,14 +121,14 @@ namespace MapEditor::Runtime
 			// Tiles the liquid brush has edited since the drag started. It saves and reloads once
 			// on mouse up rather than per frame, because each publish is a visible blink.
 			std::vector<Liquids::TileRef> liquidPending;
-			uint32_t lastLiquidMs = 0;
+			uint32 lastLiquidMs = 0;
 
 			// "lower" is raise pointed the other way rather than its own mode, so brush strength
 			// stays a plain positive number and shift still inverts whichever way is current.
 			bool sink = false;
 
 			bool painting = false;
-			uint32_t lastStrokeMs = 0;
+			uint32 lastStrokeMs = 0;
 
 			// Sampled when the stroke starts so Flatten levels to the ground it began on rather
 			// than chasing whatever is under the cursor now.
@@ -153,13 +155,13 @@ namespace MapEditor::Runtime
 			// can be redone off the real bounds instead of the guess it went in with.
 			Placements::Ref pending{};
 			Placements::Transform pendingTransform{};
-			uint32_t pendingUntilMs = 0;
+			uint32 pendingUntilMs = 0;
 
 			// Why the last UpdateCursor gave up, for MapEditor_Debug.
 			const char* lastMiss = "not run yet";
 		};
 
-		constexpr int8_t kRequiredSecurityLevel = 3;
+		constexpr int8 kRequiredSecurityLevel = 3;
 
 		bool HasEditorAccess()
 		{
@@ -281,9 +283,9 @@ namespace MapEditor::Runtime
 				return state.cursor;
 
 			C3Vector at{};
-			if (CGObject_C* player = ObjectManager::GetActivePlayerObject())
+			if (WowPlayer player = WowPlayer::Active())
 			{
-				player->GetPosition(at);
+				at = player.Position();
 				return At(at);
 			}
 
@@ -300,9 +302,9 @@ namespace MapEditor::Runtime
 		CursorInfo StandingAt()
 		{
 			C3Vector at{};
-			if (CGObject_C* player = ObjectManager::GetActivePlayerObject())
+			if (WowPlayer player = WowPlayer::Active())
 			{
-				player->GetPosition(at);
+				at = player.Position();
 				return At(at);
 			}
 
@@ -344,18 +346,18 @@ namespace MapEditor::Runtime
 
 			// Lifted off the surface, otherwise the lines z-fight with the terrain they trace and
 			// mostly disappear.
-			auto vertexAt = [&](int32_t index)
+			auto vertexAt = [&](int32 index)
 			{
 				C3Vector world = Coords::VertexWorldPos(chunk, index);
 				world.z += 0.15f;
 				return VectorMath::Subtract(world, camera);
 			};
 
-			for (int32_t row = 0; row < 9; ++row)
+			for (int32 row = 0; row < 9; ++row)
 			{
-				for (int32_t col = 0; col < 9; ++col)
+				for (int32 col = 0; col < 9; ++col)
 				{
-					int32_t here = Coords::EncodeOuterVertex(row, col);
+					int32 here = Coords::EncodeOuterVertex(row, col);
 					if (col < 8)
 						GizmoDraw::DrawLine(vertexAt(here), vertexAt(Coords::EncodeOuterVertex(row, col + 1)), outer);
 					if (row < 8)
@@ -364,9 +366,9 @@ namespace MapEditor::Runtime
 			}
 
 			// One diagonal per cell so the interleaved 8x8 vertices are visible too.
-			for (int32_t row = 0; row < 8; ++row)
+			for (int32 row = 0; row < 8; ++row)
 			{
-				for (int32_t col = 0; col < 8; ++col)
+				for (int32 col = 0; col < 8; ++col)
 				{
 					C3Vector center = vertexAt(Coords::EncodeInnerVertex(row, col));
 					GizmoDraw::DrawLine(vertexAt(Coords::EncodeOuterVertex(row, col)), center, inner);
@@ -449,8 +451,8 @@ namespace MapEditor::Runtime
 			if (!state.selection.Valid())
 				return;
 
-			int32_t wasX = state.selection.tileX;
-			int32_t wasY = state.selection.tileY;
+			int32 wasX = state.selection.tileX;
+			int32 wasY = state.selection.tileY;
 
 			std::string error;
 			if (Placements::SetTransform(state.selection, state.selected, error))
@@ -609,17 +611,17 @@ namespace MapEditor::Runtime
 				Print("MapEditor: could not settle the new placement - %s", error.c_str());
 		}
 
-		bool PublishTile(int32_t tileX, int32_t tileY);
+		bool PublishTile(int32 tileX, int32 tileY);
 
 		// One tick of the liquid brush. It either fills the cells under the brush or it does not,
 		// so it runs on a timer rather than on elapsed time, and a full MH2O rebuild per tile is
 		// too much to do every frame.
-		constexpr uint32_t kLiquidTickMs = 100;
+		constexpr uint32 kLiquidTickMs = 100;
 
 		void StrokeLiquid(bool erase)
 		{
 			RuntimeState& state = State();
-			uint32_t now = GetTickCount();
+			uint32 now = GetTickCount();
 			if (now - state.lastLiquidMs < kLiquidTickMs)
 				return;
 
@@ -650,7 +652,7 @@ namespace MapEditor::Runtime
 			std::vector<Liquids::TileRef> tiles;
 			tiles.swap(state.liquidPending);
 
-			int32_t published = 0;
+			int32 published = 0;
 			for (size_t i = 0; i < tiles.size(); ++i)
 			{
 				bool seen = false;
@@ -669,7 +671,7 @@ namespace MapEditor::Runtime
 		void UpdateStroke()
 		{
 			RuntimeState& state = State();
-			uint32_t now = GetTickCount();
+			uint32 now = GetTickCount();
 
 			if (!state.painting || !state.cursor.valid)
 			{
@@ -677,7 +679,7 @@ namespace MapEditor::Runtime
 				return;
 			}
 
-			uint32_t elapsed = now - state.lastStrokeMs;
+			uint32 elapsed = now - state.lastStrokeMs;
 			state.lastStrokeMs = now;
 
 			// A long stall, usually a load screen, should not land as one enormous stroke.
@@ -731,7 +733,7 @@ namespace MapEditor::Runtime
 			Sculpt::Apply(stroke);
 		}
 
-		int32_t OnMouseDown(const void* rawData, void*)
+		int32 OnMouseDown(const void* rawData, void*)
 		{
 			RuntimeState& state = State();
 			if (!AnyModeLive())
@@ -830,7 +832,7 @@ namespace MapEditor::Runtime
 			return 0;
 		}
 
-		int32_t OnMouseUp(const void* rawData, void*)
+		int32 OnMouseUp(const void* rawData, void*)
 		{
 			auto const* data = static_cast<EventDataMouse const*>(rawData);
 			if (!data || data->button != MOUSE_BUTTON_LEFT)
@@ -933,7 +935,7 @@ namespace MapEditor::Runtime
 
 			if (FrameScript::IsNumber(L, 1))
 			{
-				int32_t layer = static_cast<int32_t>(FrameScript::GetNumber(L, 1));
+				int32 layer = static_cast<int32>(FrameScript::GetNumber(L, 1));
 				state.paintLayer = layer < 0 ? 0 : (layer > 3 ? 3 : layer);
 			}
 
@@ -974,12 +976,12 @@ namespace MapEditor::Runtime
 			bool haveAlpha = mcnk && Adt::ReadChunkAlpha(*mcnk, Adt::FormatFor(*mcnk, *Access::sMapFlags), alpha,
 			                             error);
 
-			int32_t texel = 0;
+			int32 texel = 0;
 			if (haveAlpha)
 			{
-				int32_t row = static_cast<int32_t>(
+				int32 row = static_cast<int32>(
 				    (chunk->topLeftCoords.x - cursor.position.x) / Coords::kTexelSize);
-				int32_t col = static_cast<int32_t>(
+				int32 col = static_cast<int32>(
 				    (chunk->topLeftCoords.y - cursor.position.y) / Coords::kTexelSize);
 
 				row = row < 0 ? 0 : (row > 63 ? 63 : row);
@@ -987,11 +989,11 @@ namespace MapEditor::Runtime
 				texel = Coords::EncodeTexel(row, col);
 			}
 
-			int32_t base = 255;
-			for (uint32_t i = 1; haveAlpha && i < alpha.maps.size(); ++i)
+			int32 base = 255;
+			for (uint32 i = 1; haveAlpha && i < alpha.maps.size(); ++i)
 				base -= alpha.maps[i].texel[texel];
 
-			for (uint32_t i = 0; i < chunk->header->nLayers && i < 4; ++i)
+			for (uint32 i = 0; i < chunk->header->nLayers && i < 4; ++i)
 			{
 				SMLayer const& layer = chunk->layers[i];
 				char const* name = Access::TerrainTextureName(area, layer.textureId);
@@ -1002,7 +1004,7 @@ namespace MapEditor::Runtime
 					continue;
 				}
 
-				int32_t here = i ? alpha.maps[i].texel[texel] : (base < 0 ? 0 : base);
+				int32 here = i ? alpha.maps[i].texel[texel] : (base < 0 ? 0 : base);
 				Print("  layer %u -> tex %u  alpha %d  %s", i, layer.textureId, here,
 				    name ? name : "?");
 			}
@@ -1030,10 +1032,10 @@ namespace MapEditor::Runtime
 			}
 
 			Print("MapEditor: tile %d,%d has %u texture%s", cursor.tileX, cursor.tileY,
-			    static_cast<uint32_t>(names.size()), names.size() == 1 ? "" : "s");
+			    static_cast<uint32>(names.size()), names.size() == 1 ? "" : "s");
 
 			for (size_t i = 0; i < names.size(); ++i)
-				Print("  %u  %s", static_cast<uint32_t>(i), names[i].c_str());
+				Print("  %u  %s", static_cast<uint32>(i), names[i].c_str());
 
 			return 0;
 		}
@@ -1059,9 +1061,9 @@ namespace MapEditor::Runtime
 				return 0;
 			}
 
-			int32_t skipped = 0;
+			int32 skipped = 0;
 			std::string error;
-			int32_t added = TextureLayers::Add(cursor.position, state.brushRadius, texture,
+			int32 added = TextureLayers::Add(cursor.position, state.brushRadius, texture,
 			    skipped, error);
 
 			if (!added)
@@ -1081,9 +1083,9 @@ namespace MapEditor::Runtime
 		int RemoveLayer(lua_State* L)
 		{
 			RuntimeState& state = State();
-			int32_t layer = FrameScript::IsNumber(L, 1)
-			                    ? static_cast<int32_t>(FrameScript::GetNumber(L, 1))
-			                    : state.paintLayer;
+			int32 layer = FrameScript::IsNumber(L, 1)
+			                  ? static_cast<int32>(FrameScript::GetNumber(L, 1))
+			                  : state.paintLayer;
 
 			CursorInfo cursor = Focus();
 			if (!cursor.valid)
@@ -1092,9 +1094,9 @@ namespace MapEditor::Runtime
 				return 0;
 			}
 
-			int32_t skipped = 0;
+			int32 skipped = 0;
 			std::string error;
-			int32_t removed = TextureLayers::Remove(cursor.position, state.brushRadius, layer,
+			int32 removed = TextureLayers::Remove(cursor.position, state.brushRadius, layer,
 			    skipped, error);
 
 			if (!removed)
@@ -1131,7 +1133,7 @@ namespace MapEditor::Runtime
 		// and the in-memory document, so nothing survives a reload until this runs.
 		int SaveEdits(lua_State*)
 		{
-			int32_t saved = 0;
+			int32 saved = 0;
 			std::string error;
 
 			if (!Session::SaveDirty(saved, error))
@@ -1154,7 +1156,7 @@ namespace MapEditor::Runtime
 		{
 			// Reverting first, then forgetting. RevertAll purges the tiles, which is what stops
 			// anything still pointing at the MCLY, MCAL and texture name buffers the editor owns.
-			int32_t reverted = Session::RevertAll();
+			int32 reverted = Session::RevertAll();
 			TextureBrush::Reset();
 			TextureLayers::Reset();
 			Print("MapEditor: reverted %d tile%s", reverted, reverted == 1 ? "" : "s");
@@ -1184,7 +1186,7 @@ namespace MapEditor::Runtime
 			    area->header->mmdx, area->header->mddf, area->header->modf, area->header->mh2o);
 			Print("  doodads %d  wmos %d", area->doodadDefCount, area->mapObjDefCount);
 
-			for (int32_t i = 0; i < area->doodadDefCount && i < 3; ++i)
+			for (int32 i = 0; i < area->doodadDefCount && i < 3; ++i)
 			{
 				SMDoodadDef const& def = area->doodadDef[i];
 				const char* name = Access::DoodadFileName(area, def.nameId);
@@ -1192,7 +1194,7 @@ namespace MapEditor::Runtime
 				    def.position.x, def.position.y, def.position.z, name ? name : "?");
 			}
 
-			for (int32_t i = 0; i < area->mapObjDefCount && i < 3; ++i)
+			for (int32 i = 0; i < area->mapObjDefCount && i < 3; ++i)
 			{
 				SMMapObjDef const& def = area->mapObjDef[i];
 				const char* name = Access::MapObjFileName(area, def.nameId);
@@ -1205,8 +1207,8 @@ namespace MapEditor::Runtime
 			if (chunk && chunk->header && info)
 			{
 				SMChunk const* header = chunk->header;
-				uint32_t fileOffset =
-				    static_cast<uint32_t>(chunk->chunkInfoBeginPtr - static_cast<uint8_t*>(area->filePtr));
+				uint32 fileOffset =
+				    static_cast<uint32>(chunk->chunkInfoBeginPtr - static_cast<uint8*>(area->filePtr));
 
 				Print("  chunk %d,%d  MCIN off 0x%X size %u flags 0x%X  ptr off 0x%X", cursor.chunkX,
 				    cursor.chunkY, info->offset, info->size, info->flags, fileOffset);
@@ -1223,7 +1225,7 @@ namespace MapEditor::Runtime
 				    chunk->vertices[0], Coords::VertexHeight(chunk, 0), chunk->vertices[144],
 				    Coords::VertexHeight(chunk, 144));
 
-				for (uint32_t layer = 0; layer < header->nLayers && layer < 4; ++layer)
+				for (uint32 layer = 0; layer < header->nLayers && layer < 4; ++layer)
 					Print("    MCLY[%u] tex %u flags 0x%X ofsAlpha 0x%X", layer,
 					    chunk->layers[layer].textureId, chunk->layers[layer].flags,
 					    chunk->layers[layer].offsetInMCAL);
@@ -1236,35 +1238,35 @@ namespace MapEditor::Runtime
 		// proves very little, so the sweep reports which features it really touched.
 		struct Coverage
 		{
-			int32_t tiles = 0;
-			int32_t mh2o = 0;
-			int32_t mfbo = 0;
-			int32_t mtxf = 0;
-			int32_t mclq = 0;
-			int32_t mcsh = 0;
-			int32_t mccv = 0;
-			int32_t maxLayers = 0;
+			int32 tiles = 0;
+			int32 mh2o = 0;
+			int32 mfbo = 0;
+			int32 mtxf = 0;
+			int32 mclq = 0;
+			int32 mcsh = 0;
+			int32 mccv = 0;
+			int32 maxLayers = 0;
 
 			// Alpha codec, counted per chunk rather than per tile since a single tile mixes
 			// formats freely.
-			int32_t alphaChunks = 0;     // chunks carrying at least one blend mask
-			int32_t alphaCompressed = 0; // ... of which at least one mask was RLE
-			int32_t alphaFailed = 0;     // decode refused the data
-			int32_t alphaMismatch = 0;   // decode and encode are not inverse, a real codec bug
-			int32_t alphaExact = 0;      // re-encoded MCAL matched the file byte for byte
+			int32 alphaChunks = 0;     // chunks carrying at least one blend mask
+			int32 alphaCompressed = 0; // ... of which at least one mask was RLE
+			int32 alphaFailed = 0;     // decode refused the data
+			int32 alphaMismatch = 0;   // decode and encode are not inverse, a real codec bug
+			int32 alphaExact = 0;      // re-encoded MCAL matched the file byte for byte
 			bool bigAlpha = false;
 		};
 
 		// Checks the alpha codec against one chunk, since decoding then re-encoding has to
 		// reproduce the same texels or painting would quietly corrupt a layer. Byte equality
 		// against the file is tracked separately because re-encoding always writes uncompressed.
-		void MeasureAlpha(Adt::Mcnk const& chunk, uint32_t mapFlags, Coverage& cov)
+		void MeasureAlpha(Adt::Mcnk const& chunk, uint32 mapFlags, Coverage& cov)
 		{
 			Adt::AlphaFormat format = Adt::FormatFor(chunk, mapFlags);
 
 			bool any = false;
 			bool compressed = false;
-			for (uint32_t i = 0; i < chunk.header.nLayers; ++i)
+			for (uint32 i = 0; i < chunk.header.nLayers; ++i)
 			{
 				Adt::SubChunk const* mcly = chunk.Find(Adt::kMCLY);
 				if (!mcly || mcly->data.size() < (i + 1) * sizeof(SMLayer))
@@ -1328,7 +1330,7 @@ namespace MapEditor::Runtime
 				++cov.alphaExact;
 		}
 
-		void Measure(Adt::AdtDocument const& doc, Coverage& cov, uint32_t mapFlags)
+		void Measure(Adt::AdtDocument const& doc, Coverage& cov, uint32 mapFlags)
 		{
 			++cov.tiles;
 			cov.bigAlpha = (mapFlags & 0x4) != 0;
@@ -1352,8 +1354,8 @@ namespace MapEditor::Runtime
 
 			for (Adt::Mcnk const& chunk : doc.chunks)
 			{
-				if (static_cast<int32_t>(chunk.header.nLayers) > cov.maxLayers)
-					cov.maxLayers = static_cast<int32_t>(chunk.header.nLayers);
+				if (static_cast<int32>(chunk.header.nLayers) > cov.maxLayers)
+					cov.maxLayers = static_cast<int32>(chunk.header.nLayers);
 
 				MeasureAlpha(chunk, mapFlags, cov);
 
@@ -1388,15 +1390,15 @@ namespace MapEditor::Runtime
 		// Reads a tile off disk, parses it, writes it back out and compares. Nothing the writer
 		// produces can be trusted until the bytes come back identical, and `detail` caps the
 		// per-difference reporting so a map wide sweep does not flood chat.
-		TripResult RoundTripTile(int32_t tileX, int32_t tileY, bool verbose,
+		TripResult RoundTripTile(int32 tileX, int32 tileY, bool verbose,
 		    char const* mapName = nullptr, Coverage* cov = nullptr, bool detail = true,
-		    uint32_t mapFlags = 0)
+		    uint32 mapFlags = 0)
 		{
 			std::string path = mapName ? Adt::TilePath(mapName, tileX, tileY)
 			                           : Adt::TilePath(tileX, tileY);
 			std::string error;
 
-			std::vector<uint8_t> original;
+			std::vector<uint8> original;
 			if (!Adt::ReadFileBytes(path.c_str(), original, error))
 			{
 				if (verbose)
@@ -1405,7 +1407,7 @@ namespace MapEditor::Runtime
 			}
 
 			Adt::AdtDocument doc;
-			if (!Adt::Read(original.data(), static_cast<uint32_t>(original.size()), doc, error))
+			if (!Adt::Read(original.data(), static_cast<uint32>(original.size()), doc, error))
 			{
 				if (detail)
 					Print("MapEditor: %d,%d parse failed - %s", tileX, tileY, error.c_str());
@@ -1415,7 +1417,7 @@ namespace MapEditor::Runtime
 			if (cov)
 				Measure(doc, *cov, mapFlags);
 
-			std::vector<uint8_t> rebuilt;
+			std::vector<uint8> rebuilt;
 			if (!Adt::Write(doc, rebuilt, error))
 			{
 				if (detail)
@@ -1425,19 +1427,19 @@ namespace MapEditor::Runtime
 
 			if (verbose)
 				Print("MapEditor: %s  %u bytes  %u top chunks  %u MCNK", path.c_str(),
-				    static_cast<uint32_t>(original.size()), static_cast<uint32_t>(doc.order.size()),
-				    static_cast<uint32_t>(doc.chunks.size()));
+				    static_cast<uint32>(original.size()), static_cast<uint32>(doc.order.size()),
+				    static_cast<uint32>(doc.chunks.size()));
 
 			if (rebuilt.size() != original.size())
 			{
 				if (detail)
 					Print("MapEditor: %d,%d size differs - wrote %u, expected %u", tileX, tileY,
-					    static_cast<uint32_t>(rebuilt.size()),
-					    static_cast<uint32_t>(original.size()));
+					    static_cast<uint32>(rebuilt.size()),
+					    static_cast<uint32>(original.size()));
 				return TripResult::Failed;
 			}
 
-			uint32_t size = static_cast<uint32_t>(original.size());
+			uint32 size = static_cast<uint32>(original.size());
 
 			// The verdict comes from the whole buffer, never from the reporting loop below, so
 			// that suppressing output cannot turn a mismatch into a pass.
@@ -1450,8 +1452,8 @@ namespace MapEditor::Runtime
 
 			// Report differing runs rather than individual bytes, otherwise one wrong field
 			// floods the chat frame.
-			uint32_t runs = 0;
-			uint32_t i = 0;
+			uint32 runs = 0;
+			uint32 i = 0;
 
 			while (i < size && runs < 8 && detail)
 			{
@@ -1461,13 +1463,13 @@ namespace MapEditor::Runtime
 					continue;
 				}
 
-				uint32_t start = i;
+				uint32 start = i;
 				while (i < size && original[i] != rebuilt[i])
 					++i;
 
-				uint32_t length = i - start;
-				uint32_t was = 0;
-				uint32_t now = 0;
+				uint32 length = i - start;
+				uint32 was = 0;
+				uint32 now = 0;
 				std::memcpy(&was, original.data() + start, length < 4 ? length : 4);
 				std::memcpy(&now, rebuilt.data() + start, length < 4 ? length : 4);
 
@@ -1478,13 +1480,13 @@ namespace MapEditor::Runtime
 				// it. Dump the inventory once so the branch the writer took is observable.
 				if (runs == 0)
 				{
-					int32_t mcnk = Adt::ChunkIndexAtOffset(doc, start);
+					int32 mcnk = Adt::ChunkIndexAtOffset(doc, start);
 					if (mcnk >= 0)
 					{
 						for (Adt::SubChunk const& sub : doc.chunks[mcnk].subs)
 							Print("    MCNK %d %s declares %u occupies %u", mcnk,
 							    Adt::ChunkName(sub.id).c_str(), sub.DeclaredSize(),
-							    static_cast<uint32_t>(sub.data.size()));
+							    static_cast<uint32>(sub.data.size()));
 					}
 				}
 
@@ -1514,12 +1516,12 @@ namespace MapEditor::Runtime
 		// asks for: water and none, dungeon and outdoor, one and four texture layers.
 		int RoundTripAll(lua_State*)
 		{
-			int32_t tested = 0;
-			int32_t failed = 0;
+			int32 tested = 0;
+			int32 failed = 0;
 
-			for (int32_t tileY = 0; tileY < 64; ++tileY)
+			for (int32 tileY = 0; tileY < 64; ++tileY)
 			{
-				for (int32_t tileX = 0; tileX < 64; ++tileX)
+				for (int32 tileX = 0; tileX < 64; ++tileX)
 				{
 					if (!Access::IsAreaReady(Access::GetArea(tileX, tileY)))
 						continue;
@@ -1543,22 +1545,22 @@ namespace MapEditor::Runtime
 			if (!mapName || !*mapName)
 				mapName = Access::sMapName;
 
-			int32_t tested = 0;
-			int32_t failed = 0;
-			int32_t reported = 0;
+			int32 tested = 0;
+			int32 failed = 0;
+			int32 reported = 0;
 			Coverage cov;
 
 			// The map being swept is often not the one being stood in, so its alpha format has to
 			// come from its own WDT rather than the client's loaded copy.
-			uint32_t mapFlags = 0;
+			uint32 mapFlags = 0;
 			std::string flagsError;
 			if (!Adt::ReadMapFlags(mapName, mapFlags, flagsError))
 				Print("MapEditor: no MPHD for %s (%s), assuming 4 bit alpha", mapName,
 				    flagsError.c_str());
 
-			for (int32_t tileY = 0; tileY < 64; ++tileY)
+			for (int32 tileY = 0; tileY < 64; ++tileY)
 			{
-				for (int32_t tileX = 0; tileX < 64; ++tileX)
+				for (int32 tileX = 0; tileX < 64; ++tileX)
 				{
 					// Reporting every failure over a whole map would flood the chat frame, so
 					// only the first few carry their diffs.
@@ -1603,7 +1605,7 @@ namespace MapEditor::Runtime
 			char const* mapName = Access::sMapName;
 			std::string path = Adt::TilePath(mapName, cursor.tileX, cursor.tileY);
 
-			std::vector<uint8_t> original;
+			std::vector<uint8> original;
 			std::string error;
 			if (!Adt::ReadFileBytes(path.c_str(), original, error))
 			{
@@ -1612,13 +1614,13 @@ namespace MapEditor::Runtime
 			}
 
 			Adt::AdtDocument doc;
-			if (!Adt::Read(original.data(), static_cast<uint32_t>(original.size()), doc, error))
+			if (!Adt::Read(original.data(), static_cast<uint32>(original.size()), doc, error))
 			{
 				Print("MapEditor: parse failed - %s", error.c_str());
 				return 0;
 			}
 
-			std::vector<uint8_t> rebuilt;
+			std::vector<uint8> rebuilt;
 			if (!Adt::Write(doc, rebuilt, error))
 			{
 				Print("MapEditor: write failed - %s", error.c_str());
@@ -1636,7 +1638,7 @@ namespace MapEditor::Runtime
 			Access::ReloadTile(cursor.tileX, cursor.tileY);
 
 			Print("MapEditor: saved %d,%d (%u bytes, %s) and purged",
-			    cursor.tileX, cursor.tileY, static_cast<uint32_t>(rebuilt.size()),
+			    cursor.tileX, cursor.tileY, static_cast<uint32>(rebuilt.size()),
 			    identical ? "byte identical" : "DIFFERS from source");
 			Print("  %s",
 			    Adt::DiskTilePath(mapName, cursor.tileX, cursor.tileY).string().c_str());
@@ -1662,7 +1664,7 @@ namespace MapEditor::Runtime
 			char const* mapName = Access::sMapName;
 			std::string path = Adt::TilePath(mapName, cursor.tileX, cursor.tileY);
 
-			std::vector<uint8_t> bytes;
+			std::vector<uint8> bytes;
 			std::string error;
 			if (!Adt::ReadFileBytes(path.c_str(), bytes, error))
 			{
@@ -1671,7 +1673,7 @@ namespace MapEditor::Runtime
 			}
 
 			Adt::AdtDocument doc;
-			if (!Adt::Read(bytes.data(), static_cast<uint32_t>(bytes.size()), doc, error))
+			if (!Adt::Read(bytes.data(), static_cast<uint32>(bytes.size()), doc, error))
 			{
 				Print("MapEditor: parse failed - %s", error.c_str());
 				return 0;
@@ -1688,10 +1690,10 @@ namespace MapEditor::Runtime
 			// 145 floats, the 9x9 outer grid interleaved with the 8x8 inner one, all relative to
 			// the chunk header's position.z.
 			float* heights = reinterpret_cast<float*>(mcvt->data.data());
-			for (int32_t i = 0; i < Adt::kMcvtHeights; ++i)
+			for (int32 i = 0; i < Adt::kMcvtHeights; ++i)
 				heights[i] += delta;
 
-			std::vector<uint8_t> rebuilt;
+			std::vector<uint8> rebuilt;
 			if (!Adt::Write(doc, rebuilt, error))
 			{
 				Print("MapEditor: write failed - %s", error.c_str());
@@ -1852,7 +1854,7 @@ namespace MapEditor::Runtime
 				return 1;
 			}
 
-			for (uint32_t i = 0; i < 4; ++i)
+			for (uint32 i = 0; i < 4; ++i)
 			{
 				char const* name = i < chunk->header->nLayers
 				                       ? Access::TerrainTextureName(area, chunk->layers[i].textureId)
@@ -1876,10 +1878,10 @@ namespace MapEditor::Runtime
 			{
 				picked.kind = std::strcmp(kind, "wmo") == 0 ? Placements::Kind::MapObj
 				                                            : Placements::Kind::Doodad;
-				picked.tileX = static_cast<int32_t>(FrameScript::GetNumber(L, 2));
-				picked.tileY = static_cast<int32_t>(FrameScript::GetNumber(L, 3));
-				picked.index = static_cast<int32_t>(FrameScript::GetNumber(L, 4));
-				picked.uniqueId = static_cast<uint32_t>(FrameScript::GetNumber(L, 5));
+				picked.tileX = static_cast<int32>(FrameScript::GetNumber(L, 2));
+				picked.tileY = static_cast<int32>(FrameScript::GetNumber(L, 3));
+				picked.index = static_cast<int32>(FrameScript::GetNumber(L, 4));
+				picked.uniqueId = static_cast<uint32>(FrameScript::GetNumber(L, 5));
 
 				if (!Placements::Resolve(picked))
 				{
@@ -1925,7 +1927,7 @@ namespace MapEditor::Runtime
 			std::vector<Placements::Info> found;
 			Placements::ListNear(cursor.position, radius, found);
 
-			Print("MapEditor: %d placements within %.0f yards", static_cast<int32_t>(found.size()), radius);
+			Print("MapEditor: %d placements within %.0f yards", static_cast<int32>(found.size()), radius);
 			for (Placements::Info const& info : found)
 			{
 				Print("  %s %d in %d_%d  %.0f yards  %s",
@@ -2089,7 +2091,7 @@ namespace MapEditor::Runtime
 		// nowhere to go: CMapArea::doodadDef and mapObjDef are sized when the tile parses and hold
 		// no spare row. So the tile goes to disk and gets purged, and the client builds the
 		// instance on the way back in.
-		bool PublishTile(int32_t tileX, int32_t tileY)
+		bool PublishTile(int32 tileX, int32 tileY)
 		{
 			std::string error;
 			if (!Session::SaveOne(tileX, tileY, error))
@@ -2104,7 +2106,7 @@ namespace MapEditor::Runtime
 
 		// Ten seconds is long enough for the tile to come back and the model to stream in, short
 		// enough that a path the client cannot open gives up while you still remember placing it.
-		constexpr uint32_t kSettleWindowMs = 10000;
+		constexpr uint32 kSettleWindowMs = 10000;
 
 		void WatchNewPlacement(Placements::Ref const& ref, Placements::Transform const& transform)
 		{
@@ -2238,9 +2240,9 @@ namespace MapEditor::Runtime
 		// Liquid never draws off a live buffer, so every one of these ends in a save and a reload
 		// of each tile it reached. That is cheap enough on one tile, which is why they are commands
 		// rather than something bound to a drag.
-		int32_t PublishLiquid(std::vector<Liquids::TileRef> const& tiles)
+		int32 PublishLiquid(std::vector<Liquids::TileRef> const& tiles)
 		{
-			int32_t published = 0;
+			int32 published = 0;
 			for (Liquids::TileRef const& tile : tiles)
 			{
 				if (PublishTile(tile.x, tile.y))
@@ -2283,7 +2285,7 @@ namespace MapEditor::Runtime
 			if (!FrameScript::IsNumber(L, 1))
 				return 0;
 
-			uint32_t id = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+			uint32 id = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 
 			Liquids::TypeInfo info;
 			if (!Liquids::GetType(id, info))
@@ -2315,7 +2317,7 @@ namespace MapEditor::Runtime
 
 		int GetLiquidType(lua_State* L)
 		{
-			uint32_t id = State().liquidType;
+			uint32 id = State().liquidType;
 
 			Liquids::TypeInfo info;
 			bool known = Liquids::GetType(id, info);
@@ -2346,7 +2348,7 @@ namespace MapEditor::Runtime
 
 			std::vector<Liquids::TileRef> touched;
 			std::string error;
-			int32_t changed = Liquids::Add(cursor.position, state.brushRadius, state.liquidType,
+			int32 changed = Liquids::Add(cursor.position, state.brushRadius, state.liquidType,
 			    height, touched, error);
 
 			if (!changed)
@@ -2374,13 +2376,13 @@ namespace MapEditor::Runtime
 				return 0;
 			}
 
-			int32_t layer = FrameScript::IsNumber(L, 1)
-			                    ? static_cast<int32_t>(FrameScript::GetNumber(L, 1))
-			                    : -1;
+			int32 layer = FrameScript::IsNumber(L, 1)
+			                  ? static_cast<int32>(FrameScript::GetNumber(L, 1))
+			                  : -1;
 
 			std::vector<Liquids::TileRef> touched;
 			std::string error;
-			int32_t changed = Liquids::Remove(cursor.position, state.brushRadius, layer, touched,
+			int32 changed = Liquids::Remove(cursor.position, state.brushRadius, layer, touched,
 			    error);
 
 			if (!changed)
@@ -2406,13 +2408,13 @@ namespace MapEditor::Runtime
 				return 0;
 			}
 
-			int32_t layer = FrameScript::IsNumber(L, 1)
-			                    ? static_cast<int32_t>(FrameScript::GetNumber(L, 1))
-			                    : -1;
+			int32 layer = FrameScript::IsNumber(L, 1)
+			                  ? static_cast<int32>(FrameScript::GetNumber(L, 1))
+			                  : -1;
 
 			std::vector<Liquids::TileRef> touched;
 			std::string error;
-			int32_t changed = Liquids::SetType(cursor.position, state.brushRadius, layer,
+			int32 changed = Liquids::SetType(cursor.position, state.brushRadius, layer,
 			    state.liquidType, touched, error);
 
 			if (!changed)
@@ -2449,13 +2451,13 @@ namespace MapEditor::Runtime
 			}
 
 			float height = static_cast<float>(FrameScript::GetNumber(L, 1));
-			int32_t layer = FrameScript::IsNumber(L, 2)
-			                    ? static_cast<int32_t>(FrameScript::GetNumber(L, 2))
-			                    : -1;
+			int32 layer = FrameScript::IsNumber(L, 2)
+			                  ? static_cast<int32>(FrameScript::GetNumber(L, 2))
+			                  : -1;
 
 			std::vector<Liquids::TileRef> touched;
 			std::string error;
-			int32_t changed = Liquids::SetHeight(cursor.position, state.brushRadius, layer,
+			int32 changed = Liquids::SetHeight(cursor.position, state.brushRadius, layer,
 			    height, relative, touched, error);
 
 			if (!changed)
@@ -2492,8 +2494,8 @@ namespace MapEditor::Runtime
 				return 0;
 			}
 
-			int32_t fishable = FrameScript::Type(L, 1) <= 0 ? -1 : (FrameScript::ToBoolean(L, 1) ? 1 : 0);
-			int32_t fatigue = FrameScript::Type(L, 2) <= 0 ? -1 : (FrameScript::ToBoolean(L, 2) ? 1 : 0);
+			int32 fishable = FrameScript::Type(L, 1) <= 0 ? -1 : (FrameScript::ToBoolean(L, 1) ? 1 : 0);
+			int32 fatigue = FrameScript::Type(L, 2) <= 0 ? -1 : (FrameScript::ToBoolean(L, 2) ? 1 : 0);
 
 			if (fishable < 0 && fatigue < 0)
 			{
@@ -2503,7 +2505,7 @@ namespace MapEditor::Runtime
 
 			std::vector<Liquids::TileRef> touched;
 			std::string error;
-			int32_t changed = Liquids::SetFlags(cursor.position, state.brushRadius, fishable,
+			int32 changed = Liquids::SetFlags(cursor.position, state.brushRadius, fishable,
 			    fatigue, touched, error);
 
 			if (!changed)
@@ -2592,7 +2594,7 @@ namespace MapEditor::Runtime
 			}
 
 			Print("MapEditor: chunk %d,%d of tile %d,%d has %u liquid layer%s", cursor.chunkX,
-			    cursor.chunkY, cursor.tileX, cursor.tileY, static_cast<uint32_t>(info.layers.size()),
+			    cursor.chunkY, cursor.tileX, cursor.tileY, static_cast<uint32>(info.layers.size()),
 			    info.layers.size() == 1 ? "" : "s");
 
 			for (size_t i = 0; i < info.layers.size(); ++i)
@@ -2603,7 +2605,7 @@ namespace MapEditor::Runtime
 				char const* name = Liquids::GetType(layer.type, type) ? type.name.c_str() : "?";
 
 				Print("  layer %u  type %u %s  format %u  %d cell%s  z %.2f to %.2f",
-				    static_cast<uint32_t>(i), layer.type, name, layer.format, layer.cells,
+				    static_cast<uint32>(i), layer.type, name, layer.format, layer.cells,
 				    layer.cells == 1 ? "" : "s", layer.minHeight, layer.maxHeight);
 			}
 
@@ -2720,9 +2722,9 @@ namespace MapEditor::Runtime
 					Print("  chunk corner (%.2f %.2f %.2f)  offset (%.2f %.2f)  inside %d", corner.x,
 					    corner.y, corner.z, dx, dy, inside ? 1 : 0);
 
-					int32_t best = 0;
+					int32 best = 0;
 					float bestDist = 1e30f;
-					for (int32_t i = 0; i < Access::kVertsPerChunk; ++i)
+					for (int32 i = 0; i < Access::kVertsPerChunk; ++i)
 					{
 						float d = Coords::Distance2D(Coords::VertexWorldPos(hitChunk, i), state.cursor.position);
 						if (d < bestDist)
@@ -2746,8 +2748,8 @@ namespace MapEditor::Runtime
 			if (worldFrame && worldFrame->m_camera)
 			{
 				C3Vector const& camera = worldFrame->m_camera->m_position;
-				int32_t tileX = Coords::TileX(camera);
-				int32_t tileY = Coords::TileY(camera);
+				int32 tileX = Coords::TileX(camera);
+				int32 tileY = Coords::TileY(camera);
 				CMapArea* area = Access::GetArea(tileX, tileY);
 
 				Print("  camera (%.1f %.1f %.1f) -> tile %d,%d  area %p ready %d", camera.x, camera.y,

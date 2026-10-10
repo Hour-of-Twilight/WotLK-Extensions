@@ -1,4 +1,5 @@
 #include "StreamLog.h"
+#include "StreamPaths.h"
 
 #include <Helpers/Util.h>
 #include <Logger.h>
@@ -39,7 +40,7 @@ namespace Streaming
 				return;
 			g_opened = true;
 			std::error_code ec;
-			std::filesystem::path path = Util::GetExeDir() / "Cache" / "hotstream.log";
+			std::filesystem::path path = Paths::LogsDir() / "hotstream.log";
 			std::filesystem::create_directories(path.parent_path(), ec);
 			std::uintmax_t size = std::filesystem::file_size(path, ec);
 			std::ios::openmode mode = std::ios::out | ((!ec && size > kTruncateAt) ? std::ios::trunc : std::ios::app);

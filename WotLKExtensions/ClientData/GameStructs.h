@@ -39,11 +39,11 @@ struct CDataStore_vTable
 struct CDataStore
 {
 	CDataStore_vTable* vTable;
-	int32_t* m_buffer;
-	int32_t m_base;
-	int32_t m_alloc;
-	int32_t m_size;
-	int32_t m_read;
+	int32* m_buffer;
+	int32 m_base;
+	int32 m_alloc;
+	int32 m_size;
+	int32 m_read;
 };
 
 struct CustomNetClient
@@ -54,10 +54,10 @@ struct CustomNetClient
 
 struct SpellCastNode
 {
-	SpellCastNode* next;   // 0x00
-	SpellCastNode* prev;   // 0x04
-	uint8_t padding[0x18]; // 0x08
-	uint32_t spellId;      // 0x20
+	SpellCastNode* next; // 0x00
+	SpellCastNode* prev; // 0x04
+	uint8 padding[0x18]; // 0x08
+	uint32 spellId;      // 0x20
 };
 
 struct ItemRecord

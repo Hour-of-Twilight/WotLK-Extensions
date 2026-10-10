@@ -1,9 +1,14 @@
+#include <Defines.h>
 #include "Item.h"
 #include <Util.h>
 #include <ClientDetours.h>
 #include <ClientData/Enums.h>
+#include <ankerl/unordered_dense.h>
 #include <cstring>
 #include "Logger.h"
+
+static bool sItemTableExpanded = false;
+static ankerl::unordered_dense::set<int> sOwnedItemIDs;
 
 // Server side names
 enum ItemFlags2 : uint32
@@ -80,8 +85,8 @@ __declspec(naked) static void CGTooltip__SetItem_HeroicLabel()
 	}
 }
 
-static constexpr uint32_t SET_ITEM_SPELL_TRIGGER_JUMP_TABLE = 0x0062D908;
-static constexpr uint32_t SET_ITEM_SPELL_TRIGGER_DEFAULT_CASE = 0x0062C1F7;
+static constexpr uint32 SET_ITEM_SPELL_TRIGGER_JUMP_TABLE = 0x0062D908;
+static constexpr uint32 SET_ITEM_SPELL_TRIGGER_DEFAULT_CASE = 0x0062C1F7;
 
 static const char* sOnSocketTriggerKey = "ITEM_SPELL_TRIGGER_ONSOCKET";
 
@@ -118,27 +123,27 @@ void Item::PatchHeroicQualityTooltipLabel()
 
 void Item::PatchOnSocketSpellTriggerLabel()
 {
-	const uint32_t slot = SET_ITEM_SPELL_TRIGGER_JUMP_TABLE + ITEM_SPELLTRIGGER_ON_SOCKET * sizeof(uint32_t);
+	const uint32 slot = SET_ITEM_SPELL_TRIGGER_JUMP_TABLE + ITEM_SPELLTRIGGER_ON_SOCKET * sizeof(uint32);
 
-	if (*reinterpret_cast<uint32_t*>(slot) != SET_ITEM_SPELL_TRIGGER_DEFAULT_CASE)
+	if (*reinterpret_cast<uint32*>(slot) != SET_ITEM_SPELL_TRIGGER_DEFAULT_CASE)
 	{
 		LOG_DEBUG << "Unexpected spell trigger jump table entry at " << slot << ", skipping On Socket patch.";
 		return;
 	}
 
-	Util::OverwriteValue<uint32_t>(slot, reinterpret_cast<uint32_t>(&CGTooltip__SetItem_OnSocketTriggerLine));
+	Util::OverwriteValue<uint32>(slot, reinterpret_cast<uint32>(&CGTooltip__SetItem_OnSocketTriggerLine));
 }
 
-void Item::PatchTooltipLabelPush(uint32_t pushSite, void* stub)
+void Item::PatchTooltipLabelPush(uint32 pushSite, void* stub)
 {
-	if (*reinterpret_cast<uint8_t*>(pushSite) != 0x68) // push imm32
+	if (*reinterpret_cast<uint8*>(pushSite) != 0x68) // push imm32
 	{
 		LOG_DEBUG << "Unexpected bytes at tooltip label site " << pushSite << ", skipping patch.";
 		return;
 	}
 
-	uint8_t patch[5];
-	int32_t rel = static_cast<int32_t>(reinterpret_cast<uintptr_t>(stub) - (pushSite + 5));
+	uint8 patch[5];
+	int32 rel = static_cast<int32>(reinterpret_cast<uintptr_t>(stub) - (pushSite + 5));
 	patch[0] = 0xE9; // jmp rel32
 	std::memcpy(&patch[1], &rel, sizeof(rel));
 	Util::OverwriteBytesAtAddress(pushSite, patch, sizeof(patch));
@@ -164,7 +169,7 @@ void Item::PatchItemDBC()
 
 	if (!newArray)
 	{
-		LOG_DEBUG << "Failed to allocate memory for new item record array.";
+		LOG_ERROR << "Failed to allocate the " << newSize << " entry item record table, custom and generated items are disabled for this session.";
 		return;
 	}
 
@@ -172,59 +177,87 @@ void Item::PatchItemDBC()
 	for (int i = 0; i < oldSize; i++)
 	{
 		int itemID = oldMinID + i;
+		if (itemID < newMinID || itemID > newMaxID)
+			continue;
 		newArray[itemID] = oldArray[i];
 	}
 
 	g_itemDB->b_base_02.m_recordsById = newArray;
 	g_itemDB->b_base_01.m_minID = newMinID;
 	g_itemDB->b_base_01.m_maxID = newMaxID;
+	sItemTableExpanded = true;
 	// Util::OverwriteBytesAtAddress((void*)0x0062C0E9, 0x90, 2);
 }
 
-void Item::AddItemToDBC(int itemID, int itemClass, int itemSubClass, int displayInfo, int inventorySlot, int materialID, int soundOverride, int sheathID)
+void Item::StoreRecord(int itemID, int itemClass, int itemSubClass, int soundOverride,
+    int materialID, int displayInfo, int inventorySlot, int sheathID)
 {
+	if (!sItemTableExpanded)
+		return;
 
 	if (itemID < 0 || itemID > ITEM_ALLOCATE_AMOUNT)
-	{
 		return;
-	}
 
-	if (g_itemDB->b_base_02.m_recordsById[itemID])
+	ItemRecord** slot = &g_itemDB->b_base_02.m_recordsById[itemID];
+	ItemRecord* record = sOwnedItemIDs.contains(itemID) ? *slot : nullptr;
+
+	if (!record)
 	{
-		free(g_itemDB->b_base_02.m_recordsById[itemID]);
-		g_itemDB->b_base_01.m_numRecords--;
+		record = (ItemRecord*)calloc(1, sizeof(ItemRecord));
+		if (!record)
+		{
+			LOG_ERROR << "Out of memory storing item record " << itemID << ".";
+			return;
+		}
+		if (!*slot)
+			g_itemDB->b_base_01.m_numRecords++;
+		sOwnedItemIDs.insert(itemID);
+		*slot = record;
 	}
 
-	ItemRecord* record = (ItemRecord*)calloc(1, sizeof(ItemRecord));
 	record->itemID = itemID;
 	record->itemClass = itemClass;
 	record->itemSubClass = itemSubClass;
 	record->sound_override_subclassid = soundOverride;
-	record->itemID = materialID;
+	record->materialID = materialID;
 	record->itemDisplayInfo = displayInfo;
 	record->inventorySlotID = inventorySlot;
 	record->sheathID = sheathID;
+}
 
-	g_itemDB->b_base_02.m_recordsById[itemID] = record;
-	g_itemDB->b_base_01.m_numRecords++;
+void Item::AddItemToDBC(int itemID, int itemClass, int itemSubClass, int displayInfo, int inventorySlot, int materialID, int soundOverride, int sheathID)
+{
+	StoreRecord(itemID, itemClass, itemSubClass, soundOverride, materialID, displayInfo, inventorySlot, sheathID);
 }
 
 // Remove a custom item
 void Item::RemoveItem(int itemID)
 {
+	if (!sItemTableExpanded)
+		return;
+
 	if (itemID < 0 || itemID > ITEM_ALLOCATE_AMOUNT)
 		return;
 
-	if (g_itemDB->b_base_02.m_recordsById[itemID])
+	ItemRecord** slot = &g_itemDB->b_base_02.m_recordsById[itemID];
+	if (!*slot)
+		return;
+
+	if (sOwnedItemIDs.contains(itemID))
 	{
-		free(g_itemDB->b_base_02.m_recordsById[itemID]);
-		g_itemDB->b_base_02.m_recordsById[itemID] = nullptr;
-		g_itemDB->b_base_01.m_numRecords--;
+		free(*slot);
+		sOwnedItemIDs.erase(itemID);
 	}
+
+	*slot = nullptr;
+	g_itemDB->b_base_01.m_numRecords--;
 }
 
 bool Item::ItemExists(int itemID)
 {
+	if (!sItemTableExpanded)
+		return false;
+
 	if (itemID < 0 || itemID > ITEM_ALLOCATE_AMOUNT)
 		return false;
 
@@ -233,6 +266,9 @@ bool Item::ItemExists(int itemID)
 
 ItemRecord* Item::GetItemRecord(int itemID)
 {
+	if (!sItemTableExpanded)
+		return nullptr;
+
 	if (itemID < 0 || itemID > ITEM_ALLOCATE_AMOUNT)
 		return nullptr;
 
@@ -252,25 +288,5 @@ void Item::AddItemRecordFromFields(int itemID, int itemClass, int itemSubClass,
     int soundOverride, int material, int displayInfo,
     int invType, int sheath)
 {
-	if (itemID < 0 || itemID > ITEM_ALLOCATE_AMOUNT)
-		return;
-
-	if (g_itemDB->b_base_02.m_recordsById[itemID])
-	{
-		free(g_itemDB->b_base_02.m_recordsById[itemID]);
-		g_itemDB->b_base_01.m_numRecords--;
-	}
-
-	ItemRecord* record = (ItemRecord*)calloc(1, sizeof(ItemRecord));
-	record->itemID = itemID;
-	record->itemClass = itemClass;
-	record->itemSubClass = itemSubClass;
-	record->sound_override_subclassid = soundOverride;
-	record->materialID = material;
-	record->itemDisplayInfo = displayInfo;
-	record->inventorySlotID = invType;
-	record->sheathID = sheath;
-
-	g_itemDB->b_base_02.m_recordsById[itemID] = record;
-	g_itemDB->b_base_01.m_numRecords++;
+	StoreRecord(itemID, itemClass, itemSubClass, soundOverride, material, displayInfo, invType, sheath);
 }

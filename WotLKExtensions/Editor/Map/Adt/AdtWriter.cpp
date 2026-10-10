@@ -1,5 +1,6 @@
 ﻿#include <Editor/Map/Adt/AdtDocument.h>
 
+#include <Defines.h>
 #include <cstdio>
 #include <cstring>
 
@@ -7,21 +8,21 @@ namespace MapEditor::Adt
 {
 	namespace
 	{
-		constexpr uint32_t kIffSize = 8;
-		constexpr uint32_t kMcnkHeaderSize = 128;
+		constexpr uint32 kIffSize = 8;
+		constexpr uint32 kMcnkHeaderSize = 128;
 
-		void Append(std::vector<uint8_t>& out, void const* data, size_t size)
+		void Append(std::vector<uint8>& out, void const* data, size_t size)
 		{
-			uint8_t const* begin = static_cast<uint8_t const*>(data);
+			uint8 const* begin = static_cast<uint8 const*>(data);
 			out.insert(out.end(), begin, begin + size);
 		}
 
-		void AppendU32(std::vector<uint8_t>& out, uint32_t value)
+		void AppendU32(std::vector<uint8>& out, uint32 value)
 		{
 			Append(out, &value, sizeof(value));
 		}
 
-		void PatchU32(std::vector<uint8_t>& out, uint32_t at, uint32_t value)
+		void PatchU32(std::vector<uint8>& out, uint32 at, uint32 value)
 		{
 			std::memcpy(out.data() + at, &value, sizeof(value));
 		}
@@ -38,10 +39,10 @@ namespace MapEditor::Adt
 		{
 			header = chunk.header;
 
-			uint32_t at = kIffSize + kMcnkHeaderSize;
+			uint32 at = kIffSize + kMcnkHeaderSize;
 			for (SubChunk const& sub : chunk.subs)
 			{
-				uint32_t span = kIffSize + static_cast<uint32_t>(sub.data.size());
+				uint32 span = kIffSize + static_cast<uint32>(sub.data.size());
 
 				switch (sub.id)
 				{
@@ -69,7 +70,7 @@ namespace MapEditor::Adt
 					// here next to a sizeAlpha of 8 + length, so the asymmetry is real rather
 					// than a quirk of one toolchain.
 					if (sub.Resized())
-						header.sizeShadow = static_cast<uint32_t>(sub.data.size());
+						header.sizeShadow = static_cast<uint32>(sub.data.size());
 					break;
 				case kMCSE:
 					header.ofsSndEmitters = at;
@@ -91,29 +92,29 @@ namespace MapEditor::Adt
 		}
 	}
 
-	bool Write(AdtDocument const& doc, std::vector<uint8_t>& out, std::string& error)
+	bool Write(AdtDocument const& doc, std::vector<uint8>& out, std::string& error)
 	{
 		out.clear();
 
 		// Where each top level chunk's IFF header starts, so MHDR and MCIN can be patched once
 		// the real layout is known.
-		uint32_t mhdrData = 0;
-		uint32_t offsets[12] = {}; // mcin, mtex, mmdx, mmid, mwmo, mwid, mddf, modf, mfbo, mh2o, mtxf
-		uint32_t mcinData = 0;
+		uint32 mhdrData = 0;
+		uint32 offsets[12] = {}; // mcin, mtex, mmdx, mmid, mwmo, mwid, mddf, modf, mfbo, mh2o, mtxf
+		uint32 mcinData = 0;
 		bool sawMhdr = false;
 		bool sawMcin = false;
 
-		uint32_t mcnkPos[256] = {};
-		uint32_t mcnkSize[256] = {};
-		int32_t mcnkCount = 0;
+		uint32 mcnkPos[256] = {};
+		uint32 mcnkSize[256] = {};
+		int32 mcnkCount = 0;
 
 		for (TopChunk const& top : doc.order)
 		{
-			uint32_t start = static_cast<uint32_t>(out.size());
+			uint32 start = static_cast<uint32>(out.size());
 
 			if (top.mcnkIndex >= 0)
 			{
-				if (top.mcnkIndex >= static_cast<int32_t>(doc.chunks.size()))
+				if (top.mcnkIndex >= static_cast<int32>(doc.chunks.size()))
 				{
 					error = "MCNK index out of range";
 					return false;
@@ -135,7 +136,7 @@ namespace MapEditor::Adt
 						Append(out, sub.data.data(), sub.data.size());
 				}
 
-				uint32_t total = static_cast<uint32_t>(out.size()) - start;
+				uint32 total = static_cast<uint32>(out.size()) - start;
 				PatchU32(out, start + 4, total - kIffSize);
 
 				if (mcnkCount < 256)
@@ -148,7 +149,7 @@ namespace MapEditor::Adt
 			}
 
 			AppendU32(out, top.id);
-			AppendU32(out, static_cast<uint32_t>(top.data.size()));
+			AppendU32(out, static_cast<uint32>(top.data.size()));
 			if (!top.data.empty())
 				Append(out, top.data.data(), top.data.size());
 
@@ -207,7 +208,7 @@ namespace MapEditor::Adt
 		// MHDR offsets are relative to MHDR's data start and point at the target's IFF header.
 		// A chunk that is not present stays zero.
 		SMMapHeader header = doc.header;
-		uint32_t* fields[11] = { &header.mcin, &header.mtex, &header.mmdx, &header.mmid,
+		uint32* fields[11] = { &header.mcin, &header.mtex, &header.mmdx, &header.mmid,
 			&header.mwmo, &header.mwid, &header.mddf, &header.modf, &header.mfbo, &header.mh2o,
 			&header.mtxf };
 
@@ -221,7 +222,7 @@ namespace MapEditor::Adt
 		// so follow it rather than impose one.
 		if (sawMcin)
 		{
-			for (int32_t i = 0; i < mcnkCount && i < 256; ++i)
+			for (int32 i = 0; i < mcnkCount && i < 256; ++i)
 			{
 				SMChunkInfo entry = doc.info[i];
 				entry.offset = mcnkPos[i];

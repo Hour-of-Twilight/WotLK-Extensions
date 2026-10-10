@@ -1,16 +1,17 @@
 #pragma optimize("", off)
+#include <Defines.h>
 #include "../CDBC.h"
 #include "../CDBCMgr.h"
 
 struct SpellClassMaskExtensionEntry
 {
-	uint32_t spellClassSet;
-	uint32_t spellClassMask[3];
+	uint32 spellClassSet;
+	uint32 spellClassMask[3];
 };
 
 struct SpellClassMaskExtensionRow
 {
-	uint32_t spellID;
+	uint32 spellID;
 	SpellClassMaskExtensionEntry entries[3];
 };
 
@@ -41,7 +42,7 @@ public:
 		if (!row)
 			return;
 
-		for (uint32_t i = 0; i < this->numRows; i++)
+		for (uint32 i = 0; i < this->numRows; i++)
 		{
 			GlobalCDBCMap.addRow(this->fileName, row->spellID, *row);
 			++row;

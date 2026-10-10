@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "ArchiveRegistry.h"
 
 #include "TextConv.h"
@@ -130,11 +131,11 @@ namespace Streaming
 
 		const int wanted = writable ? (m.flags | ARCHIVE_OPEN_WRITABLE) : m.flags;
 		void* fresh = nullptr;
-		bool ok = MopaqOpenArchive(m.openName.c_str(), m.priority, (uint32_t)wanted, &fresh) != 0 && fresh;
+		bool ok = MopaqOpenArchive(m.openName.c_str(), m.priority, (uint32)wanted, &fresh) != 0 && fresh;
 		if (!ok)
 		{
 			fresh = nullptr;
-			bool restored = MopaqOpenArchive(m.openName.c_str(), m.priority, (uint32_t)m.flags, &fresh) != 0 && fresh;
+			bool restored = MopaqOpenArchive(m.openName.c_str(), m.priority, (uint32)m.flags, &fresh) != 0 && fresh;
 			SetRawArchiveHandle(m.archive, restored ? fresh : nullptr);
 			std::lock_guard<std::mutex> lock(m_mutex);
 			for (ArchiveMount& e : m_mounts)

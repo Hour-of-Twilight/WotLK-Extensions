@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "GemSocketPackets.h"
 #include "CraftingPackets.h"
 #include "FeaturePackets.h"
@@ -6,6 +7,7 @@
 #include <CustomLua.h>
 #include <ClientData/ClientFunctions.h>
 #include <ClientData/Containers.h>
+#include <ClientData/WowObjects.h>
 #include <XMLExtensions.h>
 #include <SharedDefines.h>
 
@@ -15,11 +17,11 @@ GemSocketPackets& GemSocketPackets::Instance()
 	return instance;
 }
 
-void GemSocketPackets::Handler_SMSG_GEM_SOCKET_LIST(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GemSocketPackets::Handler_SMSG_GEM_SOCKET_LIST(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint8_t total = r.GetUInt8();
-	uint8_t count = r.GetUInt8();
+	uint8 total = r.GetUInt8();
+	uint8 count = r.GetUInt8();
 
 	GemSocketPackets& self = Instance();
 	self.m_totalSockets = total;
@@ -27,7 +29,7 @@ void GemSocketPackets::Handler_SMSG_GEM_SOCKET_LIST(void*, uint32_t, uint32_t, C
 	self.m_sockets.clear();
 	self.m_sockets.reserve(count);
 
-	for (uint8_t i = 0; i < count; ++i)
+	for (uint8 i = 0; i < count; ++i)
 	{
 		GemSocketEntry entry;
 		entry.slot = r.GetUInt8();
@@ -41,14 +43,14 @@ void GemSocketPackets::Handler_SMSG_GEM_SOCKET_LIST(void*, uint32_t, uint32_t, C
 }
 
 // SMSG_GEM_SOCKET_ERROR: UInt8 errorCode.
-void GemSocketPackets::Handler_SMSG_GEM_SOCKET_ERROR(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GemSocketPackets::Handler_SMSG_GEM_SOCKET_ERROR(void*, uint32, uint32, CDataStore* pkt)
 {
-	int8_t code = Packet(pkt).GetInt8();
+	int8 code = Packet(pkt).GetInt8();
 	FrameXMLExtensions::SignalEvent("HOT_GEM_SOCKET_ERROR", "%d", (int)code);
 }
 
 // SMSG_GEM_SOCKET_COST: UInt32 itemId, UInt32 cost, UInt8 purchased, UInt8 canPurchase.
-void GemSocketPackets::Handler_SMSG_GEM_SOCKET_COST(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GemSocketPackets::Handler_SMSG_GEM_SOCKET_COST(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	GemSocketPackets& self = Instance();
@@ -65,10 +67,10 @@ void GemSocketPackets::Handler_SMSG_GEM_SOCKET_COST(void*, uint32_t, uint32_t, C
 // The packet used to carry nothing and always opened Jewelcrafting. A short read leaves the
 // mode at zero, so a server that has not been updated still gets exactly that and only a
 // server that asks for it gets the panel.
-void GemSocketPackets::Handler_SMSG_GEM_SOCKET_OPEN(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GemSocketPackets::Handler_SMSG_GEM_SOCKET_OPEN(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint8_t mode = r.GetUInt8();
+	uint8 mode = r.GetUInt8();
 
 	if (mode == GEM_SOCKET_OPEN_PANEL)
 	{
@@ -77,7 +79,7 @@ void GemSocketPackets::Handler_SMSG_GEM_SOCKET_OPEN(void*, uint32_t, uint32_t, C
 		return;
 	}
 
-	uint64_t guid = ClntObjMgr::GetActivePlayer();
+	uint64 guid = ClntObjMgr::GetActivePlayer();
 	if (!guid)
 		return;
 
@@ -106,7 +108,7 @@ int GemSocketPackets::GetGemSocketEntryCount(lua_State* L)
 
 int GemSocketPackets::GetActiveFilledCount(lua_State* L)
 {
-	uint8_t count = 0;
+	uint8 count = 0;
 	for (GemSocketEntry const& entry : Instance().m_sockets)
 		if (entry.state == 1)
 			++count;
@@ -123,7 +125,7 @@ int GemSocketPackets::GetGemSocketInfo(lua_State* L)
 		return 1;
 	}
 
-	uint32_t slot = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 slot = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	for (GemSocketEntry const& entry : self.m_sockets)
 	{
 		if (entry.slot == slot)
@@ -140,8 +142,8 @@ int GemSocketPackets::GetGemSocketInfo(lua_State* L)
 
 int GemSocketPackets::InsertGem(lua_State* L)
 {
-	uint8_t slot = static_cast<uint8_t>(FrameScript::GetNumber(L, 1));
-	uint32_t itemId = static_cast<uint32_t>(FrameScript::GetNumber(L, 2));
+	uint8 slot = static_cast<uint8>(FrameScript::GetNumber(L, 1));
+	uint32 itemId = static_cast<uint32>(FrameScript::GetNumber(L, 2));
 
 	Packet(CMSG_GEM_SOCKET_INSERT)
 	    .PutUInt8(slot)
@@ -152,8 +154,8 @@ int GemSocketPackets::InsertGem(lua_State* L)
 
 int GemSocketPackets::RemoveGem(lua_State* L)
 {
-	int8_t slot = static_cast<int8_t>(FrameScript::GetNumber(L, 1));
-	uint8_t shatter = FrameScript::ToBoolean(L, 2) ? 1 : 0;
+	int8 slot = static_cast<int8>(FrameScript::GetNumber(L, 1));
+	uint8 shatter = FrameScript::ToBoolean(L, 2) ? 1 : 0;
 
 	Packet(CMSG_GEM_SOCKET_REMOVE).PutInt8(slot).PutUInt8(shatter).Send();
 	return 0;
@@ -191,7 +193,7 @@ int GemSocketPackets::GetGemSocketCost(lua_State* L)
 // SMSG_GEM_LOADOUTS: UInt8 active, UInt8 pending, UInt8 max, UInt32 unlockItemId,
 // UInt32 unlockCost, UInt8 canUnlock, UInt8 count, then per loadout
 // UInt8 id, String name, UInt8 sockets, UInt8 filled, UInt8 purchased.
-void GemSocketPackets::Handler_SMSG_GEM_LOADOUTS(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GemSocketPackets::Handler_SMSG_GEM_LOADOUTS(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	GemSocketPackets& self = Instance();
@@ -202,11 +204,11 @@ void GemSocketPackets::Handler_SMSG_GEM_LOADOUTS(void*, uint32_t, uint32_t, CDat
 	self.m_unlockCost = r.GetUInt32();
 	self.m_canUnlock = r.GetUInt8();
 
-	uint8_t count = r.GetUInt8();
+	uint8 count = r.GetUInt8();
 	self.m_loadouts.clear();
 	self.m_loadouts.reserve(count);
 
-	for (uint8_t i = 0; i < count; ++i)
+	for (uint8 i = 0; i < count; ++i)
 	{
 		GemLoadoutEntry entry;
 		entry.id = r.GetUInt8();
@@ -220,18 +222,18 @@ void GemSocketPackets::Handler_SMSG_GEM_LOADOUTS(void*, uint32_t, uint32_t, CDat
 	}
 
 	self.m_hasLoadouts = true;
-	FrameXMLExtensions::SignalEvent("HOT_GEM_LOADOUTS", "%u", (uint32_t)self.m_activeLoadout);
+	FrameXMLExtensions::SignalEvent("HOT_GEM_LOADOUTS", "%u", (uint32)self.m_activeLoadout);
 }
 
 // SMSG_GEM_LOADOUT_RESULT: UInt8 op, UInt8 result, UInt8 loadoutId.
-void GemSocketPackets::Handler_SMSG_GEM_LOADOUT_RESULT(void*, uint32_t, uint32_t, CDataStore* pkt)
+void GemSocketPackets::Handler_SMSG_GEM_LOADOUT_RESULT(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint8_t op = r.GetUInt8();
-	uint8_t result = r.GetUInt8();
-	uint8_t loadoutId = r.GetUInt8();
+	uint8 op = r.GetUInt8();
+	uint8 result = r.GetUInt8();
+	uint8 loadoutId = r.GetUInt8();
 	FrameXMLExtensions::SignalEvent("HOT_GEM_LOADOUT_RESULT", "%u%u%u",
-	    (uint32_t)op, (uint32_t)result, (uint32_t)loadoutId);
+	    (uint32)op, (uint32)result, (uint32)loadoutId);
 }
 
 int GemSocketPackets::RequestGemLoadouts(lua_State*)
@@ -313,7 +315,7 @@ int GemSocketPackets::GetGemLoadoutUnlockCost(lua_State* L)
 
 int GemSocketPackets::SwitchGemLoadout(lua_State* L)
 {
-	uint8_t id = (uint8_t)FrameScript::GetNumber(L, 1);
+	uint8 id = (uint8)FrameScript::GetNumber(L, 1);
 	Packet(CMSG_GEM_LOADOUT_SWITCH).PutUInt8(id).Send();
 	return 0;
 }
@@ -328,7 +330,7 @@ int GemSocketPackets::UnlockGemLoadout(lua_State* L)
 
 int GemSocketPackets::RenameGemLoadout(lua_State* L)
 {
-	uint8_t id = (uint8_t)FrameScript::GetNumber(L, 1);
+	uint8 id = (uint8)FrameScript::GetNumber(L, 1);
 	char* name = FrameScript::ToLString(L, 2, false);
 	if (!name || name[0] == '\0')
 		return 0;
@@ -337,7 +339,7 @@ int GemSocketPackets::RenameGemLoadout(lua_State* L)
 	return 0;
 }
 
-bool GemSocketPackets::IsSpellGem(uint32_t entry)
+bool GemSocketPackets::IsSpellGem(uint32 entry)
 {
 	ItemCache* cache = DBItemCache_GetInfoBlockByID(WDB_CACHE_ITEM, entry, nullptr, nullptr, nullptr, 0);
 	if (!cache)
@@ -360,11 +362,11 @@ bool GemSocketPackets::HandleUseContainerItem(lua_State* L)
 
 	int bag = static_cast<int>(FrameScript::GetNumber(L, 1));
 	int slot = static_cast<int>(FrameScript::GetNumber(L, 2));
-	void* item = ClientData::Containers::GetLuaContainerItem(bag, slot);
-	if (!item || ClientData::Containers::IsItemLocked(item))
+	ClientData::WowItem item = ClientData::WowItem::FromBagSlot(bag, slot);
+	if (!item || item.IsLocked())
 		return false;
 
-	uint32_t entry = static_cast<ClientData::CGObject_C*>(item)->GetValue<uint32_t>(ClientData::OBJECT_FIELD_ENTRY);
+	uint32 entry = item.Entry();
 	if (!IsSpellGem(entry))
 		return false;
 

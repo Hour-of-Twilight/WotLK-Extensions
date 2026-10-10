@@ -1,7 +1,9 @@
+#include <Defines.h>
 #include "Main.h"
 #include "Spell.h"
 #include "Tools/MpqScanner.h"
 #include "Entities/Item.h"
+#include "Entities/LootWindow.h"
 #include "Lua/XMLExtensions.h"
 #include "Rendering/MSDF/MSDFBootstrap.h"
 #include <Editor/EditorRuntime.h>
@@ -19,7 +21,10 @@
 #include <Packets/DBCacheQueries.h>
 #include <Quests/QuestLogStorage.h>
 #include <Streaming/ArchiveRegistry.h>
+#include <Streaming/LooseFiles.h>
 #include <Models/ModernM2.h>
+#include <Character/HDCharacters/HDCharacters.h>
+#include <Character/HDCharacters/HDPatchToggle.h>
 #include <FeatureCvars.h>
 #include <Logger.h>
 #include <Macros.h>
@@ -30,10 +35,12 @@ void Main::OnAttach()
 	sLog.Reset();
 	sLauncherSettings.Load();
 	Init();
+	LooseFiles::Apply();
 	MSDFBootstrap::initialize();
 	// Apply patches
 	Misc::ApplyPatches();
 	sPlayer.ApplyPatches();
+	sLootWindow.Apply();
 	EditorRuntime::Apply();
 #ifdef ENABLE_MAP_EDITOR
 	MapEditor::Runtime::Apply();
@@ -43,6 +50,8 @@ void Main::OnAttach()
 	MovementNetcode::Apply();
 	ChatTags::Apply();
 	ModernM2::Apply();
+	HDCharacters::Apply();
+	HDPatchToggle::Apply();
 	sQuestLog.ApplyPatches();
 	ClientDetours::Apply();
 	FrameXMLExtensions::Apply();
@@ -68,8 +77,8 @@ void Main::Init()
 	if (outOfBoundLuaFunctions || useCustomDBCFiles || customPackets)
 	{
 		// From AwesomeWotLK, invalid function pointer hack
-		*(uint32_t*)0xD415B8 = 1;
-		*(uint32_t*)0xD415BC = 0x7FFFFFFF;
+		*(uint32*)0xD415B8 = 1;
+		*(uint32*)0xD415BC = 0x7FFFFFFF;
 	}
 
 	if (outOfBoundLuaFunctions || customPackets)

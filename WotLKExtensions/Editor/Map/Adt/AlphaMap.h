@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <Editor/Map/Adt/AdtDocument.h>
 #include <Editor/Map/MapClient.h>
 
@@ -9,16 +11,16 @@
 
 namespace MapEditor::Adt
 {
-	constexpr int32_t kAlphaSide = 64;
-	constexpr int32_t kAlphaTexels = kAlphaSide * kAlphaSide;
+	constexpr int32 kAlphaSide = 64;
+	constexpr int32 kAlphaTexels = kAlphaSide * kAlphaSide;
 
 	// MCLY::flags. Only these two matter for painting, the rest drive texture animation.
-	constexpr uint32_t kLayerUseAlpha = 0x100;   // set on every layer except the base one
-	constexpr uint32_t kLayerCompressed = 0x200; // RLE, and only legal alongside big alpha
+	constexpr uint32 kLayerUseAlpha = 0x100;   // set on every layer except the base one
+	constexpr uint32 kLayerCompressed = 0x200; // RLE, and only legal alongside big alpha
 
 	// SMChunk::flags. When this is clear the client rebuilds row and column 63 out of 62 as it
 	// unpacks, so whatever the file stores there never reaches the screen.
-	constexpr uint32_t kChunkDoNotFixAlpha = 0x8000;
+	constexpr uint32 kChunkDoNotFixAlpha = 0x8000;
 
 	// How a chunk's MCAL block is stored. bigAlpha is the WDT's MPHD flag 0x4 and doNotFix is the
 	// chunk header's own 0x8000, read by CMapRenderChunk::CreateLayerTexture (0x007B9890) and
@@ -35,7 +37,7 @@ namespace MapEditor::Adt
 	// One layer's blend mask, 64x64, always widened to 8 bits whatever the file stored.
 	struct AlphaMap
 	{
-		uint8_t texel[kAlphaTexels] = {};
+		uint8 texel[kAlphaTexels] = {};
 	};
 
 	// A chunk's texture layers, decoded into something paintable.
@@ -59,7 +61,7 @@ namespace MapEditor::Adt
 	    std::string& error);
 
 	// Bytes one layer's mask occupies once written.
-	constexpr uint32_t AlphaStride(bool bigAlpha)
+	constexpr uint32 AlphaStride(bool bigAlpha)
 	{
 		return bigAlpha ? 4096u : 2048u;
 	}
@@ -67,8 +69,8 @@ namespace MapEditor::Adt
 	// Reads a map's MPHD flags out of its WDT. The client keeps the flags of the map it is
 	// standing in at Access::sMapFlags, but a sweep over some other map has to go to that map's
 	// own file or it would judge every tile by the wrong format.
-	bool ReadMapFlags(char const* mapName, uint32_t& flags, std::string& error);
+	bool ReadMapFlags(char const* mapName, uint32& flags, std::string& error);
 
 	// The format for one chunk, given the map flags its tile belongs to.
-	AlphaFormat FormatFor(Mcnk const& mcnk, uint32_t mapFlags);
+	AlphaFormat FormatFor(Mcnk const& mcnk, uint32 mapFlags);
 }

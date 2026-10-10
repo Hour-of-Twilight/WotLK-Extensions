@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <ClientData/MathTypes.h>
 #include <ClientData/SharedDefines.h>
 
@@ -21,29 +23,29 @@ namespace ClientData::VectorMath
 		return Fequalz(a, b, 0.00000023841858f);
 	}
 
-	inline int32_t Fint(float value)
+	inline int32 Fint(float value)
 	{
-		return static_cast<int32_t>(value);
+		return static_cast<int32>(value);
 	}
 
-	inline int32_t FintNearest(float value)
+	inline int32 FintNearest(float value)
 	{
-		return value <= 0.0f ? static_cast<int32_t>(value - 0.5f) : static_cast<int32_t>(value + 0.5f);
+		return value <= 0.0f ? static_cast<int32>(value - 0.5f) : static_cast<int32>(value + 0.5f);
 	}
 
-	inline uint32_t Fuint(float value)
+	inline uint32 Fuint(float value)
 	{
-		return static_cast<uint32_t>(value);
+		return static_cast<uint32>(value);
 	}
 
-	inline uint32_t FuintNearest(float value)
+	inline uint32 FuintNearest(float value)
 	{
-		return static_cast<uint32_t>(value + 0.5f);
+		return static_cast<uint32>(value + 0.5f);
 	}
 
-	inline uint32_t FuintPositiveInfinity(float value)
+	inline uint32 FuintPositiveInfinity(float value)
 	{
-		return static_cast<uint32_t>(value + 0.99994999f);
+		return static_cast<uint32>(value + 0.99994999f);
 	}
 
 	inline C2Vector C2FromAxisAngle(float axisAngle, float magnitude)
@@ -181,7 +183,7 @@ namespace ClientData::VectorMath
 		return Add(onPlane, ProjectionOnPlane(Subtract(point, onPlane), normal));
 	}
 
-	inline uint32_t MajorAxis(C3Vector const& value)
+	inline uint32 MajorAxis(C3Vector const& value)
 	{
 		float x = fabsf(value.x);
 		float y = fabsf(value.y);
@@ -198,7 +200,7 @@ namespace ClientData::VectorMath
 		return 2;
 	}
 
-	inline uint32_t MinorAxis(C3Vector const& value)
+	inline uint32 MinorAxis(C3Vector const& value)
 	{
 		float x = fabsf(value.x);
 		float y = fabsf(value.y);
@@ -217,9 +219,9 @@ namespace ClientData::VectorMath
 		return 2;
 	}
 
-	inline uint32_t MakeARGB(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
+	inline uint32 MakeARGB(uint8 a, uint8 r, uint8 g, uint8 b)
 	{
-		return uint32_t(a) << 24 | uint32_t(r) << 16 | uint32_t(g) << 8 | uint32_t(b);
+		return uint32(a) << 24 | uint32(r) << 16 | uint32(g) << 8 | uint32(b);
 	}
 
 	inline CImVector MakeColor(float a, float r, float g, float b)
@@ -250,7 +252,7 @@ namespace ClientData::VectorMath
 		return rect.maxY < 0.0f || rect.minY > 1.0f || rect.maxX < 0.0f || rect.minX > 1.0f;
 	}
 
-	inline CAaBox BoundingBox(C3Vector const* vectors, uint32_t vectorsCount)
+	inline CAaBox BoundingBox(C3Vector const* vectors, uint32 vectorsCount)
 	{
 		CAaBox box{};
 		if (!vectors || vectorsCount == 0)
@@ -258,7 +260,7 @@ namespace ClientData::VectorMath
 
 		box.b = vectors[0];
 		box.t = vectors[0];
-		for (uint32_t i = 1; i < vectorsCount; ++i)
+		for (uint32 i = 1; i < vectorsCount; ++i)
 		{
 			box.b = Min(box.b, vectors[i]);
 			box.t = Max(box.t, vectors[i]);

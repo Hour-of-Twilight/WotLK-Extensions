@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -22,56 +24,56 @@ private:
 
 	struct StatGroupEntry
 	{
-		int32_t id = 0;
+		int32 id = 0;
 		std::string name;
-		uint32_t mask = 0;
-		uint32_t flags = 0;
-		uint32_t weight = 0;
-		int32_t trinketGroup = -1;
+		uint32 mask = 0;
+		uint32 flags = 0;
+		uint32 weight = 0;
+		int32 trinketGroup = -1;
 	};
 
 	struct StatGroupMaskEntry
 	{
-		uint32_t bit = 0;
+		uint32 bit = 0;
 		std::string name;
 	};
 
 	struct LegendaryEntry
 	{
-		uint32_t id = 0;
+		uint32 id = 0;
 		std::string name;
 		std::string nameOverride;
-		uint32_t flags = 0;
-		int32_t minItemLevel = -1;
-		int32_t maxItemLevel = -1;
-		int32_t itemClass = -1;
-		int32_t itemSubClass = -1;
-		int32_t inventoryType = -1;
-		int32_t statGroup = -1;
-		uint32_t statGroupMask = 0;
-		int32_t statGroupOverride = -1;
-		uint32_t uniqueId = 0;
+		uint32 flags = 0;
+		int32 minItemLevel = -1;
+		int32 maxItemLevel = -1;
+		int32 itemClass = -1;
+		int32 itemSubClass = -1;
+		int32 inventoryType = -1;
+		int32 statGroup = -1;
+		uint32 statGroupMask = 0;
+		int32 statGroupOverride = -1;
+		uint32 uniqueId = 0;
 	};
 
 	struct UniqueEntry
 	{
-		uint32_t id = 0;
+		uint32 id = 0;
 		std::string name;
 		std::string description;
-		uint32_t quality = 0;
-		uint32_t itemClass = 0;
-		uint32_t subClass = 0;
-		uint32_t inventoryType = 0;
-		int32_t statGroup = -1;
-		uint32_t flags = 0;
-		uint32_t itemLevelMin = 0;
-		uint32_t itemLevelMax = 0;
+		uint32 quality = 0;
+		uint32 itemClass = 0;
+		uint32 subClass = 0;
+		uint32 inventoryType = 0;
+		int32 statGroup = -1;
+		uint32 flags = 0;
+		uint32 itemLevelMin = 0;
+		uint32 itemLevelMax = 0;
 		bool spawnable = false;
 	};
 
-	static void Handler_SMSG_ITEMGEN_STAT_GROUPS(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_ITEMGEN_LEGENDARIES(void*, uint32_t, uint32_t, CDataStore* pkt);
-	static void Handler_SMSG_ITEMGEN_UNIQUES(void*, uint32_t, uint32_t, CDataStore* pkt);
+	static void Handler_SMSG_ITEMGEN_STAT_GROUPS(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_ITEMGEN_LEGENDARIES(void*, uint32, uint32, CDataStore* pkt);
+	static void Handler_SMSG_ITEMGEN_UNIQUES(void*, uint32, uint32, CDataStore* pkt);
 	static int RequestStatGroups(lua_State* L);
 	static int GetStatGroupCount(lua_State* L);
 	static int GetStatGroupInfo(lua_State* L);

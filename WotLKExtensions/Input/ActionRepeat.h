@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 class ActionRepeat
@@ -51,9 +53,9 @@ private:
 	{
 		void* keySlot;  // identity of the held key (ExecKey slot pointer)
 		int actionSlot; // resolved 0-based action bar slot
-		uint32_t downTimeMs;
-		uint32_t lastRepeatMs;
-		uint32_t readySinceMs;    // when the action last became castable, 0 while on cooldown
+		uint32 downTimeMs;
+		uint32 lastRepeatMs;
+		uint32 readySinceMs;      // when the action last became castable, 0 while on cooldown
 		int cooldownStartAtPress; // cooldown start stamp sampled on key-down
 		bool fired;               // a repeat has fired at least once
 		bool done;                // ModeUntilCast: a cast happened, stop repeating
@@ -67,8 +69,8 @@ private:
 	static constexpr int kMaxHeld = 8;
 	Held m_held[kMaxHeld] = {};
 	int m_mode = ModeOff;
-	uint32_t m_delayMs = 500;
-	uint32_t m_intervalMs = 100;
+	uint32 m_delayMs = 500;
+	uint32 m_intervalMs = 100;
 	bool m_eventRegistered = false;
 	bool m_suppressUse = false;
 };

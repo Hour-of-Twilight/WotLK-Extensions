@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Load/M2NativeInternal.h"
 
 #include <cstdint>
@@ -25,10 +26,10 @@ namespace
 
     /// MD21-container tag as the little-endian dword read of the on-disk bytes. Unique among WoW chunked
     /// formats, these tags are NOT byte-reversed ('MD21' on disk reads back 0x3132444D).
-    constexpr uint32_t Tag(const char (&s)[5])
+    constexpr uint32 Tag(const char (&s)[5])
     {
-        return uint32_t(uint8_t(s[0])) | (uint32_t(uint8_t(s[1])) << 8) |
-               (uint32_t(uint8_t(s[2])) << 16) | (uint32_t(uint8_t(s[3])) << 24);
+        return uint32(uint8(s[0])) | (uint32(uint8(s[1])) << 8) |
+               (uint32(uint8(s[2])) << 16) | (uint32(uint8(s[3])) << 24);
     }
 }
 
@@ -41,16 +42,16 @@ namespace ModernM2::Reader::Detail
      * @param s     receives the harvest.
      * @return true when an MD20 body large enough for a full header was found.
      */
-    bool ScanContainer(const uint8_t* buf, uint32_t size, Scan& s)
+    bool ScanContainer(const uint8* buf, uint32 size, Scan& s)
     {
         std::memset(&s, 0, sizeof s);
-        uint32_t offV = 0;
+        uint32 offV = 0;
         while (offV + 8 <= size)
         {
-            const uint32_t tag = Rd32(buf + offV);
-            const uint32_t sz  = Rd32(buf + offV + 4);
+            const uint32 tag = Rd32(buf + offV);
+            const uint32 sz  = Rd32(buf + offV + 4);
             if (sz > size || offV + 8 + sz > size) break; // malformed tail; keep what we have
-            const uint8_t* payload = buf + offV + 8;
+            const uint8* payload = buf + offV + 8;
 
             switch (tag)
             {
@@ -60,9 +61,9 @@ namespace ModernM2::Reader::Detail
                 break;
             case Tag("TXID"):
             {
-                uint32_t n = sz / 4;
+                uint32 n = sz / 4;
                 if (n > kMaxTxid) n = kMaxTxid;
-                for (uint32_t i = 0; i < n; ++i) s.txid[i] = Rd32(payload + i * 4);
+                for (uint32 i = 0; i < n; ++i) s.txid[i] = Rd32(payload + i * 4);
                 s.txidCount = n;
                 break;
             }

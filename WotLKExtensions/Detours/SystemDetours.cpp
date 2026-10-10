@@ -12,6 +12,7 @@
 #include <TransmogPackets.h>
 #include <ItemLevelPackets.h>
 #include <TowerDefencePackets.h>
+#include <Character/PlayerRenderLimit.h>
 
 CLIENT_DETOUR(CGlueMgr__EnterWorld, 0x4D9BD0, __cdecl, void, ())
 {
@@ -25,6 +26,7 @@ CLIENT_DETOUR(CGlueMgr__EnterWorld, 0x4D9BD0, __cdecl, void, ())
 	sTransmogPackets.Reset();
 	sItemLevelPackets.Clear();
 	sTowerDefencePackets.Reset();
+	sPlayerRenderLimit.Reset();
 	sCustomPacket.SendSanityCheck(true);
 }
 

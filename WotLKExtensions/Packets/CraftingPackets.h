@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <SharedDefines.h>
 
 #include <cstdint>
@@ -11,16 +13,16 @@ struct lua_State;
 class CraftingPackets
 {
 public:
-	static constexpr uint32_t MaxCatalysts = 2;
-	static constexpr uint32_t MaxScrapItems = 9;
+	static constexpr uint32 MaxCatalysts = 2;
+	static constexpr uint32 MaxScrapItems = 9;
 
-	enum Mode : uint8_t
+	enum Mode : uint8
 	{
 		MODE_CRAFTING = 0,
 		MODE_SCRAPPING = 1
 	};
 
-	enum ErrorCode : uint8_t
+	enum ErrorCode : uint8
 	{
 		CRAFT_ERR_SLOTS_FULL = 1,
 		CRAFT_ERR_ALREADY_ADDED = 2,
@@ -31,7 +33,7 @@ public:
 		CRAFT_ERR_CATALYST_CONFLICT = 7
 	};
 
-	enum CatalystType : uint8_t
+	enum CatalystType : uint8
 	{
 		CATALYST_MIN_QUALITY = 1,
 		CATALYST_STAT_GROUP = 2,
@@ -41,30 +43,30 @@ public:
 
 	struct PatternInfo
 	{
-		uint32_t entry = 0;
-		uint8_t category = 0;
+		uint32 entry = 0;
+		uint8 category = 0;
 	};
 
 	struct MaterialInfo
 	{
-		uint32_t entry = 0;
-		uint8_t category = 0;
+		uint32 entry = 0;
+		uint8 category = 0;
 	};
 
 	struct RecipeInfo
 	{
-		uint32_t pattern = 0;
-		uint32_t material = 0;
-		uint32_t result = 0;
-		uint32_t scrapCost = 0;
+		uint32 pattern = 0;
+		uint32 material = 0;
+		uint32 result = 0;
+		uint32 scrapCost = 0;
 	};
 
 	struct CatalystInfo
 	{
-		uint32_t entry = 0;
-		uint8_t type = 0;
-		int32_t value1 = 0;
-		int32_t value2 = 0;
+		uint32 entry = 0;
+		uint8 type = 0;
+		int32 value1 = 0;
+		int32 value2 = 0;
 	};
 
 	static CraftingPackets& Instance();
@@ -89,18 +91,18 @@ private:
 
 	struct ItemRef
 	{
-		uint64_t guid = 0;
-		uint32_t entry = 0;
-		uint32_t count = 0;
+		uint64 guid = 0;
+		uint32 entry = 0;
+		uint32 count = 0;
 		int bag = -1;
 		int slot = -1;
 	};
 
-	static void Handler_SMSG_CRAFTING_DATA(void* param, uint32_t opcode, uint32_t a2, CDataStore* pkt);
-	static void Handler_SMSG_CRAFTING_OPEN(void* param, uint32_t opcode, uint32_t a2, CDataStore* pkt);
-	static void Handler_SMSG_CRAFTING_CLOSE(void* param, uint32_t opcode, uint32_t a2, CDataStore* pkt);
-	static void Handler_SMSG_CRAFTING_RESULT(void* param, uint32_t opcode, uint32_t a2, CDataStore* pkt);
-	static void Handler_SMSG_CRAFTING_SCRAP_RESULT(void* param, uint32_t opcode, uint32_t a2, CDataStore* pkt);
+	static void Handler_SMSG_CRAFTING_DATA(void* param, uint32 opcode, uint32 a2, CDataStore* pkt);
+	static void Handler_SMSG_CRAFTING_OPEN(void* param, uint32 opcode, uint32 a2, CDataStore* pkt);
+	static void Handler_SMSG_CRAFTING_CLOSE(void* param, uint32 opcode, uint32 a2, CDataStore* pkt);
+	static void Handler_SMSG_CRAFTING_RESULT(void* param, uint32 opcode, uint32 a2, CDataStore* pkt);
+	static void Handler_SMSG_CRAFTING_SCRAP_RESULT(void* param, uint32 opcode, uint32 a2, CDataStore* pkt);
 
 	static int Script_CraftingIsOpen(lua_State* L);
 	static int Script_CraftingClose(lua_State* L);
@@ -133,23 +135,23 @@ private:
 	static int Script_CraftingIsBusy(lua_State* L);
 	static int Script_CraftingCancelPending(lua_State* L);
 
-	static bool ResolveItem(uint64_t guid, ItemRef& out);
-	static int PushItemRef(lua_State* L, uint64_t guid);
-	static bool FindItemBagSlot(uint64_t guid, int& outBag, int& outSlot);
-	static bool IsScrapCandidate(uint32_t entry);
-	static void LockItem(uint64_t guid);
-	static void UnlockItem(uint64_t guid);
+	static bool ResolveItem(uint64 guid, ItemRef& out);
+	static int PushItemRef(lua_State* L, uint64 guid);
+	static bool FindItemBagSlot(uint64 guid, int& outBag, int& outSlot);
+	static bool IsScrapCandidate(uint32 entry);
+	static void LockItem(uint64 guid);
+	static void UnlockItem(uint64 guid);
 	static void SignalError(ErrorCode code);
 	static void SignalSlots(Mode mode);
 
-	bool PlaceCatalyst(uint64_t guid, uint32_t entry, int preferredSlot);
-	bool PlaceScrapItem(uint64_t guid, uint32_t entry, int preferredSlot);
+	bool PlaceCatalyst(uint64 guid, uint32 entry, int preferredSlot);
+	bool PlaceScrapItem(uint64 guid, uint32 entry, int preferredSlot);
 	bool AddCursorItem(Mode mode, int preferredSlot);
-	bool IsCatalystEntry(uint32_t entry) const;
-	const CatalystInfo* FindCatalyst(uint32_t entry) const;
-	bool StacksWithOtherCatalysts(uint32_t entry, int ignoreSlot) const;
-	bool HasCatalyst(uint64_t guid) const;
-	bool HasScrapItem(uint64_t guid) const;
+	bool IsCatalystEntry(uint32 entry) const;
+	const CatalystInfo* FindCatalyst(uint32 entry) const;
+	bool StacksWithOtherCatalysts(uint32 entry, int ignoreSlot) const;
+	bool HasCatalyst(uint64 guid) const;
+	bool HasScrapItem(uint64 guid) const;
 	void UnlockAllSlots();
 	void ClearSlots();
 	void CloseInternal(bool notifyServer, bool signal);
@@ -158,29 +160,29 @@ private:
 	void CheckStationRange();
 	void CheckPendingTimeouts();
 
-	uint32_t m_dataVersion = 0;
-	uint32_t m_scrapCurrency = 0;
+	uint32 m_dataVersion = 0;
+	uint32 m_scrapCurrency = 0;
 	float m_interactRange = 0.f;
 	std::vector<PatternInfo> m_patterns;
 	std::vector<MaterialInfo> m_materials;
 	std::vector<RecipeInfo> m_recipes;
 	std::vector<CatalystInfo> m_catalystList;
-	std::unordered_map<uint64_t, RecipeInfo> m_recipeLookup;
-	std::unordered_map<uint32_t, CatalystInfo> m_catalystLookup;
+	std::unordered_map<uint64, RecipeInfo> m_recipeLookup;
+	std::unordered_map<uint32, CatalystInfo> m_catalystLookup;
 
 	bool m_open = false;
-	uint64_t m_station = 0;
-	uint8_t m_flags = 0;
+	uint64 m_station = 0;
+	uint8 m_flags = 0;
 	Mode m_mode = MODE_CRAFTING;
-	uint32_t m_pattern = 0;
-	uint32_t m_material = 0;
-	uint64_t m_catalysts[MaxCatalysts] = {};
-	uint64_t m_scrapItems[MaxScrapItems] = {};
+	uint32 m_pattern = 0;
+	uint32 m_material = 0;
+	uint64 m_catalysts[MaxCatalysts] = {};
+	uint64 m_scrapItems[MaxScrapItems] = {};
 	bool m_craftPending = false;
-	uint32_t m_craftPendingUntil = 0;
+	uint32 m_craftPendingUntil = 0;
 	bool m_scrapPending = false;
-	uint32_t m_scrapPendingUntil = 0;
-	uint32_t m_nextRangeCheck = 0;
+	uint32 m_scrapPendingUntil = 0;
+	uint32 m_nextRangeCheck = 0;
 };
 
 #define sCraftingPackets CraftingPackets::Instance()

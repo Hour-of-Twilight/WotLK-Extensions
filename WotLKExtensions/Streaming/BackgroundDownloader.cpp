@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "BackgroundDownloader.h"
 
 #include "LauncherManifest.h"
@@ -11,6 +12,7 @@
 #include "MpqFile.h"
 #include "LocalDigests.h"
 #include "StreamLog.h"
+#include "StreamPaths.h"
 #include "TextConv.h"
 
 #include <ClientData/Streaming.h>
@@ -25,6 +27,7 @@
 #include <ClientDetours.h>
 #include <ClientData/ClientFunctions.h>
 #include <Config/LauncherSettings.h>
+#include <Character/HDCharacters/HDPatchToggle.h>
 #include <Helpers/Util.h>
 #include <Logger.h>
 #include "Lua/CustomLua.h"
@@ -37,6 +40,7 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <condition_variable>
 #include <string>
 #include <vector>
 #include <deque>
@@ -46,6 +50,7 @@
 #include <utility>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <cctype>
 #include <cwctype>
 #include <cstring>
@@ -67,10 +72,10 @@ namespace Streaming
 		std::wstring g_installDir;
 
 		constexpr unsigned kPollIntervalMs = 5 * 60 * 1000;
+		constexpr int kDownloadWorkers = 4;
 
 		std::atomic<bool> g_firstPassDone{ false };
 		std::atomic<bool> g_active{ false };
-		std::atomic<long long> g_baseBytes{ 0 };
 		std::atomic<long long> g_doneBytes{ 0 };
 		std::atomic<long long> g_totalBytes{ 0 };
 		std::atomic<int> g_filesDone{ 0 };
@@ -87,9 +92,38 @@ namespace Streaming
 		{
 			g_filesDone = 0;
 			g_filesTotal = 0;
-			g_baseBytes = 0;
 			g_doneBytes = 0;
 			g_totalBytes = 0;
+		}
+
+		DownloadThrottle g_throttle([]
+		{
+			return sLauncherSettings.MaxDownloadBytesPerSecond();
+		});
+
+		struct ByteCounter
+		{
+			long long size = 0;
+			long long shown = 0;
+
+			void Report(long long written)
+			{
+				long long now = std::min(written, size);
+				g_doneBytes.fetch_add(now - shown);
+				shown = now;
+			}
+
+			void Settle()
+			{
+				g_doneBytes.fetch_add(size - shown);
+				shown = size;
+			}
+		};
+
+		void SetCurrentFile(const std::string& label)
+		{
+			std::lock_guard<std::mutex> lock(g_statusMutex);
+			g_currentFile = label;
 		}
 
 		constexpr int kMountPriorityBase = 1000000;
@@ -163,14 +197,16 @@ namespace Streaming
 			return a.size() == b.size() && LowerPath(a) == LowerPath(b);
 		}
 
-		std::wstring StagedPath(const std::wstring& local, const std::string& sha)
+		std::wstring StagedPath(const ManifestFile& mf, const std::wstring& local)
 		{
-			std::wstring tag = L".new-" + Widen(sha.substr(0, 8));
-			size_t dot = local.find_last_of(L'.');
-			size_t slash = local.find_last_of(L"/\\");
-			if (dot == std::wstring::npos || (slash != std::wstring::npos && dot < slash))
-				return local + tag;
-			return local.substr(0, dot) + tag + local.substr(dot);
+			fs::path lp(local);
+			std::wstring name = lp.stem().wstring() + L".new-" + Widen(mf.sha256.substr(0, 8)) + lp.extension().wstring();
+			return (Paths::StagedDir() / fs::path(mf.path).parent_path() / name).wstring();
+		}
+
+		std::wstring PartPath(const ManifestFile& mf)
+		{
+			return (Paths::DownloadsDir() / fs::path(mf.path)).wstring() + L".part";
 		}
 
 		// The other half of StagedPath: does this name end in the .new-<8 hex> tag it appends.
@@ -247,7 +283,18 @@ namespace Streaming
 
 		fs::path PendingFile()
 		{
-			return fs::path(g_installDir) / "Cache" / "hotstream-pending.txt";
+			return Paths::WorkDir() / "hotstream-pending.txt";
+		}
+
+		void RetireLegacyCacheFiles()
+		{
+			static const char* const kNames[] = { "hotstream-pending.txt", "hotstream-swap.hold", "hotstream-swap.cmd",
+				"hotstream-swap-now.cmd", "hotstream.log" };
+			const fs::path cache = Paths::LegacyCacheDir();
+			std::error_code ec;
+			for (const char* name : kNames)
+				fs::remove(cache / name, ec);
+			fs::remove_all(cache / "blobs", ec);
 		}
 
 		// What we check an already-present file against. MPQs carry a sampled digest so verifying
@@ -547,25 +594,29 @@ namespace Streaming
 			}
 		}
 
-		void SweepStagedSiblings(const std::wstring& local, const std::wstring& keep)
+		void SweepStagedSiblings(const ManifestFile& mf, const std::wstring& local, const std::wstring& keep)
 		{
 			fs::path lp(local);
 			std::wstring prefix = lp.stem().wstring() + L".new-";
 			std::wstring ext = lp.extension().wstring();
+			const fs::path dirs[] = { fs::path(StagedPath(mf, local)).parent_path(), lp.parent_path() };
 
 			std::error_code ec;
 			std::vector<std::wstring> stale;
-			for (const fs::directory_entry& e : fs::directory_iterator(lp.parent_path(), ec))
+			for (const fs::path& dir : dirs)
 			{
-				if (!e.is_regular_file(ec))
-					continue;
-				std::wstring name = e.path().filename().wstring();
-				if (name.size() <= prefix.size() + ext.size())
-					continue;
-				if (!StartsWithNoCase(name, prefix) || !EndsWithNoCase(name, ext))
-					continue;
-				if (!PathEqual(e.path().wstring(), keep))
-					stale.push_back(e.path().wstring());
+				for (const fs::directory_entry& e : fs::directory_iterator(dir, ec))
+				{
+					if (!e.is_regular_file(ec))
+						continue;
+					std::wstring name = e.path().filename().wstring();
+					if (name.size() <= prefix.size() + ext.size())
+						continue;
+					if (!StartsWithNoCase(name, prefix) || !EndsWithNoCase(name, ext))
+						continue;
+					if (!PathEqual(e.path().wstring(), keep))
+						stale.push_back(e.path().wstring());
+				}
 			}
 			for (const std::wstring& s : stale)
 				DropStaged(s);
@@ -579,7 +630,7 @@ namespace Streaming
 				std::error_code ec;
 				if (!fs::exists(it->src, ec) ||
 				    MoveFileExW(it->src.c_str(), it->dst.c_str(),
-				        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+				        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH | MOVEFILE_COPY_ALLOWED))
 					it = g_pendingMoves.erase(it);
 				else
 					++it;
@@ -666,9 +717,9 @@ namespace Streaming
 			g_passBatch.mounts.push_back(MountRequest{ std::move(p) });
 		}
 
-		int __cdecl RefreshUnitModelCb(uint32_t guidLow, uint32_t guidHigh, void*)
+		int __cdecl RefreshUnitModelCb(uint32 guidLow, uint32 guidHigh, void*)
 		{
-			uint64_t guid = ((uint64_t)guidHigh << 32) | guidLow;
+			uint64 guid = ((uint64)guidHigh << 32) | guidLow;
 			ClientData::CGObject_C* unit = ClientData::ObjectManager::GetObject(guid,
 			    (ClientData::ObjectTypeMask)(ClientData::TYPEMASK_UNIT | ClientData::TYPEMASK_PLAYER));
 			if (unit)
@@ -688,13 +739,18 @@ namespace Streaming
 			StreamLog("stream: rebuilt world models after art mount");
 		}
 
-		void PlaceFile(const std::string& baseUrl, const ManifestFile& mf, const ManifestArchive* arc)
+		bool DownloadWhole(const std::string& baseUrl, const ManifestFile& mf, const std::wstring& local, ByteCounter& counter)
 		{
-			std::wstring local = TargetPath(mf);
 			std::error_code ec;
 			fs::create_directories(fs::path(local).parent_path(), ec);
-			std::wstring part = local + L".part";
+			std::wstring part = PartPath(mf);
 			std::wstring meta = part + L".meta";
+			fs::create_directories(fs::path(part).parent_path(), ec);
+			if (FileSize(part) < 0)
+			{
+				MoveFileExW((local + L".part").c_str(), part.c_str(), 0);
+				MoveFileExW((local + L".part.meta").c_str(), meta.c_str(), 0);
+			}
 
 			// A .part left over from a previous run can be resumed with a Range request, but only
 			// if the sidecar confirms those bytes belong to this same manifest entry (size + hash).
@@ -716,18 +772,15 @@ namespace Streaming
 			DownloadOptions opt;
 			opt.resumeFrom = resume;
 			opt.sha256Out = &got;
-			opt.bytesPerSecond = []
+			opt.throttle = &g_throttle;
+			opt.onBytes = [&counter](long long written)
 			{
-				return sLauncherSettings.MaxDownloadBytesPerSecond();
-			};
-			opt.onBytes = [](long long written)
-			{
-				g_doneBytes = g_baseBytes.load() + written;
+				counter.Report(written);
 			};
 			if (!HttpDownloadFile(Widen(url), part, opt))
 			{
 				StreamLog("stream: download failed %s", mf.path.c_str());
-				return;
+				return false;
 			}
 
 			if (got.empty())
@@ -737,12 +790,25 @@ namespace Streaming
 				fs::remove(part, ec);
 				fs::remove(meta, ec);
 				StreamLog("stream: hash mismatch %s", mf.path.c_str());
-				return;
+				return false;
 			}
 			fs::remove(meta, ec);
+			return true;
+		}
 
+		struct MountAfter
+		{
+			std::wstring path;
+			std::string sha;
+		};
+
+		std::optional<MountAfter> PlaceDownloaded(const ManifestFile& mf, const ManifestArchive* arc, const std::wstring& local)
+		{
+			std::error_code ec;
+			std::wstring part = PartPath(mf);
 			bool isMpq = IsMpq(mf.path);
 			bool existed = fs::exists(local, ec);
+			std::optional<MountAfter> mount;
 
 			if (!existed)
 			{
@@ -756,52 +822,53 @@ namespace Streaming
 				// record its expected digest without reading it back.
 				RememberPlaced(local, mf, arc);
 				if (isMpq)
-					EnqueueMount(local, mf.sha256);
-				return;
+					mount = MountAfter{ local, mf.sha256 };
+				return mount;
 			}
 
 			// Exists: swap now if unlocked, else stage a hash-named copy, mount it, swap later.
-			if (MoveFileExW(part.c_str(), local.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+			if (MoveFileExW(part.c_str(), local.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH | MOVEFILE_COPY_ALLOWED))
 			{
 				RememberPlaced(local, mf, arc);
 				if (isMpq)
-					EnqueueMount(local, mf.sha256);
-				SweepStagedSiblings(local, L"");
+					mount = MountAfter{ local, mf.sha256 };
+				SweepStagedSiblings(mf, local, L"");
+				return mount;
 			}
-			else
+
+			std::wstring np = StagedPath(mf, local);
+			fs::create_directories(fs::path(np).parent_path(), ec);
+			if (!MoveFileExW(part.c_str(), np.c_str(), MOVEFILE_REPLACE_EXISTING))
 			{
-				std::wstring np = StagedPath(local, mf.sha256);
-				if (!MoveFileExW(part.c_str(), np.c_str(), MOVEFILE_REPLACE_EXISTING))
-				{
-					fs::remove(part, ec);
-					StreamLog("stream: could not stage %s", mf.path.c_str());
-					return;
-				}
-				if (isMpq)
-					EnqueueMount(np, mf.sha256);
-				RecordPending(np, local, !isMpq);
-				SweepStagedSiblings(local, np);
-				StreamLog("stream: staged %s (in use), will swap on next launch", mf.path.c_str());
+				fs::remove(part, ec);
+				StreamLog("stream: could not stage %s", mf.path.c_str());
+				return mount;
 			}
+			if (isMpq)
+				mount = MountAfter{ np, mf.sha256 };
+			RecordPending(np, local, !isMpq);
+			SweepStagedSiblings(mf, local, np);
+			StreamLog("stream: staged %s (in use), will swap on next launch", mf.path.c_str());
+			return mount;
 		}
 
 		void SwapOrStage(const std::wstring& np, const std::wstring& local, const ManifestFile& mf,
 		    const ManifestArchive* arc)
 		{
 			const bool isMpq = IsMpq(mf.path);
-			if (MoveFileExW(np.c_str(), local.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+			if (MoveFileExW(np.c_str(), local.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH | MOVEFILE_COPY_ALLOWED))
 			{
 				RememberPlaced(local, mf, arc);
 				if (isMpq)
 					EnqueueMount(local, mf.sha256);
-				SweepStagedSiblings(local, L"");
+				SweepStagedSiblings(mf, local, L"");
 			}
 			else
 			{
 				if (isMpq)
 					EnqueueMount(np, mf.sha256);
 				RecordPending(np, local, !isMpq);
-				SweepStagedSiblings(local, np);
+				SweepStagedSiblings(mf, local, np);
 			}
 		}
 
@@ -837,9 +904,33 @@ namespace Streaming
 			return true;
 		}
 
+		void RetireSupersededArchives()
+		{
+			static const char* const kRetired[] = { "Data/patch-w.mpq", "Data/patch-x.mpq" };
+			std::error_code ec;
+			for (const char* rel : kRetired)
+			{
+				std::wstring local = LocalPath(rel);
+				if (!fs::exists(local, ec))
+					continue;
+
+				std::wstring disabled = local + L".disabled";
+				if (MoveFileExW(local.c_str(), disabled.c_str(),
+				        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+				{
+					StreamLog("stream: retired %s, patch-5 replaces it", rel);
+				}
+				else if (!HasPendingMove(local, disabled))
+				{
+					RecordPending(local, disabled, false);
+					StreamLog("stream: %s is in use, retiring it on exit", rel);
+				}
+			}
+		}
+
 		fs::path BlobCacheDir()
 		{
-			return fs::path(g_installDir) / "Cache" / "blobs";
+			return Paths::BlobsDir();
 		}
 
 		std::wstring BlobPath(const std::string& sha)
@@ -1080,7 +1171,7 @@ namespace Streaming
 
 		// Leaves the verified raw bytes of one file at Cache/blobs/<sha>, downloading unless a
 		// valid copy is already there.
-		bool FetchBlob(const std::string& baseUrl, const ArchiveWrite& w)
+		bool FetchBlob(const std::string& baseUrl, const ArchiveWrite& w, ByteCounter& counter)
 		{
 			std::string existing;
 			if (FileSize(w.blobPath) == w.size && ReadBinaryFile(w.blobPath, existing) &&
@@ -1093,14 +1184,10 @@ namespace Streaming
 			fs::remove(part, ec);
 
 			DownloadOptions opt;
-			opt.bytesPerSecond = []
+			opt.throttle = &g_throttle;
+			opt.onBytes = [&counter](long long written)
 			{
-				return sLauncherSettings.MaxDownloadBytesPerSecond();
-			};
-			const long long rawSize = w.size;
-			opt.onBytes = [rawSize](long long written)
-			{
-				g_doneBytes = g_baseBytes.load() + std::min(written, rawSize);
+				counter.Report(written);
 			};
 			std::wstring url = Widen(JoinUrl(baseUrl, BlobContainer::RelativeBlobPath(w.sha256)));
 			if (!HttpDownloadFile(url, part, opt))
@@ -1129,22 +1216,6 @@ namespace Streaming
 			{
 				StreamLog("stream: cannot write blob cache %s", w.name.c_str());
 				return false;
-			}
-			return true;
-		}
-
-		bool FetchJobBlobs(const std::string& baseUrl, const ArchivePatchJob& job)
-		{
-			for (const ArchiveWrite& w : job.writes)
-			{
-				{
-					std::lock_guard<std::mutex> lock(g_statusMutex);
-					g_currentFile = job.relPath + " " + w.name;
-				}
-				if (!FetchBlob(baseUrl, w))
-					return false;
-				g_baseBytes = g_baseBytes.load() + w.size;
-				g_doneBytes = g_baseBytes.load();
 			}
 			return true;
 		}
@@ -1200,6 +1271,7 @@ namespace Streaming
 				g_uiRefreshNeeded = true;
 			if (r.artFiles)
 				RefreshLoadedModels();
+			HDPatchToggle::Refresh();
 			StreamLog("stream: batch applied, refreshed %d name(s)", (int)bp.names.size());
 		}
 
@@ -1280,12 +1352,12 @@ namespace Streaming
 			if (g_patchLock)
 				return true;
 
-			uint64_t h = 1469598103934665603ULL; // FNV-1a
+			uint64 h = 1469598103934665603ULL; // FNV-1a
 			for (wchar_t c : g_installDir)
 			{
 				if (c >= L'A' && c <= L'Z')
 					c = (wchar_t)(c + 32);
-				h = (h ^ (uint32_t)c) * 1099511628211ULL;
+				h = (h ^ (uint32)c) * 1099511628211ULL;
 			}
 
 			wchar_t name[64];
@@ -1375,7 +1447,10 @@ namespace Streaming
 				fs::create_directories(PendingFile().parent_path(), ec);
 				std::ofstream(PendingFile(), std::ios::trunc | std::ios::binary);
 				std::atexit(&SwapOnClose); // swap staged files in at clean exit, once handles are freed
+				RetireLegacyCacheFiles();
 			}
+
+			RetireSupersededArchives();
 
 			// Whatever this pass queues for the main thread goes out as one batch when the pass
 			// ends, however it ends.
@@ -1389,13 +1464,14 @@ namespace Streaming
 
 			struct PlannedItem
 			{
-				const ManifestFile* file;
-				bool inPlace;
+				const ManifestFile* file = nullptr;
+				bool inPlace = false;
 				ArchivePatchJob job;
-				long long bytes;
+				std::wstring local;
+				size_t remaining = 0;
+				bool failed = false;
 			};
 			std::vector<PlannedItem> plan;
-			long long total = 0;
 			std::set<std::string> wantedBlobs;
 			for (const ManifestFile& mf : man.files)
 			{
@@ -1412,21 +1488,24 @@ namespace Streaming
 				if (mf.hd && !ReconcileHdFile(local, hdPatch, restored))
 					continue;
 
-				std::wstring np = StagedPath(local, mf.sha256);
+				std::wstring np = StagedPath(mf, local);
 
 				// An archive that describes itself is judged by its contents, not its bytes, and
 				// is brought up to date file by file where that is possible.
 				const ManifestArchive* arc = IsMpq(mf.path) ? ArchiveFor(man, mf) : nullptr;
 				if (arc && FileSize(local) >= 0 && FileSize(np) != mf.size)
 				{
-					PlannedItem item{ &mf, true, ArchivePatchJob(), 0 };
+					PlannedItem item;
+					item.file = &mf;
+					item.inPlace = true;
+					item.local = local;
 					ArchivePlan how = PlanArchive(baseUrl, mf, *arc, local, item.job);
 					if (how == ArchivePlan::Current)
 					{
 						// Restored from .disabled, so the client never loaded it at startup.
 						if (restored)
 							EnqueueMount(local, arc->contentId);
-						SweepStagedSiblings(local, L"");
+						SweepStagedSiblings(mf, local, L"");
 						continue;
 					}
 					if (how == ArchivePlan::Skip)
@@ -1434,11 +1513,7 @@ namespace Streaming
 					if (how == ArchivePlan::InPlace)
 					{
 						for (const ArchiveWrite& w : item.job.writes)
-						{
-							item.bytes += w.size;
 							wantedBlobs.insert(w.sha256);
-						}
-						total += item.bytes;
 						plan.push_back(std::move(item));
 						continue;
 					}
@@ -1449,7 +1524,7 @@ namespace Streaming
 					// Restored from .disabled, so the client never loaded it at startup.
 					if (restored && IsMpq(mf.path))
 						EnqueueMount(local, mf.sha256);
-					SweepStagedSiblings(local, L""); // nothing left to swap in
+					SweepStagedSiblings(mf, local, L""); // nothing left to swap in
 					continue;
 				}
 				if (FileSize(np) == mf.size)
@@ -1457,8 +1532,10 @@ namespace Streaming
 					SwapOrStage(np, local, mf, arc);
 					continue;
 				}
-				plan.push_back(PlannedItem{ &mf, false, ArchivePatchJob(), mf.size });
-				total += mf.size;
+				PlannedItem item;
+				item.file = &mf;
+				item.local = local;
+				plan.push_back(std::move(item));
 			}
 			LocalDigests::Save();
 			SweepBlobCache(wantedBlobs);
@@ -1469,7 +1546,7 @@ namespace Streaming
 			{
 				std::set<std::wstring> planned;
 				for (const PlannedItem& item : plan)
-					planned.insert(LowerPath(TargetPath(*item.file)));
+					planned.insert(LowerPath(item.local));
 				{
 					std::lock_guard<std::mutex> lock(g_batchMutex);
 					for (size_t b = 0; b < g_batchQueue.size(); ++b)
@@ -1495,6 +1572,59 @@ namespace Streaming
 				return;
 			}
 
+			struct DownloadWork
+			{
+				bool blob = false;
+				size_t item = 0;
+				ArchiveWrite write;
+				std::vector<size_t> refs;
+				long long size = 0;
+				std::string label;
+			};
+			std::vector<DownloadWork> tasks;
+			std::map<std::string, size_t> blobTask;
+			std::vector<size_t> wholeItems;
+			for (size_t i = 0; i < plan.size(); ++i)
+			{
+				PlannedItem& item = plan[i];
+				if (!item.inPlace)
+				{
+					wholeItems.push_back(i);
+					continue;
+				}
+				for (const ArchiveWrite& w : item.job.writes)
+				{
+					auto it = blobTask.find(w.sha256);
+					if (it == blobTask.end())
+					{
+						DownloadWork t;
+						t.blob = true;
+						t.write = w;
+						t.size = w.size;
+						t.label = item.file->path + " " + w.name;
+						it = blobTask.emplace(w.sha256, tasks.size()).first;
+						tasks.push_back(std::move(t));
+					}
+					tasks[it->second].refs.push_back(i);
+					++item.remaining;
+				}
+			}
+			std::stable_sort(wholeItems.begin(), wholeItems.end(), [&](size_t a, size_t b)
+			{
+				return plan[a].file->size < plan[b].file->size;
+			});
+			for (size_t i : wholeItems)
+			{
+				DownloadWork t;
+				t.item = i;
+				t.size = plan[i].file->size;
+				t.label = plan[i].file->path;
+				tasks.push_back(std::move(t));
+			}
+			long long total = 0;
+			for (const DownloadWork& t : tasks)
+				total += t.size;
+
 			unsigned long long nowMs = GetTickCount64();
 			unsigned long long lastMs = g_lastProgressMs.load();
 			if (lastMs == 0 || nowMs - lastMs > kProgressJoinMs)
@@ -1502,42 +1632,111 @@ namespace Streaming
 
 			g_filesTotal = g_filesTotal.load() + (int)plan.size();
 			g_totalBytes = g_totalBytes.load() + total;
-			g_baseBytes = g_doneBytes.load();
 
-			StreamLog("stream: downloading %d file(s), %lld bytes", (int)plan.size(), total);
+			StreamLog("stream: downloading %d file(s) as %d request(s), %lld bytes", (int)plan.size(), (int)tasks.size(), total);
 			g_active = true;
 			ActiveScope activeScope;
-			for (PlannedItem& item : plan)
+
+			auto finishItem = [](const ManifestFile& mf)
 			{
-				const ManifestFile& mf = *item.file;
-				{
-					std::lock_guard<std::mutex> lock(g_statusMutex);
-					g_currentFile = mf.path;
-				}
-				if (item.inPlace)
-				{
-					// Applied by the main thread once the whole batch is published, which is also
-					// when the file stops counting as pending.
-					if (FetchJobBlobs(baseUrl, item.job))
-						g_passBatch.jobs.push_back(std::move(item.job));
-					else
-					{
-						StreamLog("stream: %s in-place download incomplete, retrying next pass", mf.path.c_str());
-						MarkPlaced(TargetPath(mf));
-					}
-				}
-				else
-				{
-					PlaceFile(baseUrl, mf, ArchiveFor(man, mf));
-					// Placed, so it is either current on disk or staged, and staged files are
-					// already covered by the pending-move list.
-					MarkPlaced(TargetPath(mf));
-					g_baseBytes = g_baseBytes.load() + mf.size;
-				}
-				g_doneBytes = g_baseBytes.load();
 				g_filesDone = g_filesDone.load() + 1;
 				g_lastProgressMs = GetTickCount64();
 				StreamLog("stream: finished %d/%d %s", g_filesDone.load(), g_filesTotal.load(), mf.path.c_str());
+			};
+			for (PlannedItem& item : plan)
+				if (item.inPlace && item.remaining == 0)
+					finishItem(*item.file);
+
+			struct WorkPool
+			{
+				std::atomic<size_t> next{ 0 };
+				std::mutex mutex;
+				std::condition_variable cv;
+				std::deque<std::pair<size_t, bool>> done;
+			} pool;
+
+			auto execute = [&](const DownloadWork& t)
+			{
+				SetCurrentFile(t.label);
+				ByteCounter counter;
+				counter.size = t.size;
+				bool ok = t.blob ? FetchBlob(baseUrl, t.write, counter)
+				                 : DownloadWhole(baseUrl, *plan[t.item].file, plan[t.item].local, counter);
+				counter.Settle();
+				return ok;
+			};
+
+			std::vector<std::thread> workers;
+			const size_t workerCount = std::min<size_t>(kDownloadWorkers, tasks.size());
+			for (size_t w = 0; w < workerCount; ++w)
+			{
+				workers.emplace_back([&]
+				{
+					SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
+					for (;;)
+					{
+						size_t t = pool.next.fetch_add(1);
+						if (t >= tasks.size())
+							break;
+						bool ok = execute(tasks[t]);
+						{
+							std::lock_guard<std::mutex> lock(pool.mutex);
+							pool.done.push_back({ t, ok });
+						}
+						pool.cv.notify_one();
+					}
+				});
+			}
+
+			std::vector<std::optional<MountAfter>> mounts(plan.size());
+			for (size_t completed = 0; completed < tasks.size(); ++completed)
+			{
+				std::pair<size_t, bool> r;
+				{
+					std::unique_lock<std::mutex> lock(pool.mutex);
+					pool.cv.wait(lock, [&]
+					{
+						return !pool.done.empty();
+					});
+					r = pool.done.front();
+					pool.done.pop_front();
+				}
+				const DownloadWork& t = tasks[r.first];
+				if (t.blob)
+				{
+					for (size_t i : t.refs)
+					{
+						PlannedItem& item = plan[i];
+						item.failed = item.failed || !r.second;
+						if (--item.remaining == 0)
+							finishItem(*item.file);
+					}
+					continue;
+				}
+				PlannedItem& item = plan[t.item];
+				if (r.second)
+					mounts[t.item] = PlaceDownloaded(*item.file, ArchiveFor(man, *item.file), item.local);
+				MarkPlaced(item.local);
+				finishItem(*item.file);
+			}
+			for (std::thread& w : workers)
+				w.join();
+
+			for (size_t i = 0; i < plan.size(); ++i)
+			{
+				PlannedItem& item = plan[i];
+				if (item.inPlace)
+				{
+					if (!item.failed)
+						g_passBatch.jobs.push_back(std::move(item.job));
+					else
+					{
+						StreamLog("stream: %s in-place download incomplete, retrying next pass", item.file->path.c_str());
+						MarkPlaced(item.local);
+					}
+				}
+				else if (mounts[i])
+					EnqueueMount(mounts[i]->path, mounts[i]->sha);
 			}
 
 			LocalDigests::Save();
@@ -1668,9 +1867,9 @@ namespace Streaming
 	{
 		g_uiRefreshNeeded = false;
 		if (ClientData::ObjectManager::GetActivePlayerObject())
-			*reinterpret_cast<uint8_t*>(0x00BD0791) = 1; // CGGameUI::m_reloadUIRequested
+			*reinterpret_cast<uint8*>(0x00BD0791) = 1; // CGGameUI::m_reloadUIRequested
 		else
-			*reinterpret_cast<uint32_t*>(0x00B6AA24) = 1; // CGlueMgr::m_reload
+			*reinterpret_cast<uint32*>(0x00B6AA24) = 1; // CGlueMgr::m_reload
 		return 0;
 	}
 

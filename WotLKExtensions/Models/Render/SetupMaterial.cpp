@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 #include "Models/Render/CombinerPatch.h"
 #include "Models/Compat/LiveM2.h"
@@ -48,7 +49,7 @@ namespace
         g_origSetupAlpha(ctx);
 
         void*    model = nullptr;
-        uint16_t blend = 0;
+        uint16 blend = 0;
         __try
         {
             auto* dc   = static_cast<m2::DrawContext*>(ctx);
@@ -61,8 +62,8 @@ namespace
             if (model && elem)
             {
                 void* skin = static_cast<m2::M2Model*>(model)->skin;
-                const uint32_t batchIndex =
-                    *reinterpret_cast<const uint32_t*>(static_cast<uint8_t*>(elem) + m2::kOffElementBatchIndex);
+                const uint32 batchIndex =
+                    *reinterpret_cast<const uint32*>(static_cast<uint8*>(elem) + m2::kOffElementBatchIndex);
                 if (skin && combiner::IsAddAlphaBatch(skin, batchIndex))
                     combiner::ArmNextBind();
             }

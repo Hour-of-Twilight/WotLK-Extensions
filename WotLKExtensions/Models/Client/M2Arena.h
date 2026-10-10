@@ -17,12 +17,14 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 namespace ModernM2::Arena
 {
 	void Reserve();
-	void* Alloc(uint32_t size, uint32_t* outOffset, uint32_t* outSize);
-	void Free(uint32_t offset, uint32_t size);
+	void* Alloc(uint32 size, uint32* outOffset, uint32* outSize);
+	void Free(uint32 offset, uint32 size);
 	void LogAddressSpace(const char* reason);
 }

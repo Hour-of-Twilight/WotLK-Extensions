@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Windows.h>
 #include <ClientDetours.h>
 #include <ClientData/ClientFunctions.h>
@@ -16,12 +17,12 @@ using namespace ClientData;
 
 struct HitTestResult
 {
-	uint32_t guidLow;  // 0x00
-	uint32_t guidHigh; // 0x04
-	float x;           // 0x08
-	float y;           // 0x0C
-	float z;           // 0x10
-	float dist;        // 0x14
+	uint32 guidLow;  // 0x00
+	uint32 guidHigh; // 0x04
+	float x;         // 0x08
+	float y;         // 0x0C
+	float z;         // 0x10
+	float dist;      // 0x14
 };
 
 static EditorObject::DecodedGuid lastMouseGUID;
@@ -101,7 +102,7 @@ int LogMouseoverGobValues(lua_State*)
 		return 0;
 	}
 
-	uint32_t mapID = *reinterpret_cast<uint32_t*>(0xBD088C);
+	uint32 mapID = *reinterpret_cast<uint32*>(0xBD088C);
 	Quat q = unpack_quat(gameObject->m_passenger.compressedRotation);
 
 	float roll, pitch, yaw;
@@ -239,7 +240,7 @@ int CommitEditorGobToServer(lua_State*)
 	if (!gameObject)
 		return 0;
 
-	uint64_t guid = EditorRuntime::CurrentSelectedGobGUID();
+	uint64 guid = EditorRuntime::CurrentSelectedGobGUID();
 	float x = gameObject->m_passenger.position.x;
 	float y = gameObject->m_passenger.position.y;
 	float z = gameObject->m_passenger.position.z;
@@ -248,7 +249,7 @@ int CommitEditorGobToServer(lua_State*)
 	CDataStore pkt;
 	CDataStore_C::GenPacket(&pkt);
 	CDataStore_C::PutInt32(&pkt, CMSG_GOB_EDITOR_UPDATE);
-	CDataStore_C::PutInt64(&pkt, static_cast<int64_t>(guid));
+	CDataStore_C::PutInt64(&pkt, static_cast<int64>(guid));
 	CDataStore_C::PutFloat(&pkt, x);
 	CDataStore_C::PutFloat(&pkt, y);
 	CDataStore_C::PutFloat(&pkt, z);

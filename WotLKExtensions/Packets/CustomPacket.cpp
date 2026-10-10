@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "CustomPacket.h"
 #include "Packet.h"
 #include <Editor/EditorRuntime.h>
@@ -41,14 +42,14 @@ CustomPacket& CustomPacket::Instance()
 
 void CustomPacket::Apply()
 {
-	Util::OverwriteUInt32AtAddress(0x6E8EE2, (uint32_t)&InitializePlayerEx - 0x6E8EE6);
+	Util::OverwriteUInt32AtAddress(0x6E8EE2, (uint32)&InitializePlayerEx - 0x6E8EE6);
 	//
-	Util::OverwriteUInt32AtAddress(0x6324CA, (uint32_t)&ProcessMessageEx - 0x6324CE);
-	Util::OverwriteUInt32AtAddress(0x714AFC, (uint32_t)&ProcessMessageEx - 0x714B00);
-	Util::OverwriteUInt32AtAddress(0x716A79, (uint32_t)&ProcessMessageEx - 0x716A7D);
+	Util::OverwriteUInt32AtAddress(0x6324CA, (uint32)&ProcessMessageEx - 0x6324CE);
+	Util::OverwriteUInt32AtAddress(0x714AFC, (uint32)&ProcessMessageEx - 0x714B00);
+	Util::OverwriteUInt32AtAddress(0x716A79, (uint32)&ProcessMessageEx - 0x716A7D);
 	//
-	Util::OverwriteUInt32AtAddress(0x6B0B9E, (uint32_t)&SetMessageHandlerEx - 0x6B0BA2);
-	Util::OverwriteUInt32AtAddress(0x4DB67F, (uint32_t)&UpdateCharacterListEx - 0x4DB683);
+	Util::OverwriteUInt32AtAddress(0x6B0B9E, (uint32)&SetMessageHandlerEx - 0x6B0BA2);
+	Util::OverwriteUInt32AtAddress(0x4DB67F, (uint32)&UpdateCharacterListEx - 0x4DB683);
 
 	RegisterHandler(SMSG_TB_BULLSHIT, &Packet_SMSG_TB_BULLSHIT);
 	RegisterHandler(SMSG_CUSTOM_STAT_TRACK, &Packet_SMSG_CUSTOM_STAT_TRACK);
@@ -96,12 +97,12 @@ void CustomPacket::SetCustomHandlers()
 		SetMessageHandlerEx(nullptr, 0, h.opcode, (void*)h.handler, nullptr);
 }
 
-void CustomPacket::RegisterHandler(uint32_t opcode, PacketHandlerFn handler)
+void CustomPacket::RegisterHandler(uint32 opcode, PacketHandlerFn handler)
 {
 	m_handlers.push_back({ opcode, handler });
 }
 
-void CustomPacket::RegisterRealmHandler(uint32_t opcode, PacketHandlerFn handler)
+void CustomPacket::RegisterRealmHandler(uint32 opcode, PacketHandlerFn handler)
 {
 	m_realmHandlers.push_back({ opcode, handler });
 }
@@ -112,9 +113,9 @@ void CustomPacket::InitializePlayerEx()
 	Instance().SetCustomHandlers();
 }
 
-void __fastcall CustomPacket::ProcessMessageEx(void* _this, uint32_t unused, uint32_t a2, CDataStore* a3, uint32_t a4)
+void __fastcall CustomPacket::ProcessMessageEx(void* _this, uint32 unused, uint32 a2, CDataStore* a3, uint32 a4)
 {
-	int16_t opcode = 0;
+	int16 opcode = 0;
 	CDataStore_C::GetInt16(a3, &opcode);
 
 	if (opcode < SMSG_UPDATE_CUSTOM_COMBAT_RATING)
@@ -124,24 +125,24 @@ void __fastcall CustomPacket::ProcessMessageEx(void* _this, uint32_t unused, uin
 	}
 	else
 	{
-		++*(uint32_t*)0xC5D638;
-		uint32_t num = opcode - SMSG_UPDATE_CUSTOM_COMBAT_RATING;
+		++*(uint32*)0xC5D638;
+		uint32 num = opcode - SMSG_UPDATE_CUSTOM_COMBAT_RATING;
 		CustomNetClient& data = Instance().customData;
 		if (opcode < NUM_CUSTOM_MSG_TYPES && data.handler[num])
 			// I've got cancer writing this, function typedefs are ugly as sin
-			((void (*)(void*, uint32_t, uint32_t, CDataStore*))data.handler[num])(data.handlerParam[num], opcode, a2, a3);
+			((void (*)(void*, uint32, uint32, CDataStore*))data.handler[num])(data.handlerParam[num], opcode, a2, a3);
 		else
 			CDataStore_C::IsRead(a3);
 	}
 }
 
-void __fastcall CustomPacket::SetMessageHandlerEx(void* _this, uint32_t unused, uint32_t opcode, void* handler, void* param)
+void __fastcall CustomPacket::SetMessageHandlerEx(void* _this, uint32 unused, uint32 opcode, void* handler, void* param)
 {
 	if (opcode < SMSG_UPDATE_CUSTOM_COMBAT_RATING)
 		CNetClient::SetMessageHandler(_this, opcode, handler, param);
 	else
 	{
-		uint32_t num = opcode - SMSG_UPDATE_CUSTOM_COMBAT_RATING;
+		uint32 num = opcode - SMSG_UPDATE_CUSTOM_COMBAT_RATING;
 		CustomNetClient& data = Instance().customData;
 		data.handler[num] = handler;
 		data.handlerParam[num] = param;
@@ -156,7 +157,7 @@ int __cdecl CustomPacket::UpdateCharacterListEx()
 }
 
 // You ain't seeing this sussy shit.
-void CustomPacket::Packet_SMSG_TB_BULLSHIT(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3)
+void CustomPacket::Packet_SMSG_TB_BULLSHIT(void* handlerParam, uint32 opcode, uint32 a2, CDataStore* a3)
 {
 	Packet r(a3);
 	int32 type = r.GetInt32();
@@ -201,7 +202,7 @@ void CustomPacket::Packet_SMSG_TB_BULLSHIT(void* handlerParam, uint32_t opcode, 
 	}
 }
 
-void CustomPacket::Packet_SMSG_CUSTOM_STAT_TRACK(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3)
+void CustomPacket::Packet_SMSG_CUSTOM_STAT_TRACK(void* handlerParam, uint32 opcode, uint32 a2, CDataStore* a3)
 {
 
 	Packet r(a3);
@@ -228,12 +229,12 @@ void CustomPacket::Packet_SMSG_CUSTOM_STAT_TRACK(void* handlerParam, uint32_t op
 	FrameXMLExtensions::SignalEvent("COMBAT_RATING_UPDATE", "");
 }
 
-void CustomPacket::Packet_SMSG_SANITY_CHECK(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3)
+void CustomPacket::Packet_SMSG_SANITY_CHECK(void* handlerParam, uint32 opcode, uint32 a2, CDataStore* a3)
 {
 	sCustomPacket.SendSanityCheck(true);
 }
 
-void CustomPacket::Packet_SMSG_BACKGROUND_DOWNLOAD(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3)
+void CustomPacket::Packet_SMSG_BACKGROUND_DOWNLOAD(void* handlerParam, uint32 opcode, uint32 a2, CDataStore* a3)
 {
 	sBackgroundDownloader.Trigger();
 }
@@ -272,7 +273,7 @@ void CustomPacket::SendSanityCheck(bool sendMpqs)
 	});
 }
 
-void CustomPacket::Packet_SMSG_FUCKED_CLIENT_DETECTED(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3)
+void CustomPacket::Packet_SMSG_FUCKED_CLIENT_DETECTED(void* handlerParam, uint32 opcode, uint32 a2, CDataStore* a3)
 {
 	Packet r(a3);
 	int32 numberOfFiles = r.GetInt32();
@@ -294,7 +295,7 @@ void CustomPacket::Packet_SMSG_FUCKED_CLIENT_DETECTED(void* handlerParam, uint32
 	}
 }
 
-void CustomPacket::Packet_SMSG_REQUEST_CHAR_ENUM_LEVELS(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3)
+void CustomPacket::Packet_SMSG_REQUEST_CHAR_ENUM_LEVELS(void* handlerParam, uint32 opcode, uint32 a2, CDataStore* a3)
 {
 	Packet r(a3);
 	uint32 numOfChars = r.GetUInt32();
@@ -306,7 +307,7 @@ void CustomPacket::Packet_SMSG_REQUEST_CHAR_ENUM_LEVELS(void* handlerParam, uint
 		uint32 level = r.GetUInt32();
 		uint32 talentLevel = r.GetUInt32();
 		uint32 subClass = r.GetUInt32();
-		int8_t gameMode = r.GetInt8();
+		int8 gameMode = r.GetInt8();
 
 		FrameXMLExtensions::SignalEvent("HOT_CHAR_SELECT_UPDATE", "%s%u%u%u%u", name, level, talentLevel, subClass, (uint32)gameMode);
 	}
@@ -317,9 +318,9 @@ void CustomPacket::SendGobEditorSelectNearest()
 	Packet(CMSG_GOB_EDITOR_SELECT_NEAREST).Send();
 }
 
-void CustomPacket::Packet_SMSG_GOB_EDITOR_SELECT(void* handlerParam, uint32_t opcode, uint32_t a2, CDataStore* a3)
+void CustomPacket::Packet_SMSG_GOB_EDITOR_SELECT(void* handlerParam, uint32 opcode, uint32 a2, CDataStore* a3)
 {
-	uint64_t guid = Packet(a3).GetUInt64();
+	uint64 guid = Packet(a3).GetUInt64();
 	EditorRuntime::SelectGameObject(guid);
 	CGGameObject_C* object = EditorRuntime::SelectedGameObject();
 	if (object)

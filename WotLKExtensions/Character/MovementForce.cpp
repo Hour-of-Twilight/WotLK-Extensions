@@ -1,38 +1,34 @@
+#include <Defines.h>
 #include "MovementForce.h"
 #include "Packet.h"
 #include <CustomPacket.h>
 #include <SharedDefines.h>
 #include <ClientDetours.h>
+#include <ClientData/Map.h>
 #include <ClientData/MathTypes.h>
 #include <ClientData/ObjectManager.h>
+#include <ClientData/WowObjects.h>
 #include <vector>
 #include <cmath>
 #include <Windows.h>
 
 using ClientData::C3Vector;
 
-CLIENT_FUNCTION(World__Intersect, 0x0077F310, __cdecl, bool,
-    (C3Vector * start, C3Vector* end, C3Vector* outHit, float* pT, uint32_t flags, int zero))
-
-static const uint32_t kSolidWorldFlags = 0x00100111;
-
 CLIENT_FUNCTION(CGUnit_C__SendMovementUpdate, 0x0071F0C0, __thiscall, void,
-    (void* self, uint32_t timeMs, uint32_t opcode, float unused, int a4, int a5, int a6, int a7))
-
-static const uint32_t kMsgMoveHeartbeat = 0xEE;
+    (void* self, uint32 timeMs, uint32 opcode, float unused, int a4, int a5, int a6, int a7))
 
 // The pushed client is still authoritative over its own position, so it has to keep telling the
 // server where the drift put it. Observers fill the gaps by simulating, so this only has to be
 // often enough that the two do not diverge.
-static const uint32_t kHeartbeatIntervalMs = 250;
+static const uint32 kHeartbeatIntervalMs = 250;
 
-enum ForceType : uint8_t
+enum ForceType : uint8
 {
 	FORCE_TYPE_DIRECTIONAL = 0, // constant push along a fixed direction
 	FORCE_TYPE_RADIAL = 1,      // pushes away from (or toward, if magnitude is negative) an origin
 };
 
-enum ForceFlags : uint32_t
+enum ForceFlags : uint32
 {
 	FORCE_FLAG_NO_COLLISION = 0x1, // do not sweep for walls, push straight through
 	FORCE_FLAG_NO_GROUND = 0x2,    // do not snap to the ground after moving
@@ -40,38 +36,28 @@ enum ForceFlags : uint32_t
 
 struct ForceField
 {
-	uint32_t id;
-	uint8_t type;
+	uint32 id;
+	uint8 type;
 	C3Vector origin;
 	C3Vector direction; // normalized, directional forces only
 	float magnitude;    // peak push speed in yards/sec
 	float radius;       // distance the push fades to zero over, 0 means no falloff
-	uint32_t flags;
-	int32_t durationMs; // 0 means until the server clears it
-	uint32_t startMs;   // client time the force became active here
+	uint32 flags;
+	int32 durationMs; // 0 means until the server clears it
+	uint32 startMs;   // client time the force became active here
 };
 
 struct UnitForces
 {
-	uint64_t guid;
+	uint64 guid;
 	std::vector<ForceField> fields;
-	uint32_t lastHeartbeatMs;
+	uint32 lastHeartbeatMs;
 };
 
 static std::vector<UnitForces> g_units;
 
-static const uint32_t kMovementOffset = 0x788;
-static const uint32_t kPosOffset = 0x10;    // C3Vector, current position
-static const uint32_t kFacingOffset = 0x20; // float, current facing
-static const uint32_t kFlagsOffset = 0x44;  // movement flags dword
-static const uint32_t kAnchorOffset = 0x4C; // C3Vector, current move-segment anchor
-
-static const uint32_t kFlagSwimming = 0x00200000;
-static const uint32_t kFlagFlying = 0x02000000;
-static const uint32_t kFlagOnTransport = 0x00000200;
-
-static const uint32_t kClientOwnsZ =
-    0x00C010FF | kFlagSwimming | kFlagFlying | kFlagOnTransport;
+static const uint32 kClientOwnsZ =
+    0xFF | ClientData::MOVEMENTFLAG_FALLING | ClientData::MOVEMENTFLAG_ASCENDING | ClientData::MOVEMENTFLAG_DESCENDING | ClientData::MOVEMENTFLAG_SWIMMING | ClientData::MOVEMENTFLAG_FLYING | ClientData::MOVEMENTFLAG_ONTRANSPORT;
 
 static const float kWaistTrace = 1.2f;      // height above feet to sweep for walls
 static const float kWallSkin = 0.1f;        // stop this far short of a wall
@@ -81,7 +67,7 @@ static const float kMaxStepDown = 2.0f;     // snap down at most this far; a big
 static const float kZDeadzone = 0.05f;      // ignore ground differences smaller than this
 static const float kOriginDeadzone = 0.05f; // close enough to a radial origin to count as on it
 
-static UnitForces* FindUnit(uint64_t guid)
+static UnitForces* FindUnit(uint64 guid)
 {
 	for (UnitForces& u : g_units)
 	{
@@ -95,7 +81,7 @@ static UnitForces* FindUnit(uint64_t guid)
 // Sums every active force on a unit into a push velocity, in yards/sec. dt is only used to clamp
 // an inward force to the distance it has left.
 static void SumForces(const std::vector<ForceField>& fields, const float* pos, float facing, float dt,
-    float& outX, float& outY, float& outZ, uint32_t& outFlags)
+    float& outX, float& outY, float& outZ, uint32& outFlags)
 {
 	outX = 0.0f;
 	outY = 0.0f;
@@ -157,18 +143,18 @@ static void SumForces(const std::vector<ForceField>& fields, const float* pos, f
 
 // Moves one unit by the forces acting on it. Runs identically on every client that can see the
 // unit, which is what keeps the motion in sync without a packet per frame.
-static void DriftUnit(void* unit, const std::vector<ForceField>& fields, float dt)
+static void DriftUnit(const ClientData::WowUnit& unit, const std::vector<ForceField>& fields, float dt)
 {
-	uint8_t* cmov = reinterpret_cast<uint8_t*>(unit) + kMovementOffset;
-	float* pos = reinterpret_cast<float*>(cmov + kPosOffset);
-	float* anchor = reinterpret_cast<float*>(cmov + kAnchorOffset);
-	float facing = *reinterpret_cast<float*>(cmov + kFacingOffset);
-	uint32_t moveFlags = *reinterpret_cast<uint32_t*>(cmov + kFlagsOffset);
+	ClientData::MovementInfo* movement = unit.Movement();
+	float* pos = &movement->position.x;
+	float* anchor = &movement->anchor.x;
+	float facing = movement->orientation;
+	uint32 moveFlags = movement->movementFlags;
 
 	float pushX;
 	float pushY;
 	float pushZ;
-	uint32_t forceFlags;
+	uint32 forceFlags;
 	SumForces(fields, pos, facing, dt, pushX, pushY, pushZ, forceFlags);
 
 	if (pushX == 0.0f && pushY == 0.0f && pushZ == 0.0f)
@@ -182,14 +168,14 @@ static void DriftUnit(void* unit, const std::vector<ForceField>& fields, float d
 	float dY = pushY * dt;
 	float dZ = pushZ * dt;
 
-	bool onTransport = (moveFlags & kFlagOnTransport) != 0;
+	bool onTransport = (moveFlags & ClientData::MOVEMENTFLAG_ONTRANSPORT) != 0;
 	if (!onTransport && (forceFlags & FORCE_FLAG_NO_COLLISION) == 0)
 	{
 		C3Vector start = { posX, posY, posZ + kWaistTrace };
 		C3Vector end = { posX + dX, posY + dY, posZ + kWaistTrace + dZ };
 		C3Vector hit = {};
 		float t = 1.0f;
-		if (World__Intersect(&start, &end, &hit, &t, kSolidWorldFlags, 0) && t < 1.0f)
+		if (CGWorldFrame_C::Intersect(&start, &end, &hit, &t, ClientData::Map::kIntersectSolid, 0) && t < 1.0f)
 		{
 			float len = std::sqrt(dX * dX + dY * dY + dZ * dZ);
 			float tSafe = t - (len > 0.0f ? kWallSkin / len : 0.0f);
@@ -221,7 +207,7 @@ static void DriftUnit(void* unit, const std::vector<ForceField>& fields, float d
 	C3Vector end = { pos[0], pos[1], posZ - kGroundDown };
 	C3Vector hit = {};
 	float t = 1.0f;
-	if (World__Intersect(&start, &end, &hit, &t, kSolidWorldFlags, 0))
+	if (CGWorldFrame_C::Intersect(&start, &end, &hit, &t, ClientData::Map::kIntersectSolid, 0))
 	{
 		float drop = posZ - hit.z; // positive when the ground is below the feet
 		if (std::fabs(drop) > kZDeadzone && drop <= kMaxStepDown)
@@ -234,13 +220,13 @@ static void DriftUnit(void* unit, const std::vector<ForceField>& fields, float d
 
 // Tells the server where our own drift put us. Observers already know the force and are
 // simulating it, so this is a correction channel, not the thing that drives their view.
-static void SendSelfHeartbeat(void* player, UnitForces& forces, uint32_t nowMs)
+static void SendSelfHeartbeat(void* player, UnitForces& forces, uint32 nowMs)
 {
 	if (nowMs - forces.lastHeartbeatMs < kHeartbeatIntervalMs)
 		return;
 
 	forces.lastHeartbeatMs = nowMs;
-	CGUnit_C__SendMovementUpdate(player, nowMs, kMsgMoveHeartbeat, 0.0f, 0, 0, 0, 0xFF);
+	CGUnit_C__SendMovementUpdate(player, nowMs, ClientData::MSG_MOVE_HEARTBEAT, 0.0f, 0, 0, 0, 0xFF);
 }
 
 static void TickForces()
@@ -266,8 +252,8 @@ static void TickForces()
 	if (dt > 0.1f)
 		dt = 0.1f; // clamp after a stall so we do not teleport
 
-	uint32_t nowMs = (uint32_t)OsGetAsyncTimeMs();
-	uint64_t selfGuid = ClntObjMgr::GetActivePlayer();
+	uint32 nowMs = (uint32)OsGetAsyncTimeMs();
+	uint64 selfGuid = ClntObjMgr::GetActivePlayer();
 
 	for (size_t i = 0; i < g_units.size();)
 	{
@@ -276,7 +262,7 @@ static void TickForces()
 		for (size_t f = 0; f < u.fields.size();)
 		{
 			const ForceField& field = u.fields[f];
-			if (field.durationMs > 0 && nowMs - field.startMs >= (uint32_t)field.durationMs)
+			if (field.durationMs > 0 && nowMs - field.startMs >= (uint32)field.durationMs)
 				u.fields.erase(u.fields.begin() + f);
 			else
 				++f;
@@ -288,14 +274,14 @@ static void TickForces()
 			continue;
 		}
 
-		void* unit = ClientData::ObjectManager::GetObject(u.guid,
+		ClientData::WowUnit unit(ClientData::ObjectManager::GetObject(u.guid,
 		    static_cast<ClientData::ObjectTypeMask>(
-		        ClientData::TYPEMASK_UNIT | ClientData::TYPEMASK_PLAYER));
+		        ClientData::TYPEMASK_UNIT | ClientData::TYPEMASK_PLAYER)));
 		if (unit)
 		{
 			DriftUnit(unit, u.fields, dt);
 			if (u.guid == selfGuid)
-				SendSelfHeartbeat(unit, u, nowMs);
+				SendSelfHeartbeat(unit.Raw(), u, nowMs);
 		}
 
 		++i;
@@ -326,18 +312,18 @@ void MovementForce::Apply()
 
 // Confirms to the server that we started or stopped drifting, and hands it the position we were
 // at when it happened so it can rebase observers on an exact value instead of the next heartbeat.
-static void SendAck(uint64_t guid, uint32_t forceId, bool applied)
+static void SendAck(uint64 guid, uint32 forceId, bool applied)
 {
 	if (guid != ClntObjMgr::GetActivePlayer())
 		return;
 
-	void* player = ClntObjMgr::GetActivePlayerObj();
+	ClientData::WowPlayer player = ClientData::WowPlayer::Active();
 	if (!player)
 		return;
 
-	uint8_t* cmov = reinterpret_cast<uint8_t*>(player) + kMovementOffset;
-	const float* pos = reinterpret_cast<const float*>(cmov + kPosOffset);
-	float facing = *reinterpret_cast<const float*>(cmov + kFacingOffset);
+	const ClientData::MovementInfo* movement = player.Movement();
+	const float* pos = &movement->position.x;
+	float facing = movement->orientation;
 
 	Packet ack(CMSG_MOVEMENT_FORCE_ACK);
 	ack.PutUInt64(guid);
@@ -350,11 +336,11 @@ static void SendAck(uint64_t guid, uint32_t forceId, bool applied)
 	ack.Send();
 }
 
-void MovementForce::Handler_ApplyForce(void*, uint32_t, uint32_t, CDataStore* pkt)
+void MovementForce::Handler_ApplyForce(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 
-	uint64_t guid = r.GetUInt64();
+	uint64 guid = r.GetUInt64();
 
 	ForceField field = {};
 	field.id = r.GetUInt32();
@@ -369,7 +355,7 @@ void MovementForce::Handler_ApplyForce(void*, uint32_t, uint32_t, CDataStore* pk
 	field.radius = r.GetFloat();
 	field.flags = r.GetUInt32();
 	field.durationMs = r.GetInt32();
-	field.startMs = (uint32_t)OsGetAsyncTimeMs();
+	field.startMs = (uint32)OsGetAsyncTimeMs();
 
 	if (field.radius < 0.0f)
 		field.radius = 0.0f;
@@ -389,7 +375,7 @@ void MovementForce::Handler_ApplyForce(void*, uint32_t, uint32_t, CDataStore* pk
 	UnitForces* u = FindUnit(guid);
 	if (!u)
 	{
-		g_units.push_back({ guid, {}, (uint32_t)OsGetAsyncTimeMs() });
+		g_units.push_back({ guid, {}, (uint32)OsGetAsyncTimeMs() });
 		u = &g_units.back();
 	}
 
@@ -409,11 +395,11 @@ void MovementForce::Handler_ApplyForce(void*, uint32_t, uint32_t, CDataStore* pk
 	SendAck(guid, field.id, true);
 }
 
-void MovementForce::Handler_ClearForce(void*, uint32_t, uint32_t, CDataStore* pkt)
+void MovementForce::Handler_ClearForce(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint64_t guid = r.GetUInt64();
-	uint32_t id = r.GetUInt32();
+	uint64 guid = r.GetUInt64();
+	uint32 id = r.GetUInt32();
 
 	for (size_t i = 0; i < g_units.size(); ++i)
 	{

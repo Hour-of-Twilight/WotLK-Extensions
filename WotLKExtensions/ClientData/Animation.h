@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 namespace ClientData
@@ -8,19 +10,19 @@ namespace ClientData
 
 	struct AnimationDataRow
 	{
-		uint32_t id;
+		uint32 id;
 		const char* name;
-		uint32_t weaponFlags;
-		uint32_t bodyFlags;
-		uint32_t flags;
-		uint32_t fallback;
-		uint32_t behaviorId;
-		uint32_t behaviorTier;
+		uint32 weaponFlags;
+		uint32 bodyFlags;
+		uint32 flags;
+		uint32 fallback;
+		uint32 behaviorId;
+		uint32 behaviorTier;
 	};
 
 	constexpr int ANIMATION_CURRENT_OR_NONE = 506;
 
-	enum AnimationId : int32_t
+	enum AnimationId : int32
 	{
 		ANIMATION_STAND = 0,
 		ANIMATION_STOP = 3,
@@ -58,6 +60,8 @@ namespace ClientData
 		ANIMATION_ATTACK_2H_LOOSE_PIERCE = 86,
 		ANIMATION_ATTACK_OFFHAND = 87,
 		ANIMATION_ATTACK_OFFHAND_PIERCE = 88,
+		ANIMATION_SHEATHE = 89,
+		ANIMATION_HIP_SHEATHE = 90,
 
 		ANIMATION_RUN_RIGHT = 92,
 		ANIMATION_RUN_LEFT = 93,

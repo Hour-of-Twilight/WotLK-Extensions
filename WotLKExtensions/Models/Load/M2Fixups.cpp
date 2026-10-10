@@ -18,6 +18,7 @@
 // the injections run after it (offsets are raw pointers). Each is a field the source model states
 // differently from the target -- a value rewritten, never a value dropped.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 #include "Models/Load/M2NativeInternal.h"
 
@@ -31,21 +32,21 @@ namespace ModernM2::Reader::Detail
     namespace
     {
         /// Finds the index of the first sequence whose id equals anim (Animations.cpp semantics).
-        int16_t SequenceIndexById(const fmt::M2Sequence* seqs, uint32_t count, uint16_t anim)
+        int16 SequenceIndexById(const fmt::M2Sequence* seqs, uint32 count, uint16 anim)
         {
-            for (uint32_t i = 0; i < count; ++i)
-                if (seqs[i].id == anim) return static_cast<int16_t>(i);
+            for (uint32 i = 0; i < count; ++i)
+                if (seqs[i].id == anim) return static_cast<int16>(i);
             return -1;
         }
 
         /// Points lookup[newId] at newPos if it still holds oldPos, else rewrites the first entry holding
         /// oldPos (Animations.cpp semantics).
-        void PatchSequenceLookup(int16_t* lookup, uint32_t lookupCount, int16_t oldPos, uint16_t newId,
-                                 int16_t newPos)
+        void PatchSequenceLookup(int16* lookup, uint32 lookupCount, int16 oldPos, uint16 newId,
+                                 int16 newPos)
         {
             if (!lookup) return;
             if (newId < lookupCount && lookup[newId] == oldPos) { lookup[newId] = newPos; return; }
-            for (uint32_t i = 0; i < lookupCount; ++i)
+            for (uint32 i = 0; i < lookupCount; ++i)
                 if (lookup[i] == oldPos) { lookup[i] = newPos; break; }
         }
     }
@@ -57,31 +58,31 @@ namespace ModernM2::Reader::Detail
      *        sequences whose data streams from a .anim file (flags bit 0x20 clear -- Phase 2) into
      *        extSeqPending.
      */
-    void FixSequencesRaw(uint8_t* base, uint32_t size, fmt::M2Header* h, uint32_t& extSeqPending)
+    void FixSequencesRaw(uint8* base, uint32 size, fmt::M2Header* h, uint32& extSeqPending)
     {
-        constexpr uint16_t kClientMaxAnimId = 505;
+        constexpr uint16 kClientMaxAnimId = 505;
         if (!h->sequences.count || !h->sequences.offset) return;
         if (h->sequences.offset > size ||
             h->sequences.count * sizeof(fmt::M2Sequence) > size - h->sequences.offset)
             return; // walk will reject it
         auto* seqs = reinterpret_cast<fmt::M2Sequence*>(base + h->sequences.offset);
 
-        int16_t* lookup = nullptr;
-        uint32_t lookupCount = 0;
+        int16* lookup = nullptr;
+        uint32 lookupCount = 0;
         if (h->sequenceLookup.count && h->sequenceLookup.offset &&
             h->sequenceLookup.offset <= size &&
             h->sequenceLookup.count * 2 <= size - h->sequenceLookup.offset)
         {
-            lookup      = reinterpret_cast<int16_t*>(base + h->sequenceLookup.offset);
+            lookup      = reinterpret_cast<int16*>(base + h->sequenceLookup.offset);
             lookupCount = h->sequenceLookup.count;
         }
 
-        for (uint32_t i = 0; i < h->sequences.count; ++i)
+        for (uint32 i = 0; i < h->sequences.count; ++i)
         {
-            const uint16_t id = seqs[i].id;
+            const uint16 id = seqs[i].id;
             if (id > kClientMaxAnimId)
             {
-                uint16_t anim = id;
+                uint16 anim = id;
                 switch (id)
                 {
                     case 564: anim = 37;  break;
@@ -97,7 +98,7 @@ namespace ModernM2::Reader::Detail
                 {
                     PatchSequenceLookup(lookup, lookupCount,
                                         SequenceIndexById(seqs, h->sequences.count, anim), anim,
-                                        static_cast<int16_t>(i));
+                                        static_cast<int16>(i));
                     seqs[i].id = anim;
                 }
             }
@@ -111,16 +112,16 @@ namespace ModernM2::Reader::Detail
      *        Add (4, flags forced |0x5) and flags are masked to the low 5 bits -- the same FixRenderFlags
      *        contract the skin-finalize half re-applies idempotently.
      */
-    void FixMaterialsRaw(uint8_t* base, uint32_t size, fmt::M2Header* h)
+    void FixMaterialsRaw(uint8* base, uint32 size, fmt::M2Header* h)
     {
         if (!h->materials.count || !h->materials.offset) return;
         if (h->materials.offset > size || h->materials.count * 4 > size - h->materials.offset)
             return;
-        auto* mats = reinterpret_cast<uint16_t*>(base + h->materials.offset);
-        for (uint32_t i = 0; i < h->materials.count; ++i)
+        auto* mats = reinterpret_cast<uint16*>(base + h->materials.offset);
+        for (uint32 i = 0; i < h->materials.count; ++i)
         {
-            uint16_t& flag  = mats[i * 2 + 0];
-            uint16_t& blend = mats[i * 2 + 1];
+            uint16& flag  = mats[i * 2 + 0];
+            uint16& blend = mats[i * 2 + 1];
             if (blend > 6) { blend = 4; flag |= 0x5; }
             flag &= 0x1F;
         }
@@ -137,11 +138,11 @@ namespace ModernM2::Reader::Detail
     {
         if (!h->textures.count || !h->textures.offset) return;
         auto* tex = reinterpret_cast<fmt::M2Texture*>(static_cast<uintptr_t>(h->textures.offset));
-        for (uint32_t i = 0; i < h->textures.count; ++i)
+        for (uint32 i = 0; i < h->textures.count; ++i)
         {
             if (tex[i].type != fmt::kTexTypeHardcoded) continue;   // dynamic slots stay empty
             if (tex[i].filename.count >= 2 && tex[i].filename.offset) continue; // inline name kept
-            const uint32_t fdid = i < s.txidCount ? s.txid[i] : 0;
+            const uint32 fdid = i < s.txidCount ? s.txid[i] : 0;
             if (!fdid) continue;
             const char* path = ModernM2::ResolveTexture(fdid);
             if (!path)
@@ -150,8 +151,8 @@ namespace ModernM2::Reader::Detail
                 WLOG_WARN("m2native: TXID %u unresolved (texture %u) -- solid white fallback", fdid, i);
                 continue;
             }
-            tex[i].filename.offset = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(path));
-            tex[i].filename.count  = static_cast<uint32_t>(std::strlen(path)) + 1u;
+            tex[i].filename.offset = static_cast<uint32>(reinterpret_cast<uintptr_t>(path));
+            tex[i].filename.count  = static_cast<uint32>(std::strlen(path)) + 1u;
             ++out.texResolved;
         }
     }
@@ -161,9 +162,9 @@ namespace ModernM2::Reader::Detail
     void ClampCameraRefs(fmt::M2Header* h)
     {
         if (!h->cameraLookup.count || !h->cameraLookup.offset) return;
-        auto* lookup = reinterpret_cast<int16_t*>(static_cast<uintptr_t>(h->cameraLookup.offset));
-        const auto limit = static_cast<int32_t>(h->cameras.count);
-        for (uint32_t i = 0; i < h->cameraLookup.count; ++i)
+        auto* lookup = reinterpret_cast<int16*>(static_cast<uintptr_t>(h->cameraLookup.offset));
+        const auto limit = static_cast<int32>(h->cameras.count);
+        for (uint32 i = 0; i < h->cameraLookup.count; ++i)
             if (lookup[i] >= limit) lookup[i] = -1;
     }
 
@@ -173,13 +174,13 @@ namespace ModernM2::Reader::Detail
     {
         if (!h->ribbonEmitters.count || !h->ribbonEmitters.offset) return;
         auto* rib = reinterpret_cast<fmt::M2Ribbon*>(static_cast<uintptr_t>(h->ribbonEmitters.offset));
-        for (uint32_t i = 0; i < h->ribbonEmitters.count; ++i)
+        for (uint32 i = 0; i < h->ribbonEmitters.count; ++i)
         {
-            auto clamp = [](const fmt::M2Array& a, uint32_t limit) {
+            auto clamp = [](const fmt::M2Array& a, uint32 limit) {
                 if (!a.count || !a.offset || !limit) return;
-                auto* v = reinterpret_cast<uint16_t*>(static_cast<uintptr_t>(a.offset));
-                for (uint32_t n = 0; n < a.count; ++n)
-                    if (v[n] >= limit) v[n] = static_cast<uint16_t>(limit - 1);
+                auto* v = reinterpret_cast<uint16*>(static_cast<uintptr_t>(a.offset));
+                for (uint32 n = 0; n < a.count; ++n)
+                    if (v[n] >= limit) v[n] = static_cast<uint16>(limit - 1);
             };
             clamp(rib[i].textureIndices, h->textures.count);
             clamp(rib[i].materialIndices, h->materials.count);

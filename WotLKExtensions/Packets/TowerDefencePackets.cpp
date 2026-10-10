@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "TowerDefencePackets.h"
 #include "Packet.h"
 #include <CustomPacket.h>
@@ -22,7 +23,7 @@ void TowerDefencePackets::Reset()
 	m_hasTowers = false;
 }
 
-void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_SCOREBOARD(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_SCOREBOARD(void*, uint32, uint32, CDataStore* pkt)
 {
 	TowerDefencePackets& self = Instance();
 
@@ -33,12 +34,12 @@ void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_SCOREBOARD(void*, uint32_t, 
 		self.m_rows.clear();
 		self.m_mode = r.GetUInt32();
 
-		uint32_t count = r.GetUInt32();
+		uint32 count = r.GetUInt32();
 		if (count > MAX_SCOREBOARD_ROWS)
 			count = MAX_SCOREBOARD_ROWS;
 
 		self.m_rows.reserve(count);
-		for (uint32_t i = 0; i < count; ++i)
+		for (uint32 i = 0; i < count; ++i)
 		{
 			ScoreboardRow row;
 			r.GetString(buffer, sizeof(buffer));
@@ -61,10 +62,10 @@ void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_SCOREBOARD(void*, uint32_t, 
 	FrameXMLExtensions::SignalEvent("HOT_TOWERDEFENCE_SCOREBOARD", "");
 }
 
-void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_SAVED_GAMES(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_SAVED_GAMES(void*, uint32, uint32, CDataStore* pkt)
 {
 	TowerDefencePackets& self = Instance();
-	uint32_t openUI = 0;
+	uint32 openUI = 0;
 
 	{
 		Packet r(pkt);
@@ -72,12 +73,12 @@ void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_SAVED_GAMES(void*, uint32_t,
 		self.m_saves.clear();
 		openUI = r.GetUInt8();
 
-		uint32_t count = r.GetUInt32();
+		uint32 count = r.GetUInt32();
 		if (count > MAX_SAVED_GAME_ROWS)
 			count = MAX_SAVED_GAME_ROWS;
 
 		self.m_saves.reserve(count);
-		for (uint32_t i = 0; i < count; ++i)
+		for (uint32 i = 0; i < count; ++i)
 		{
 			SavedGameRow row;
 			row.id = r.GetUInt32();
@@ -94,7 +95,7 @@ void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_SAVED_GAMES(void*, uint32_t,
 	FrameXMLExtensions::SignalEvent("HOT_TOWERDEFENCE_SAVED_GAMES", "%u", openUI);
 }
 
-void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_TOWER_LIST(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_TOWER_LIST(void*, uint32, uint32, CDataStore* pkt)
 {
 	TowerDefencePackets& self = Instance();
 
@@ -104,12 +105,12 @@ void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_TOWER_LIST(void*, uint32_t, 
 
 		self.m_towers.clear();
 
-		uint32_t count = r.GetUInt32();
+		uint32 count = r.GetUInt32();
 		if (count > MAX_TOWER_ROWS)
 			count = MAX_TOWER_ROWS;
 
 		self.m_towers.reserve(count);
-		for (uint32_t i = 0; i < count; ++i)
+		for (uint32 i = 0; i < count; ++i)
 		{
 			TowerRow row;
 			row.towerSet = r.GetUInt32();
@@ -130,7 +131,7 @@ void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_TOWER_LIST(void*, uint32_t, 
 
 void TowerDefencePackets::SignalCounter(CDataStore* pkt, const char* eventName)
 {
-	uint32_t amount = 0;
+	uint32 amount = 0;
 
 	{
 		Packet r(pkt);
@@ -140,34 +141,34 @@ void TowerDefencePackets::SignalCounter(CDataStore* pkt, const char* eventName)
 	FrameXMLExtensions::SignalEvent(eventName, "%u", amount);
 }
 
-void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_MONEY(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_MONEY(void*, uint32, uint32, CDataStore* pkt)
 {
 	SignalCounter(pkt, "HOT_TOWERDEFENCE_MONEY");
 }
 
-void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_WAVE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_WAVE(void*, uint32, uint32, CDataStore* pkt)
 {
 	SignalCounter(pkt, "HOT_TOWERDEFENCE_WAVE");
 }
 
-void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_LIVES(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_LIVES(void*, uint32, uint32, CDataStore* pkt)
 {
 	SignalCounter(pkt, "HOT_TOWERDEFENCE_LIVES");
 }
 
-void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_SCORE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_SCORE(void*, uint32, uint32, CDataStore* pkt)
 {
 	SignalCounter(pkt, "HOT_TOWERDEFENCE_SCORE");
 }
 
-void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_GAME_END(void*, uint32_t, uint32_t, CDataStore*)
+void TowerDefencePackets::Handler_SMSG_TOWERDEFENCE_GAME_END(void*, uint32, uint32, CDataStore*)
 {
 	FrameXMLExtensions::SignalEvent("HOT_TOWERDEFENCE_GAME_END", "");
 }
 
 int TowerDefencePackets::RequestTowerDefenceScoreboard(lua_State* L)
 {
-	uint32_t mode = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 mode = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	Packet(CMSG_TOWERDEFENCE_SCOREBOARD_REQUEST).PutUInt32(mode).Send();
 	return 0;
 }
@@ -281,7 +282,7 @@ int TowerDefencePackets::GetTowerDefenceSavedGames(lua_State* L)
 
 int TowerDefencePackets::TowerDefenceSpawnTower(lua_State* L)
 {
-	uint8_t towerId = static_cast<uint8_t>(FrameScript::GetNumber(L, 1));
+	uint8 towerId = static_cast<uint8>(FrameScript::GetNumber(L, 1));
 	Packet(CMSG_TOWERDEFENCE_SPAWN_TOWER).PutUInt8(towerId).Send();
 	return 0;
 }
@@ -306,22 +307,22 @@ int TowerDefencePackets::TowerDefenceStartWave(lua_State*)
 
 int TowerDefencePackets::TowerDefenceStartGame(lua_State* L)
 {
-	uint8_t difficulty = static_cast<uint8_t>(FrameScript::GetNumber(L, 1));
-	uint8_t mode = static_cast<uint8_t>(FrameScript::GetNumber(L, 2));
+	uint8 difficulty = static_cast<uint8>(FrameScript::GetNumber(L, 1));
+	uint8 mode = static_cast<uint8>(FrameScript::GetNumber(L, 2));
 	Packet(CMSG_TOWERDEFENCE_START_GAME).PutUInt8(difficulty).PutUInt8(mode).Send();
 	return 0;
 }
 
 int TowerDefencePackets::TowerDefenceLoadGame(lua_State* L)
 {
-	uint32_t saveId = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 saveId = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	Packet(CMSG_TOWERDEFENCE_LOAD_GAME).PutUInt32(saveId).Send();
 	return 0;
 }
 
 int TowerDefencePackets::TowerDefenceDeleteGame(lua_State* L)
 {
-	uint32_t saveId = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 saveId = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 	Packet(CMSG_TOWERDEFENCE_DELETE_GAME).PutUInt32(saveId).Send();
 	return 0;
 }
@@ -349,7 +350,7 @@ int TowerDefencePackets::GetTowerDefenceTowers(lua_State* L)
 		return 1;
 	}
 
-	uint32_t towerSet = static_cast<uint32_t>(FrameScript::GetNumber(L, 1));
+	uint32 towerSet = static_cast<uint32>(FrameScript::GetNumber(L, 1));
 
 	FrameScript::CreateTable(L, (int)self.m_towers.size(), 0);
 	int tbl = FrameScript::GetTop(L);

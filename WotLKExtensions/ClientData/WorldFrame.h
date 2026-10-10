@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <Macros.h>
 #include <ClientData/Camera.h>
 #include <ClientData/GxDevice.h>
@@ -11,7 +13,7 @@ namespace ClientData
 {
 	struct WorldHitTest
 	{
-		uint64_t guid;
+		uint64 guid;
 		C3Vector hitpoint;
 		float distance;
 		C3Vector start;
@@ -31,8 +33,8 @@ namespace ClientData
 		char pad1[0xA0];
 		CSimpleTop* simpleTop;
 		char pad2[0x234];
-		uint32_t ukn16;
-		uint32_t ukn17;
+		uint32 ukn16;
+		uint32 ukn17;
 		WorldHitTest m_actionHitTest;
 	};
 
@@ -44,13 +46,13 @@ namespace ClientData
 		// Mode doubles as the index into the two textures CGWorldFrame loads at startup,
 		// Spell-Shadow-Acceptable.blp and Spell-Shadow-Unacceptable.blp. Both draw calls are
 		// guarded by `cmp mode, 2 / jge skip`, so anything >= 2 is hidden.
-		CLIENT_ADDRESS(int32_t, sMode, 0x00AC79A4)
+		CLIENT_ADDRESS(int32, sMode, 0x00AC79A4)
 		CLIENT_ADDRESS(float, sRadius, 0x00B74370)
 		CLIENT_ADDRESS(C3Vector, sPosition, 0x00B74380)
 
-		constexpr int32_t kModeAcceptable = 0;
-		constexpr int32_t kModeUnacceptable = 1;
-		constexpr int32_t kModeHidden = 3;
+		constexpr int32 kModeAcceptable = 0;
+		constexpr int32 kModeUnacceptable = 1;
+		constexpr int32 kModeHidden = 3;
 	}
 
 	class CGWorldFrameFull;
@@ -92,51 +94,51 @@ namespace ClientData
 		}
 
 		char simpleFrame[0x29C];
-		uint32_t unk_029C;
-		uint32_t unk_02A0;
-		uint32_t unk_02A4;
-		uint32_t unk_02A8;
-		uint32_t unk_02AC;
-		uint32_t unk_02B0;
-		uint32_t unk_02B4;
-		uint32_t unk_02B8;
-		uint32_t unk_02BC;
-		uint32_t unk_02C0;
-		uint32_t unk_02C4;
-		uint64_t currentGuid;
-		uint32_t unk_02D0;
-		uint32_t unk_02D4;
-		uint32_t unk_02D8;
-		uint32_t unk_02DC;
-		uint32_t unk_02E0;
-		uint32_t unk_02E4;
-		uint32_t unk_02E8;
-		uint32_t unk_02EC;
-		uint32_t unk_02F0;
-		uint32_t unk_02F4;
-		uint32_t unk_02F8;
-		uint32_t unk_02FC;
-		uint32_t unk_0300;
-		uint32_t unk_0304;
-		uint32_t unk_0308;
-		uint32_t unk_030C;
-		uint32_t unk_0310;
-		uint32_t unk_0314;
-		uint32_t unk_0318;
-		uint32_t unk_031C;
+		uint32 unk_029C;
+		uint32 unk_02A0;
+		uint32 unk_02A4;
+		uint32 unk_02A8;
+		uint32 unk_02AC;
+		uint32 unk_02B0;
+		uint32 unk_02B4;
+		uint32 unk_02B8;
+		uint32 unk_02BC;
+		uint32 unk_02C0;
+		uint32 unk_02C4;
+		uint64 currentGuid;
+		uint32 unk_02D0;
+		uint32 unk_02D4;
+		uint32 unk_02D8;
+		uint32 unk_02DC;
+		uint32 unk_02E0;
+		uint32 unk_02E4;
+		uint32 unk_02E8;
+		uint32 unk_02EC;
+		uint32 unk_02F0;
+		uint32 unk_02F4;
+		uint32 unk_02F8;
+		uint32 unk_02FC;
+		uint32 unk_0300;
+		uint32 unk_0304;
+		uint32 unk_0308;
+		uint32 unk_030C;
+		uint32 unk_0310;
+		uint32 unk_0314;
+		uint32 unk_0318;
+		uint32 unk_031C;
 		CRect unkRect_0320;
 		CRect unkRect_0330;
 		C44Matrix unkMatrix_0340;
-		uint32_t unk_0380;
-		uint32_t unk_0384;
-		uint32_t unk_0388;
-		uint32_t unk_038C;
+		uint32 unk_0380;
+		uint32 unk_0384;
+		uint32 unk_0388;
+		uint32 unk_038C;
 		char unk_0390[0x780];
-		uint32_t unk_0B10;
-		uint32_t unk_0B14;
-		uint32_t unk_0B18[7083];
-		uint32_t unk_79C4[279];
+		uint32 unk_0B10;
+		uint32 unk_0B14;
+		uint32 unk_0B18[7083];
+		uint32 unk_79C4[279];
 		CGCamera* m_camera;
-		uint32_t unk_7E24;
+		uint32 unk_7E24;
 	};
 }

@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstddef>
 #include <cstdint>
 
@@ -49,7 +51,7 @@ namespace ModernM2::Client
      * @param selector         the sampler selector to bind to.
      * @param resolvedTexture  the resolved texture object to bind.
      */
-    inline void BindSampler(void* device, uint32_t selector, void* resolvedTexture)
+    inline void BindSampler(void* device, uint32 selector, void* resolvedTexture)
     {
         Native<off::M2_SamplerBindFn>(off::kSamplerBind)(device, nullptr, selector, resolvedTexture);
     }
@@ -73,18 +75,18 @@ namespace ModernM2::Client
 #pragma pack(push, 1)
     struct M2SkinProfile
     {
-        uint32_t                          _lead;        // 0x00  parse-prepended leading field
-        uint32_t                          vertexCount;  // 0x04
-        uint16_t*                         vertexLookup; // 0x08
-        uint32_t                          indexCount;   // 0x0C
-        uint16_t*                         indices;      // 0x10
-        uint32_t                          boneCount;    // 0x14
-        uint8_t*                          bones;        // 0x18
-        uint32_t                          submeshCount; // 0x1C
+        uint32                          _lead;        // 0x00  parse-prepended leading field
+        uint32                          vertexCount;  // 0x04
+        uint16*                         vertexLookup; // 0x08
+        uint32                          indexCount;   // 0x0C
+        uint16*                         indices;      // 0x10
+        uint32                          boneCount;    // 0x14
+        uint8*                          bones;        // 0x18
+        uint32                          submeshCount; // 0x1C
         ModernM2::Format::M2SkinSection* submeshes;   // 0x20
-        uint32_t                          batchCount;   // 0x24  (texunits)
+        uint32                          batchCount;   // 0x24  (texunits)
         ModernM2::Format::M2Batch*      batches;      // 0x28
-        uint32_t                          boneCountMax; // 0x2C  per-draw bone budget seed
+        uint32                          boneCountMax; // 0x2C  per-draw bone budget seed
     };
 #pragma pack(pop)
     static_assert(sizeof(M2SkinProfile) == 0x30, "M2SkinProfile");
@@ -120,7 +122,7 @@ namespace ModernM2::Client
         void* GetFileBuffer() const { return static_cast<off::M2Model*>(model_)->header; }
 
         /** @brief Returns the byte size of this model's raw .m2 file buffer. */
-        uint32_t GetFileSize() const { return static_cast<off::M2Model*>(model_)->fileSize; }
+        uint32 GetFileSize() const { return static_cast<off::M2Model*>(model_)->fileSize; }
 
         /** @brief Returns the model path stem stored by the native loader. */
         const char* GetPathStem() const { return static_cast<off::M2Model*>(model_)->pathStem; }
@@ -141,7 +143,7 @@ namespace ModernM2::Client
         float GetBoundingSphereRadius() const { return GetHeader()->boundingSphereRadius; }
 
         /** @brief This model's particle emitter count. */
-        uint32_t GetParticleEmitterCount() const { return GetHeader()->particleEmitters.count; }
+        uint32 GetParticleEmitterCount() const { return GetHeader()->particleEmitters.count; }
 
         /**
          * @brief Returns the live parsed skin profile for this model.
@@ -159,7 +161,7 @@ namespace ModernM2::Client
          *
          * The parser reads these on the next call.
          */
-        void SetBuffer(void* buffer, uint32_t size)
+        void SetBuffer(void* buffer, uint32 size)
         {
             auto* m = static_cast<off::M2Model*>(model_);
             m->header   = buffer;
@@ -192,7 +194,7 @@ namespace ModernM2::Client
      * A replacement buffer allocated here is freed correctly by the model destructor, which relies
      * on the back-shift byte at [ptr-1].
      */
-    inline void* AllocBuffer(uint32_t size, const char* tag)
+    inline void* AllocBuffer(uint32 size, const char* tag)
     {
         return Native<off::M2_BufferAllocFn>(off::kBufferAlloc)(size, tag, 0);
     }
@@ -229,7 +231,7 @@ namespace ModernM2::Client
      *                    exits for attachment points not present in the character's table (e.g. point 19
      *                    used by collection M2s).
      */
-    inline void AttachToScene(void* renderCtx, void* subObj, uint32_t slot, bool forceAttach = false)
+    inline void AttachToScene(void* renderCtx, void* subObj, uint32 slot, bool forceAttach = false)
     {
         Native<off::M2_AttachToSceneFn>(off::kAttachToScene)(renderCtx, nullptr, subObj, slot, 0, forceAttach ? 1u : 0u);
     }
@@ -239,7 +241,7 @@ namespace ModernM2::Client
      * @param subObj  the collection-M2 instance that owns the slot.
      * @param slot    the scene slot index to detach.
      */
-    inline void DetachSlot(void* subObj, uint32_t slot)
+    inline void DetachSlot(void* subObj, uint32 slot)
     {
         Native<off::M2_DetachSlotFn>(off::kDetachSlot)(subObj, nullptr, slot);
     }
@@ -269,7 +271,7 @@ namespace ModernM2::Client
      * @param flags  loader flags (0 = default synchronous load).
      * @return the resource handle, or null on failure.
      */
-    inline void* LoadResource(const char* path, uint32_t flags = 0)
+    inline void* LoadResource(const char* path, uint32 flags = 0)
     {
         int status = 0;
         return Native<off::M2_LoadResourceFn>(off::kLoadResource)(path, flags, &status, 0);

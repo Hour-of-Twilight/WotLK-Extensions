@@ -1,7 +1,9 @@
+#include <Defines.h>
 #include "FrameDetours.h"
 #include <ClientDetours.h>
 #include <SharedDefines.h>
 #include <Logger.h>
+#include <ClientData/WowObjects.h>
 #include "XMLExtensions.h"
 #include "MultiCastBarDetours.h"
 #include "Streaming/BackgroundDownloader.h"
@@ -36,9 +38,9 @@ CLIENT_DETOUR(UpdateUsableAction, 0x005A9E20, __cdecl, bool, (uint32 slot, bool*
 	return result;
 }
 
-CLIENT_FUNCTION(ClntObjMgrObjectPtr_Full, 0x004D4DB0, __cdecl, void*, (uint32_t guidLow, uint32_t guidHigh, uint32_t typeMask, const char* file, uint32_t line))
+CLIENT_FUNCTION(ClntObjMgrObjectPtr_Full, 0x004D4DB0, __cdecl, void*, (uint32 guidLow, uint32 guidHigh, uint32 typeMask, const char* file, uint32 line))
 
-CLIENT_DETOUR(CGItemSocketInfo__SetGem, 0x005C4780, __cdecl, int, (uint32_t socketIndex, uint32_t guidLow, uint32_t guidHigh, int arg_C, int arg_10, char arg_14))
+CLIENT_DETOUR(CGItemSocketInfo__SetGem, 0x005C4780, __cdecl, int, (uint32 socketIndex, uint32 guidLow, uint32 guidHigh, int arg_C, int arg_10, char arg_14))
 {
 	if (socketIndex >= 7)
 		return 0;
@@ -49,11 +51,11 @@ CLIENT_DETOUR(CGItemSocketInfo__SetGem, 0x005C4780, __cdecl, int, (uint32_t sock
 	if (!*g_socketInfoPtr)
 		return 0;
 
-	uint32_t* gemGuidLow = reinterpret_cast<uint32_t*>(0xC20FC8 + socketIndex * 8);
-	uint32_t* gemGuidHigh = reinterpret_cast<uint32_t*>(0xC20FCC + socketIndex * 8);
-	uint32_t* gemArg1 = reinterpret_cast<uint32_t*>(0xC20FB0 + socketIndex * 8);
-	uint32_t* gemArg2 = reinterpret_cast<uint32_t*>(0xC20FB4 + socketIndex * 8);
-	uint8_t* gemFlags = reinterpret_cast<uint8_t*>(0xC20FA8 + socketIndex);
+	uint32* gemGuidLow = reinterpret_cast<uint32*>(0xC20FC8 + socketIndex * 8);
+	uint32* gemGuidHigh = reinterpret_cast<uint32*>(0xC20FCC + socketIndex * 8);
+	uint32* gemArg1 = reinterpret_cast<uint32*>(0xC20FB0 + socketIndex * 8);
+	uint32* gemArg2 = reinterpret_cast<uint32*>(0xC20FB4 + socketIndex * 8);
+	uint8* gemFlags = reinterpret_cast<uint8*>(0xC20FA8 + socketIndex);
 
 	if (!(guidLow | guidHigh))
 	{
@@ -63,34 +65,34 @@ CLIENT_DETOUR(CGItemSocketInfo__SetGem, 0x005C4780, __cdecl, int, (uint32_t sock
 		return 1;
 	}
 
-	uint64_t guid = (static_cast<uint64_t>(guidHigh) << 32) | guidLow;
+	uint64 guid = (static_cast<uint64>(guidHigh) << 32) | guidLow;
 	void* obj = ClntObjMgrObjectPtr_Full(guidLow, guidHigh, 2, ".\\ItemSocketInfo.cpp", 0x60);
 	if (!obj)
 		return 0;
 
-	uint32_t* objFields = *reinterpret_cast<uint32_t**>(reinterpret_cast<uint8_t*>(obj) + 8);
-	if (!objFields)
+	ClientData::WowItem item(obj);
+	if (!item)
 		return 0;
 
-	uint32_t itemEntry = objFields[3];
+	uint32 itemEntry = item.Entry();
 
-	uint32_t var_8 = 0;
+	uint32 var_8 = 0;
 	void* pCacheDB = WDB_CACHE_ITEM;
 	ItemCache* itemStats = DBItemCache_GetInfoBlockByID(pCacheDB, itemEntry, nullptr, nullptr, 0, 0);
 	if (!itemStats)
 		return 0;
 
-	uint32_t gemPropertiesID = static_cast<uint32_t>(itemStats->GemProperties);
+	uint32 gemPropertiesID = static_cast<uint32>(itemStats->GemProperties);
 	if (!gemPropertiesID)
 		return 0;
 
-	void* gemPropertiesBase = reinterpret_cast<uint8_t*>(g_gemPropertiesDB) + 0x18;
+	void* gemPropertiesBase = reinterpret_cast<uint8*>(g_gemPropertiesDB) + 0x18;
 	void* gemRecord = WowClientDB_GemProperties_GetRecord(gemPropertiesBase, gemPropertiesID);
 	if (!gemRecord)
 		return 0;
 
-	uint32_t socketColor = *reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(*g_socketInfoPtr) + socketIndex * 4 + 0x1C0);
-	uint32_t gemColor = *reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(gemRecord) + 0x10);
+	uint32 socketColor = *reinterpret_cast<uint32*>(reinterpret_cast<uint8*>(*g_socketInfoPtr) + socketIndex * 4 + 0x1C0);
+	uint32 gemColor = *reinterpret_cast<uint32*>(reinterpret_cast<uint8*>(gemRecord) + 0x10);
 
 	if (socketColor != 1 && !(socketColor & gemColor))
 	{
@@ -100,9 +102,9 @@ CLIENT_DETOUR(CGItemSocketInfo__SetGem, 0x005C4780, __cdecl, int, (uint32_t sock
 
 	*gemGuidHigh = guidHigh;
 	*gemGuidLow = guidLow;
-	*gemArg1 = static_cast<uint32_t>(arg_C);
-	*gemArg2 = static_cast<uint32_t>(arg_10);
-	*gemFlags = static_cast<uint8_t>(arg_14);
+	*gemArg1 = static_cast<uint32>(arg_C);
+	*gemArg2 = static_cast<uint32>(arg_10);
+	*gemFlags = static_cast<uint8>(arg_14);
 
 	FrameXMLExtensions::SignalEvent("SOCKET_INFO_UPDATE", nullptr);
 	return 1;
@@ -110,7 +112,7 @@ CLIENT_DETOUR(CGItemSocketInfo__SetGem, 0x005C4780, __cdecl, int, (uint32_t sock
 
 void __cdecl CGSpellBook__AddKnownSpell_PutActionInSlotHook(int slot)
 {
-	uint32_t spellId = CGGameUI::GetCursorSpell();
+	uint32 spellId = CGGameUI::GetCursorSpell();
 	if (!spellId)
 	{
 		CGGameUI::ClearCursor(1, 1);
@@ -128,10 +130,10 @@ void __cdecl CGSpellBook__AddKnownSpell_PutActionInSlotHook(int slot)
 	// bool hasNewRow = ClientDB::GetLocalizedRow(g_SpellDB, spellId, &newRow) != 0;
 
 	bool found = false;
-	for (uint32_t i = 0; i < 0x90 && !found; ++i)
+	for (uint32 i = 0; i < 0x90 && !found; ++i)
 	{
-		uint32_t category = 0;
-		uint32_t slotSpell = CGActionBar::GetSpell(i, &category);
+		uint32 category = 0;
+		uint32 slotSpell = CGActionBar::GetSpell(i, &category);
 		if (slotSpell == 0)
 			continue;
 
@@ -157,16 +159,15 @@ void __cdecl CGSpellBook__AddKnownSpell_PutActionInSlotHook(int slot)
 	// WowClientDb_C::nullsub_3(&newRow);
 
 	if (!found)
-		FrameXMLExtensions::SignalEvent("HOT_PLACE_ACTION", "%u%u", spellId, (uint32_t)slot);
+		FrameXMLExtensions::SignalEvent("HOT_PLACE_ACTION", "%u%u", spellId, (uint32)slot);
 	CGGameUI::ClearCursor(1, 1);
 }
 
-static constexpr int kLuaTypeString = 4;
 static constexpr int kCursorResetModeRepair = 0x11;
 
 static bool ClientOwnsContainerItemClick(lua_State* L)
 {
-	if (FrameScript::Type(L, 3) == kLuaTypeString)
+	if (FrameScript::Type(L, 3) == ClientData::LUA_TSTRING)
 		return true;
 
 	if (Spell_C::IsTargeting())
@@ -196,4 +197,10 @@ CLIENT_DETOUR(Script_UseContainerItem, 0x005D8650, __cdecl, int, (lua_State * L)
 		return 0;
 
 	return Script_UseContainerItem(L);
+}
+
+CLIENT_DETOUR(FrameXML_CheckSignature, 0x008165E0, __cdecl, int, (const char* tocPath, const char* bindingsPath, const void* publicKey, void* md5Out))
+{
+	FrameXML_CheckSignature(tocPath, bindingsPath, publicKey, md5Out);
+	return 3;
 }

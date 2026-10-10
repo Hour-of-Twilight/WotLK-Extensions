@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
+#include <Defines.h>
 #include "Models/Db2/DB2File.h"
 
 #include "Models/Db2/Db2Decode.h"
@@ -26,13 +27,13 @@
 
 namespace ModernM2::Db2
 {
-    DB2File::DB2File(uint32_t rowSize) : m_rowSize(rowSize) {}
+    DB2File::DB2File(uint32 rowSize) : m_rowSize(rowSize) {}
 
     namespace
     {
         // Same storage seam every other client-side asset (including wxl-db2's own WDC5 tables) reads
         // through: a loose file first (dev overrides), then the client's own already-mounted archive set.
-        bool ReadWholeFile(const char* fileName, std::vector<uint8_t>& bytes)
+        bool ReadWholeFile(const char* fileName, std::vector<uint8>& bytes)
         {
             bytes.clear();
             const std::string path = std::string("DBFilesClient\\") + fileName;
@@ -58,17 +59,17 @@ namespace ModernM2::Db2
     {
         if (m_loaded) return true;
         const long long t0 = TickNow();
-        std::vector<uint8_t> bytes;
+        std::vector<uint8> bytes;
         if (!ReadWholeFile(fileName, bytes))
         {
             WLOG_INFO("DB2: %s not found", fileName);
             return false;
         }
         m_readMs = TickMs(t0, TickNow());
-        return LoadBytes(bytes.data(), static_cast<uint32_t>(bytes.size()), fileName);
+        return LoadBytes(bytes.data(), static_cast<uint32>(bytes.size()), fileName);
     }
 
-    bool DB2File::LoadBytes(const uint8_t* data, uint32_t size, const char* nameForLog)
+    bool DB2File::LoadBytes(const uint8* data, uint32 size, const char* nameForLog)
     {
         if (m_loaded) return true;
         if (!data || size < 4)
@@ -77,8 +78,8 @@ namespace ModernM2::Db2
             return false;
         }
 
-        uint32_t strColCount = 0;
-        const uint32_t* strCols = StringColumns(&strColCount);
+        uint32 strColCount = 0;
+        const uint32* strCols = StringColumns(&strColCount);
 
         const long long tDecode = TickNow();
         DB2Decoded dec;
@@ -95,7 +96,7 @@ namespace ModernM2::Db2
             return false;
         }
 
-        m_numRows = static_cast<uint32_t>(dec.ids.size());
+        m_numRows = static_cast<uint32>(dec.ids.size());
         m_records = std::move(dec.records);
         m_ids     = std::move(dec.ids);
         m_strings = std::move(dec.strings);
@@ -136,9 +137,9 @@ namespace ModernM2::Db2
         m_minId = 0x7FFFFFFF;
         m_maxId = -1;
         m_idIndex.reserve(m_ids.size());
-        for (uint32_t i = 0; i < m_ids.size(); ++i)
+        for (uint32 i = 0; i < m_ids.size(); ++i)
         {
-            const int32_t id = m_ids[i];
+            const int32 id = m_ids[i];
             m_idIndex[id] = i;
             if (id < m_minId) m_minId = id;
             if (id > m_maxId) m_maxId = id;
@@ -159,7 +160,7 @@ namespace ModernM2::Db2
         m_readMs = 0.0;
     }
 
-    const void* DB2File::RowById(int32_t id) const
+    const void* DB2File::RowById(int32 id) const
     {
         size_t row;
         if (m_idsAscending)
@@ -178,18 +179,18 @@ namespace ModernM2::Db2
         return m_records.data() + row * m_rowSize;
     }
 
-    const void* DB2File::RowByIndex(uint32_t index) const
+    const void* DB2File::RowByIndex(uint32 index) const
     {
         if (index >= m_numRows) return nullptr;
         return m_records.data() + static_cast<size_t>(index) * m_rowSize;
     }
 
-    int32_t DB2File::IdAt(uint32_t index) const
+    int32 DB2File::IdAt(uint32 index) const
     {
         return (index < m_ids.size()) ? m_ids[index] : -1;
     }
 
-    const char* DB2File::Str(uint32_t offset) const
+    const char* DB2File::Str(uint32 offset) const
     {
         if (offset >= m_strings.size()) return "";
         return m_strings.data() + offset;

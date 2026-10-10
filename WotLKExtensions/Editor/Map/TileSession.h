@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <Editor/Map/Adt/AdtDocument.h>
 
 #include <cstdint>
@@ -15,34 +17,34 @@ namespace MapEditor::Session
 	// until a reload.
 	struct OpenTile
 	{
-		int32_t tileX = -1;
-		int32_t tileY = -1;
+		int32 tileX = -1;
+		int32 tileY = -1;
 		Adt::AdtDocument doc;
 		bool dirty = false;
 	};
 
 	// Opens a tile for editing, reading it from disk on first use, and returns null with error
 	// filled in if it cannot be read or parsed. Tiles stay open until saved or dropped.
-	OpenTile* Open(int32_t tileX, int32_t tileY, std::string& error);
+	OpenTile* Open(int32 tileX, int32 tileY, std::string& error);
 
 	// The open tile, or null if it was never opened. Does not read from disk.
-	OpenTile* Find(int32_t tileX, int32_t tileY);
+	OpenTile* Find(int32 tileX, int32 tileY);
 
 	// Every open tile, for a pass that has to look at all of them at once.
 	std::vector<OpenTile*> AllOpen();
 
-	int32_t DirtyCount();
+	int32 DirtyCount();
 
 	// Serializes and writes every dirty tile. Returns how many were written, and stops at the
 	// first failure so a partial save is visible rather than silent.
-	bool SaveDirty(int32_t& saved, std::string& error);
+	bool SaveDirty(int32& saved, std::string& error);
 
 	// One tile, whether or not it is dirty. Adding a placement needs this: the only way the client
 	// will build an instance for a brand new entry is to read the tile back off disk.
-	bool SaveOne(int32_t tileX, int32_t tileY, std::string& error);
+	bool SaveOne(int32 tileX, int32 tileY, std::string& error);
 
 	// Restores every open tile from its backup and reloads it, throwing away the documents.
-	int32_t RevertAll();
+	int32 RevertAll();
 
 	// Drops the open documents without writing. The live buffers keep whatever was painted into
 	// them until the tiles reload.

@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <atomic>
 #include <cstdint>
 #include <shared_mutex>
@@ -44,14 +46,14 @@ namespace ModernM2::Common
     public:
         // Registry-local flag: the model was reshaped in memory by this module (full modern contract,
         // including the skin rebuild). File-tag flags (WxlTag.hpp) occupy the low bits.
-        static constexpr uint32_t kFlagHotReshaped = 0x80000000u;
+        static constexpr uint32 kFlagHotReshaped = 0x80000000u;
 
         /**
          * @brief Registers a model pointer with its feature flags (merged if already present).
          * @param model  Runtime model pointer.
          * @param flags  Nonzero feature flags describing the model's origin/features.
          */
-        void Remember(void* model, uint32_t flags)
+        void Remember(void* model, uint32 flags)
         {
             std::unique_lock lock(mutex_);
             flags_[model] |= flags;
@@ -82,17 +84,17 @@ namespace ModernM2::Common
          * @param model Runtime model pointer.
          * @return the flags passed to Remember(), or 0.
          */
-        uint32_t Flags(void* model) const
+        uint32 Flags(void* model) const
         {
             if (Empty()) return 0;
 
-            struct Cached { const AssetRegistry* reg; void* model; uint32_t generation; uint32_t flags; };
+            struct Cached { const AssetRegistry* reg; void* model; uint32 generation; uint32 flags; };
             thread_local Cached cached{};
-            const uint32_t generation = generation_.load(std::memory_order_acquire);
+            const uint32 generation = generation_.load(std::memory_order_acquire);
             if (cached.reg == this && cached.model == model && cached.generation == generation)
                 return cached.flags;
 
-            uint32_t flags = 0;
+            uint32 flags = 0;
             {
                 std::shared_lock lock(mutex_);
                 auto it = flags_.find(model);
@@ -114,8 +116,8 @@ namespace ModernM2::Common
 
     private:
         mutable std::shared_mutex mutex_;
-        std::unordered_map<void*, uint32_t> flags_;
+        std::unordered_map<void*, uint32> flags_;
         std::atomic<size_t> count_{ 0 };
-        std::atomic<uint32_t> generation_{ 0 };
+        std::atomic<uint32> generation_{ 0 };
     };
 }

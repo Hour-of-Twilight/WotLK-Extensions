@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "TestFramePackets.h"
 #include "Packet.h"
 #include <CustomPacket.h>
@@ -11,7 +12,7 @@ TestFramePackets& TestFramePackets::Instance()
 	return instance;
 }
 
-void TestFramePackets::Handler_SMSG_CUSTOM_TEST_FRAME(void*, uint32_t, uint32_t, CDataStore* a3)
+void TestFramePackets::Handler_SMSG_CUSTOM_TEST_FRAME(void*, uint32, uint32, CDataStore* a3)
 {
 	Packet r(a3);
 	TestFramePackets& self = Instance();
@@ -21,10 +22,10 @@ void TestFramePackets::Handler_SMSG_CUSTOM_TEST_FRAME(void*, uint32_t, uint32_t,
 	self.m_talentLevel = r.GetUInt32();
 	self.m_avgItemLevel = r.GetUInt32();
 
-	uint32_t numGroups = r.GetUInt32();
+	uint32 numGroups = r.GetUInt32();
 	self.m_allowedStatGroups.clear();
 	self.m_allowedStatGroups.reserve(numGroups);
-	for (uint32_t i = 0; i < numGroups; ++i)
+	for (uint32 i = 0; i < numGroups; ++i)
 		self.m_allowedStatGroups.push_back(r.GetUInt32());
 
 	self.m_hasData = true;
@@ -62,11 +63,11 @@ int TestFramePackets::GetTestFrameAllowedStatGroups(lua_State* L)
 
 int TestFramePackets::SendTestFrameReply(lua_State* L)
 {
-	uint32_t statGroup = (uint32_t)FrameScript::GetNumber(L, 1);
-	uint32_t mainWeaponId = (uint32_t)FrameScript::GetNumber(L, 2);
-	uint32_t offhandId = (uint32_t)FrameScript::GetNumber(L, 3);
-	uint32_t rangedId = (uint32_t)FrameScript::GetNumber(L, 4);
-	uint32_t armorType = (uint32_t)FrameScript::GetNumber(L, 5);
+	uint32 statGroup = (uint32)FrameScript::GetNumber(L, 1);
+	uint32 mainWeaponId = (uint32)FrameScript::GetNumber(L, 2);
+	uint32 offhandId = (uint32)FrameScript::GetNumber(L, 3);
+	uint32 rangedId = (uint32)FrameScript::GetNumber(L, 4);
+	uint32 armorType = (uint32)FrameScript::GetNumber(L, 5);
 
 	Packet(CMSG_CUSTOM_TEST_FRAME_REPLY)
 	    .PutUInt32(statGroup)

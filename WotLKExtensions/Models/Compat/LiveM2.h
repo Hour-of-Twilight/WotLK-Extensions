@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 /**
@@ -62,8 +64,8 @@ namespace ModernM2::Live
 	bool IsNativeLoaded(void* model);
 
 	/** @brief Draw-time alpha-key fixup, scoped to reshaped models. */
-	void OnSetupBatchAlpha(void* model, uint16_t blendMode);
+	void OnSetupBatchAlpha(void* model, uint16 blendMode);
 
 	/** @brief Draw-time multi-layer ribbon fixup. */
-	void OnRibbonDraw(uint32_t layerCount, bool* useMultiTexture);
+	void OnRibbonDraw(uint32 layerCount, bool* useMultiTexture);
 }

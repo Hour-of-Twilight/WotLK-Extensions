@@ -1,7 +1,9 @@
+#include <Defines.h>
 #include "TransmogPackets.h"
 #include "Packet.h"
 
 #include <ClientData/ClientFunctions.h>
+#include <ClientData/GameEnums.h>
 #include <CustomLua.h>
 #include <CustomPacket.h>
 #include <Lua/XMLExtensions.h>
@@ -9,9 +11,9 @@
 #include <algorithm>
 #include <cstring>
 
-static constexpr uint32_t kDressUpModelTypeIdAddress = 0x00C0E4F4;
-static constexpr uint32_t kMainHandPendingEntryAddress = 0x00C0E4F8;
-static constexpr uint32_t kOffHandPendingEntryAddress = 0x00C0E4FC;
+static constexpr uint32 kDressUpModelTypeIdAddress = 0x00C0E4F4;
+static constexpr uint32 kMainHandPendingEntryAddress = 0x00C0E4F8;
+static constexpr uint32 kOffHandPendingEntryAddress = 0x00C0E4FC;
 static constexpr size_t kFrameModelOffset = 0x2A0;
 static constexpr size_t kFrameComponentOffset = 0x380;
 static constexpr size_t kFrameMainHandOffset = 0x384;
@@ -21,15 +23,9 @@ static constexpr size_t kHandClassOffset = 0;
 static constexpr size_t kHandSubClassOffset = 1;
 static constexpr size_t kHandInventoryTypeOffset = 4;
 static constexpr size_t kHandSheathOffset = 5;
-static constexpr uint8_t kItemClassWeapon = 2;
-static constexpr uint8_t kItemClassArmor = 4;
-static constexpr uint32_t kIsObjectTypeVTableSlot = 4;
-static constexpr int kLuaTypeTable = 5;
-static constexpr int kLuaTypeFunction = 6;
-static constexpr uint8_t kOpenFlagCanApply = 0x01;
-static constexpr uint8_t kSlotFlagTransmogged = 0x01;
-static constexpr int kMainHandSlot = 15;
-static constexpr int kOffHandSlot = 16;
+static constexpr uint32 kIsObjectTypeVTableSlot = 4;
+static constexpr uint8 kOpenFlagCanApply = 0x01;
+static constexpr uint8 kSlotFlagTransmogged = 0x01;
 static constexpr int kMainHandOverride = 0x0F;
 static constexpr int kOffHandOverride = 0x10;
 static constexpr int kAutoHandOverride = -1;
@@ -37,28 +33,6 @@ static constexpr int kNoComponentSlot = -1;
 static constexpr size_t kDisplayRecordSize = 0x64;
 static constexpr size_t kDisplayIconOffset = 0x14;
 static constexpr size_t kMaxApplyEntries = 255;
-
-static constexpr uint8_t kInvTypeHead = 1;
-static constexpr uint8_t kInvTypeShoulder = 3;
-static constexpr uint8_t kInvTypeBody = 4;
-static constexpr uint8_t kInvTypeChest = 5;
-static constexpr uint8_t kInvTypeWaist = 6;
-static constexpr uint8_t kInvTypeLegs = 7;
-static constexpr uint8_t kInvTypeFeet = 8;
-static constexpr uint8_t kInvTypeWrists = 9;
-static constexpr uint8_t kInvTypeHands = 10;
-static constexpr uint8_t kInvTypeWeapon = 13;
-static constexpr uint8_t kInvTypeShield = 14;
-static constexpr uint8_t kInvTypeRanged = 15;
-static constexpr uint8_t kInvTypeCloak = 16;
-static constexpr uint8_t kInvType2HWeapon = 17;
-static constexpr uint8_t kInvTypeTabard = 19;
-static constexpr uint8_t kInvTypeRobe = 20;
-static constexpr uint8_t kInvTypeWeaponMainHand = 21;
-static constexpr uint8_t kInvTypeWeaponOffHand = 22;
-static constexpr uint8_t kInvTypeHoldable = 23;
-static constexpr uint8_t kInvTypeThrown = 25;
-static constexpr uint8_t kInvTypeRangedRight = 26;
 
 typedef bool(__fastcall* IsObjectTypeFn)(void* self, void* edx, int typeId);
 
@@ -70,7 +44,7 @@ static void Pop(lua_State* L, int n)
 static bool BeginMethod(lua_State* L, int objIdx, const char* method)
 {
 	FrameScript::GetField(L, objIdx, method);
-	if (FrameScript::Type(L, -1) != kLuaTypeFunction)
+	if (FrameScript::Type(L, -1) != ClientData::LUA_TFUNCTION)
 	{
 		Pop(L, 1);
 		return false;
@@ -94,79 +68,79 @@ static bool AppearanceLess(const TransmogPackets::TransmogAppearance& a, const T
 	return a.displayId < b.displayId;
 }
 
-static int ArmorComponentSlot(uint8_t inventoryType)
+static int ArmorComponentSlot(uint8 inventoryType)
 {
 	switch (inventoryType)
 	{
-		case kInvTypeHead:
-			return 0;
-		case kInvTypeShoulder:
-			return 1;
-		case kInvTypeBody:
-			return 2;
-		case kInvTypeChest:
-		case kInvTypeRobe:
-			return 3;
-		case kInvTypeWaist:
-			return 4;
-		case kInvTypeLegs:
-			return 5;
-		case kInvTypeFeet:
-			return 6;
-		case kInvTypeWrists:
-			return 7;
-		case kInvTypeHands:
-			return 8;
-		case kInvTypeTabard:
-			return 9;
-		case kInvTypeCloak:
-			return 10;
-		default:
-			return kNoComponentSlot;
+	case ClientData::INVTYPE_HEAD:
+		return 0;
+	case ClientData::INVTYPE_SHOULDERS:
+		return 1;
+	case ClientData::INVTYPE_BODY:
+		return 2;
+	case ClientData::INVTYPE_CHEST:
+	case ClientData::INVTYPE_ROBE:
+		return 3;
+	case ClientData::INVTYPE_WAIST:
+		return 4;
+	case ClientData::INVTYPE_LEGS:
+		return 5;
+	case ClientData::INVTYPE_FEET:
+		return 6;
+	case ClientData::INVTYPE_WRISTS:
+		return 7;
+	case ClientData::INVTYPE_HANDS:
+		return 8;
+	case ClientData::INVTYPE_TABARD:
+		return 9;
+	case ClientData::INVTYPE_CLOAK:
+		return 10;
+	default:
+		return kNoComponentSlot;
 	}
 }
 
-static bool IsWeaponInventoryType(uint8_t inventoryType)
+static bool IsWeaponInventoryType(uint8 inventoryType)
 {
 	switch (inventoryType)
 	{
-		case kInvTypeWeapon:
-		case kInvTypeShield:
-		case kInvTypeRanged:
-		case kInvType2HWeapon:
-		case kInvTypeWeaponMainHand:
-		case kInvTypeWeaponOffHand:
-		case kInvTypeHoldable:
-		case kInvTypeThrown:
-		case kInvTypeRangedRight:
-			return true;
-		default:
-			return false;
+	case ClientData::INVTYPE_WEAPON:
+	case ClientData::INVTYPE_SHIELD:
+	case ClientData::INVTYPE_RANGED:
+	case ClientData::INVTYPE_2HWEAPON:
+	case ClientData::INVTYPE_WEAPONMAINHAND:
+	case ClientData::INVTYPE_WEAPONOFFHAND:
+	case ClientData::INVTYPE_HOLDABLE:
+	case ClientData::INVTYPE_THROWN:
+	case ClientData::INVTYPE_RANGEDRIGHT:
+		return true;
+	default:
+		return false;
 	}
 }
 
-static int ResolveHand(uint8_t inventoryType, int slot)
+static int ResolveHand(uint8 inventoryType, int slot)
 {
-	if (slot == kMainHandSlot)
+	if (slot == ClientData::EQUIPMENT_SLOT_MAINHAND)
 		return kMainHandOverride;
-	if (slot == kOffHandSlot)
+	if (slot == ClientData::EQUIPMENT_SLOT_OFFHAND)
 		return kOffHandOverride;
 
 	switch (inventoryType)
 	{
-		case kInvTypeShield:
-		case kInvTypeRanged:
-		case kInvTypeWeaponOffHand:
-		case kInvTypeHoldable:
-			return kOffHandOverride;
-		default:
-			return kMainHandOverride;
+	case ClientData::INVTYPE_SHIELD:
+	case ClientData::INVTYPE_RANGED:
+	case ClientData::INVTYPE_WEAPONOFFHAND:
+	case ClientData::INVTYPE_HOLDABLE:
+		return kOffHandOverride;
+	default:
+		return kMainHandOverride;
 	}
 }
 
-static uint8_t* HandRecord(void* frame, int hand)
+static uint8* HandRecord(void* frame, int hand)
 {
-	return static_cast<uint8_t*>(frame) + (hand == kMainHandOverride ? kFrameMainHandOffset : kFrameOffHandOffset);
+	return static_cast<uint8*>(frame) + (hand == kMainHandOverride ? kFrameMainHandOffset : kFrameOffHandOffset);
 }
 
 static int* HandPendingEntry(int hand)
@@ -195,9 +169,9 @@ void TransmogPackets::ClearOpenState()
 	m_canApply = false;
 }
 
-uint64_t TransmogPackets::AppearanceKey(uint32_t displayId, uint8_t inventoryType)
+uint64 TransmogPackets::AppearanceKey(uint32 displayId, uint8 inventoryType)
 {
-	return (static_cast<uint64_t>(inventoryType) << 32) | displayId;
+	return (static_cast<uint64>(inventoryType) << 32) | displayId;
 }
 
 void TransmogPackets::RebuildIndex()
@@ -218,7 +192,7 @@ void TransmogPackets::Upsert(const TransmogAppearance& appearance)
 	RebuildIndex();
 }
 
-bool TransmogPackets::Remove(uint32_t displayId, uint8_t inventoryType)
+bool TransmogPackets::Remove(uint32 displayId, uint8 inventoryType)
 {
 	auto it = m_index.find(AppearanceKey(displayId, inventoryType));
 	if (it == m_index.end() || it->second >= m_appearances.size())
@@ -229,7 +203,7 @@ bool TransmogPackets::Remove(uint32_t displayId, uint8_t inventoryType)
 	return true;
 }
 
-const TransmogPackets::TransmogAppearance* TransmogPackets::FindAppearance(uint32_t displayId, uint8_t inventoryType) const
+const TransmogPackets::TransmogAppearance* TransmogPackets::FindAppearance(uint32 displayId, uint8 inventoryType) const
 {
 	auto it = m_index.find(AppearanceKey(displayId, inventoryType));
 	if (it == m_index.end() || it->second >= m_appearances.size())
@@ -253,12 +227,12 @@ void TransmogPackets::ReadAppearance(Packet& r, TransmogAppearance& out)
 	out.name = name;
 }
 
-bool TransmogPackets::GetDisplayIcon(uint32_t displayId, std::string& out)
+bool TransmogPackets::GetDisplayIcon(uint32 displayId, std::string& out)
 {
 	if (!displayId)
 		return false;
 
-	uint8_t record[kDisplayRecordSize] = {};
+	uint8 record[kDisplayRecordSize] = {};
 	if (!ItemDisplayInfoDB::GetRecord(g_itemDisplayInfoDB, static_cast<int>(displayId), record))
 		return false;
 
@@ -293,7 +267,7 @@ int TransmogPackets::PushAppearance(lua_State* L, const TransmogAppearance& appe
 
 void* TransmogPackets::GetFrameObject(lua_State* L, int index)
 {
-	if (FrameScript::Type(L, index) != kLuaTypeTable)
+	if (FrameScript::Type(L, index) != ClientData::LUA_TTABLE)
 		return nullptr;
 
 	FrameScript::RawGetI(L, index, 0);
@@ -310,17 +284,17 @@ bool TransmogPackets::IsObjectType(void* object, int typeId)
 
 bool TransmogPackets::RemoveHandDisplay(void* frame, void* model, int hand)
 {
-	uint8_t* record = HandRecord(frame, hand);
+	uint8* record = HandRecord(frame, hand);
 	if (!record[kHandClassOffset])
 		return false;
 
-	CCharacterComponent::RemoveHandItem(model, hand, record[kHandSheathOffset], static_cast<char>(record[kHandInventoryTypeOffset] == kInvTypeShield));
+	CCharacterComponent::RemoveHandItem(model, hand, record[kHandSheathOffset], static_cast<char>(record[kHandInventoryTypeOffset] == ClientData::INVTYPE_SHIELD));
 	memset(record, 0, kHandRecordSize);
 	*HandPendingEntry(hand) = 0;
 	return true;
 }
 
-bool TransmogPackets::TryOnArmorDisplay(void* frame, uint32_t displayId, uint8_t inventoryType, const char*& reason)
+bool TransmogPackets::TryOnArmorDisplay(void* frame, uint32 displayId, uint8 inventoryType, const char*& reason)
 {
 	int componentSlot = ArmorComponentSlot(inventoryType);
 	if (componentSlot == kNoComponentSlot)
@@ -329,7 +303,7 @@ bool TransmogPackets::TryOnArmorDisplay(void* frame, uint32_t displayId, uint8_t
 		return false;
 	}
 
-	void* component = *reinterpret_cast<void**>(static_cast<uint8_t*>(frame) + kFrameComponentOffset);
+	void* component = *reinterpret_cast<void**>(static_cast<uint8*>(frame) + kFrameComponentOffset);
 	if (!component)
 	{
 		reason = "nocomponent";
@@ -341,9 +315,9 @@ bool TransmogPackets::TryOnArmorDisplay(void* frame, uint32_t displayId, uint8_t
 	return true;
 }
 
-bool TransmogPackets::TryOnWeaponDisplay(void* frame, uint32_t displayId, uint8_t inventoryType, uint8_t sheath, int slot, const char*& reason)
+bool TransmogPackets::TryOnWeaponDisplay(void* frame, uint32 displayId, uint8 inventoryType, uint8 sheath, int slot, const char*& reason)
 {
-	void* model = *reinterpret_cast<void**>(static_cast<uint8_t*>(frame) + kFrameModelOffset);
+	void* model = *reinterpret_cast<void**>(static_cast<uint8*>(frame) + kFrameModelOffset);
 	if (!model)
 	{
 		reason = "nomodel";
@@ -354,33 +328,33 @@ bool TransmogPackets::TryOnWeaponDisplay(void* frame, uint32_t displayId, uint8_
 	int otherHand = hand == kMainHandOverride ? kOffHandOverride : kMainHandOverride;
 
 	bool touched = RemoveHandDisplay(frame, model, hand);
-	bool otherHoldsTwoHander = HandRecord(frame, otherHand)[kHandInventoryTypeOffset] == kInvType2HWeapon;
-	if (inventoryType == kInvType2HWeapon || (hand == kOffHandOverride && otherHoldsTwoHander))
+	bool otherHoldsTwoHander = HandRecord(frame, otherHand)[kHandInventoryTypeOffset] == ClientData::INVTYPE_2HWEAPON;
+	if (inventoryType == ClientData::INVTYPE_2HWEAPON || (hand == kOffHandOverride && otherHoldsTwoHander))
 	{
 		if (RemoveHandDisplay(frame, model, otherHand))
 			touched = true;
 	}
 
-	uint8_t displayRecord[kDisplayRecordSize] = {};
+	uint8 displayRecord[kDisplayRecordSize] = {};
 	if (!ItemDisplayInfoDB::GetRecord(g_itemDisplayInfoDB, static_cast<int>(displayId), displayRecord))
 	{
 		reason = touched ? "nodisplay-removed" : "nodisplay";
 		return false;
 	}
 
-	uint8_t* record = HandRecord(frame, hand);
-	record[kHandClassOffset] = (inventoryType == kInvTypeShield || inventoryType == kInvTypeHoldable) ? kItemClassArmor : kItemClassWeapon;
+	uint8* record = HandRecord(frame, hand);
+	record[kHandClassOffset] = (inventoryType == ClientData::INVTYPE_SHIELD || inventoryType == ClientData::INVTYPE_HOLDABLE) ? ClientData::ITEM_CLASS_ARMOR : ClientData::ITEM_CLASS_WEAPON;
 	record[kHandSubClassOffset] = 0;
 	record[kHandInventoryTypeOffset] = inventoryType;
 	record[kHandSheathOffset] = sheath;
 	*HandPendingEntry(hand) = 0;
 
 	CCharacterComponent::AddHandItem(model, displayRecord, static_cast<unsigned int>(hand), sheath, 0,
-	    static_cast<char>(inventoryType == kInvTypeShield), static_cast<char>(inventoryType == kInvTypeRangedRight), nullptr);
+	    static_cast<char>(inventoryType == ClientData::INVTYPE_SHIELD), static_cast<char>(inventoryType == ClientData::INVTYPE_RANGEDRIGHT), nullptr);
 	return true;
 }
 
-bool TransmogPackets::TryOnDisplay(void* frame, uint32_t displayId, uint8_t inventoryType, uint8_t sheath, int slot, const char*& reason)
+bool TransmogPackets::TryOnDisplay(void* frame, uint32 displayId, uint8 inventoryType, uint8 sheath, int slot, const char*& reason)
 {
 	reason = nullptr;
 	if (IsWeaponInventoryType(inventoryType))
@@ -395,7 +369,7 @@ bool TransmogPackets::SendApply(const std::vector<ApplyEntry>& entries)
 		return false;
 
 	Packet packet(CMSG_TRANSMOG_APPLY);
-	packet.PutUInt8(static_cast<uint8_t>(entries.size()));
+	packet.PutUInt8(static_cast<uint8>(entries.size()));
 	for (const ApplyEntry& entry : entries)
 	{
 		packet.PutUInt8(entry.slot);
@@ -406,14 +380,14 @@ bool TransmogPackets::SendApply(const std::vector<ApplyEntry>& entries)
 	return true;
 }
 
-void TransmogPackets::Handler_SMSG_TRANSMOG_COLLECTION(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TransmogPackets::Handler_SMSG_TRANSMOG_COLLECTION(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint32_t count = r.GetUInt32();
+	uint32 count = r.GetUInt32();
 
 	TransmogPackets& self = Instance();
 	self.m_appearances.clear();
-	for (uint32_t i = 0; i < count; ++i)
+	for (uint32 i = 0; i < count; ++i)
 	{
 		TransmogAppearance appearance;
 		ReadAppearance(r, appearance);
@@ -426,7 +400,7 @@ void TransmogPackets::Handler_SMSG_TRANSMOG_COLLECTION(void*, uint32_t, uint32_t
 	FrameXMLExtensions::SignalEvent("HOT_TRANSMOG_COLLECTION_UPDATE", "");
 }
 
-void TransmogPackets::Handler_SMSG_TRANSMOG_COLLECTION_ADD(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TransmogPackets::Handler_SMSG_TRANSMOG_COLLECTION_ADD(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
 	TransmogAppearance appearance;
@@ -435,29 +409,29 @@ void TransmogPackets::Handler_SMSG_TRANSMOG_COLLECTION_ADD(void*, uint32_t, uint
 		return;
 
 	Instance().Upsert(appearance);
-	FrameXMLExtensions::SignalEvent("HOT_TRANSMOG_COLLECTION_ITEM_UPDATE", "%u%u", appearance.displayId, static_cast<uint32_t>(appearance.inventoryType));
+	FrameXMLExtensions::SignalEvent("HOT_TRANSMOG_COLLECTION_ITEM_UPDATE", "%u%u", appearance.displayId, static_cast<uint32>(appearance.inventoryType));
 }
 
-void TransmogPackets::Handler_SMSG_TRANSMOG_COLLECTION_REMOVE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TransmogPackets::Handler_SMSG_TRANSMOG_COLLECTION_REMOVE(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint32_t displayId = r.GetUInt32();
-	uint8_t inventoryType = r.GetUInt8();
+	uint32 displayId = r.GetUInt32();
+	uint8 inventoryType = r.GetUInt8();
 
 	if (Instance().Remove(displayId, inventoryType))
 		FrameXMLExtensions::SignalEvent("HOT_TRANSMOG_COLLECTION_UPDATE", "");
 }
 
-void TransmogPackets::Handler_SMSG_TRANSMOG_ACTIVE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TransmogPackets::Handler_SMSG_TRANSMOG_ACTIVE(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint8_t count = r.GetUInt8();
+	uint8 count = r.GetUInt8();
 
 	TransmogPackets& self = Instance();
 	self.m_slots.clear();
-	for (uint8_t i = 0; i < count; ++i)
+	for (uint8 i = 0; i < count; ++i)
 	{
-		uint8_t slot = r.GetUInt8();
+		uint8 slot = r.GetUInt8();
 		TransmogSlot info;
 		info.currentDisplayId = r.GetUInt32();
 		info.currentSheath = r.GetUInt8();
@@ -470,11 +444,11 @@ void TransmogPackets::Handler_SMSG_TRANSMOG_ACTIVE(void*, uint32_t, uint32_t, CD
 	FrameXMLExtensions::SignalEvent("HOT_TRANSMOG_ACTIVE_UPDATE", "");
 }
 
-void TransmogPackets::Handler_SMSG_TRANSMOG_OPEN(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TransmogPackets::Handler_SMSG_TRANSMOG_OPEN(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint64_t npcGuid = r.GetUInt64();
-	uint8_t flags = r.GetUInt8();
+	uint64 npcGuid = r.GetUInt64();
+	uint8 flags = r.GetUInt8();
 
 	TransmogPackets& self = Instance();
 	self.m_npcGuid = npcGuid;
@@ -484,26 +458,26 @@ void TransmogPackets::Handler_SMSG_TRANSMOG_OPEN(void*, uint32_t, uint32_t, CDat
 	FrameXMLExtensions::SignalEvent("HOT_TRANSMOG_OPEN", "%u", self.m_canApply ? 1u : 0u);
 }
 
-void TransmogPackets::Handler_SMSG_TRANSMOG_CLOSE(void*, uint32_t, uint32_t, CDataStore*)
+void TransmogPackets::Handler_SMSG_TRANSMOG_CLOSE(void*, uint32, uint32, CDataStore*)
 {
 	Instance().ClearOpenState();
 	FrameXMLExtensions::SignalEvent("HOT_TRANSMOG_CLOSE", "");
 }
 
-void TransmogPackets::Handler_SMSG_TRANSMOG_RESULT(void*, uint32_t, uint32_t, CDataStore* pkt)
+void TransmogPackets::Handler_SMSG_TRANSMOG_RESULT(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint8_t code = r.GetUInt8();
-	uint8_t slot = r.GetUInt8();
+	uint8 code = r.GetUInt8();
+	uint8 slot = r.GetUInt8();
 
-	FrameXMLExtensions::SignalEvent("HOT_TRANSMOG_RESULT", "%u%u", static_cast<uint32_t>(code), static_cast<uint32_t>(slot));
+	FrameXMLExtensions::SignalEvent("HOT_TRANSMOG_RESULT", "%u%u", static_cast<uint32>(code), static_cast<uint32>(slot));
 }
 
 int TransmogPackets::Script_TransmogRequestCollection(lua_State* L)
 {
 	Packet packet(CMSG_TRANSMOG_COLLECTION_REQUEST);
 	if (FrameScript::GetTop(L) >= 1 && FrameScript::IsNumber(L, 1))
-		packet.PutUInt8(static_cast<uint8_t>(FrameScript::GetNumber(L, 1)));
+		packet.PutUInt8(static_cast<uint8>(FrameScript::GetNumber(L, 1)));
 
 	packet.Send();
 	return 0;
@@ -550,7 +524,7 @@ int TransmogPackets::Script_TransmogGetAppearance(lua_State* L)
 		return 1;
 	}
 
-	const TransmogAppearance* appearance = Instance().FindAppearance(static_cast<uint32_t>(displayId), static_cast<uint8_t>(inventoryType));
+	const TransmogAppearance* appearance = Instance().FindAppearance(static_cast<uint32>(displayId), static_cast<uint8>(inventoryType));
 	if (!appearance)
 	{
 		FrameScript::PushNil(L);
@@ -576,7 +550,7 @@ int TransmogPackets::Script_TransmogGetSlotInfo(lua_State* L)
 	}
 
 	TransmogPackets& self = Instance();
-	auto it = self.m_slots.find(static_cast<uint8_t>(slot));
+	auto it = self.m_slots.find(static_cast<uint8>(slot));
 	if (it == self.m_slots.end())
 	{
 		FrameScript::PushNil(L);
@@ -620,9 +594,9 @@ int TransmogPackets::Script_TransmogApply(lua_State* L)
 			continue;
 
 		ApplyEntry entry;
-		entry.slot = static_cast<uint8_t>(slot);
-		entry.displayId = static_cast<uint32_t>(displayId);
-		entry.inventoryType = static_cast<uint8_t>(inventoryType);
+		entry.slot = static_cast<uint8>(slot);
+		entry.displayId = static_cast<uint32>(displayId);
+		entry.inventoryType = static_cast<uint8>(inventoryType);
 		entries.push_back(entry);
 		if (entries.size() >= kMaxApplyEntries)
 			break;
@@ -645,7 +619,7 @@ int TransmogPackets::Script_TransmogClose(lua_State*)
 int TransmogPackets::Script_TransmogGetDisplayIcon(lua_State* L)
 {
 	std::string icon;
-	if (FrameScript::GetTop(L) < 1 || !FrameScript::IsNumber(L, 1) || !GetDisplayIcon(static_cast<uint32_t>(FrameScript::GetNumber(L, 1)), icon))
+	if (FrameScript::GetTop(L) < 1 || !FrameScript::IsNumber(L, 1) || !GetDisplayIcon(static_cast<uint32>(FrameScript::GetNumber(L, 1)), icon))
 	{
 		FrameScript::PushNil(L);
 		return 1;
@@ -671,7 +645,7 @@ int TransmogPackets::Script_DressUpModelTryOnDisplay(lua_State* L)
 	if (!object)
 		return PushTryOnFailure(L, "noframe");
 
-	uint32_t typeId = *reinterpret_cast<uint32_t*>(kDressUpModelTypeIdAddress);
+	uint32 typeId = *reinterpret_cast<uint32*>(kDressUpModelTypeIdAddress);
 	if (typeId && !IsObjectType(object, static_cast<int>(typeId)))
 		return PushTryOnFailure(L, "type");
 
@@ -686,7 +660,7 @@ int TransmogPackets::Script_DressUpModelTryOnDisplay(lua_State* L)
 		slot = static_cast<int>(FrameScript::GetNumber(L, 5));
 
 	const char* reason = nullptr;
-	if (!TryOnDisplay(object, static_cast<uint32_t>(displayId), static_cast<uint8_t>(inventoryType), static_cast<uint8_t>(sheath), slot, reason))
+	if (!TryOnDisplay(object, static_cast<uint32>(displayId), static_cast<uint8>(inventoryType), static_cast<uint8>(sheath), slot, reason))
 		return PushTryOnFailure(L, reason);
 
 	FrameScript::PushBoolean(L, 1);
@@ -713,7 +687,7 @@ int TransmogPackets::Script_DressUpModelTryOnSlot(lua_State* L)
 	if (FrameScript::GetTop(L) >= 3 && FrameScript::IsNumber(L, 3))
 		slot = static_cast<int>(FrameScript::GetNumber(L, 3));
 
-	uint32_t typeId = *reinterpret_cast<uint32_t*>(kDressUpModelTypeIdAddress);
+	uint32 typeId = *reinterpret_cast<uint32*>(kDressUpModelTypeIdAddress);
 	if (!typeId)
 	{
 		if (!BeginMethod(L, 1, "TryOn"))
@@ -735,9 +709,9 @@ int TransmogPackets::Script_DressUpModelTryOnSlot(lua_State* L)
 	}
 
 	int slotOverride = kAutoHandOverride;
-	if (slot == kMainHandSlot)
+	if (slot == ClientData::EQUIPMENT_SLOT_MAINHAND)
 		slotOverride = kMainHandOverride;
-	else if (slot == kOffHandSlot)
+	else if (slot == ClientData::EQUIPMENT_SLOT_OFFHAND)
 		slotOverride = kOffHandOverride;
 
 	CGDressUpModelFrame::TryOn(object, itemEntry, 0, slotOverride);

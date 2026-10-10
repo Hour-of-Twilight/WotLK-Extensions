@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Compat/Skin.h"
 
 #include "Models/Common/ModelHooks.h"
@@ -34,7 +35,7 @@ namespace ModernM2::Live::Skin
     {
         // A texunit shaderId >= this is a source shader-effect index (named modern effect), not a packed
         // blend-bit pair; it is decoded by the effect-index branch below.
-        constexpr uint16_t kSourceShaderMin = 0x8000;
+        constexpr uint16 kSourceShaderMin = 0x8000;
 
         /**
          * @brief Appends an entry, returning the index of an existing single-entry match or the new slot.
@@ -42,12 +43,12 @@ namespace ModernM2::Live::Skin
          * @param v      Value to find or append.
          * @return Index of the matching or newly appended slot.
          */
-        uint16_t LookupSingle(std::vector<int16_t>& lookup, int16_t v)
+        uint16 LookupSingle(std::vector<int16>& lookup, int16 v)
         {
             for (size_t n = 0; n < lookup.size(); ++n)
-                if (lookup[n] == v) return static_cast<uint16_t>(n);
+                if (lookup[n] == v) return static_cast<uint16>(n);
             lookup.push_back(v);
-            return static_cast<uint16_t>(lookup.size() - 1);
+            return static_cast<uint16>(lookup.size() - 1);
         }
 
         /**
@@ -57,15 +58,15 @@ namespace ModernM2::Live::Skin
          * @param b      Second value of the pair.
          * @return Base index where the pair sits.
          */
-        uint16_t LookupPair(std::vector<int16_t>& lookup, int16_t a, int16_t b)
+        uint16 LookupPair(std::vector<int16>& lookup, int16 a, int16 b)
         {
             for (size_t n = 0; n + 1 < lookup.size(); ++n)
-                if (lookup[n] == a && lookup[n + 1] == b) return static_cast<uint16_t>(n);
+                if (lookup[n] == a && lookup[n + 1] == b) return static_cast<uint16>(n);
             size_t sz = lookup.size();
-            if (sz > 1 && lookup[sz - 1] == a) { lookup.push_back(b); return static_cast<uint16_t>(sz - 1); }
+            if (sz > 1 && lookup[sz - 1] == a) { lookup.push_back(b); return static_cast<uint16>(sz - 1); }
             lookup.push_back(a);
             lookup.push_back(b);
-            return static_cast<uint16_t>(sz);
+            return static_cast<uint16>(sz);
         }
 
         /**
@@ -75,20 +76,20 @@ namespace ModernM2::Live::Skin
          * @param b2     Second blend value.
          * @return Base index of the matching or newly appended pair.
          */
-        uint16_t BlendOverride(std::vector<uint16_t>& combos, uint16_t b1, uint16_t b2)
+        uint16 BlendOverride(std::vector<uint16>& combos, uint16 b1, uint16 b2)
         {
             for (size_t n = 0; n + 1 < combos.size(); n += 2)
-                if (combos[n] == b1 && combos[n + 1] == b2) return static_cast<uint16_t>(n);
-            uint16_t base = static_cast<uint16_t>(combos.size());
+                if (combos[n] == b1 && combos[n + 1] == b2) return static_cast<uint16>(n);
+            uint16 base = static_cast<uint16>(combos.size());
             combos.push_back(b1);
             combos.push_back(b2);
             return base;
         }
 
-        uint16_t NextLookup(uint16_t base, uint32_t count)
+        uint16 NextLookup(uint16 base, uint32 count)
         {
-            const uint32_t next = static_cast<uint32_t>(base) + 1u;
-            return next < count ? static_cast<uint16_t>(next) : base;
+            const uint32 next = static_cast<uint32>(base) + 1u;
+            return next < count ? static_cast<uint16>(next) : base;
         }
 
         /**
@@ -101,11 +102,11 @@ namespace ModernM2::Live::Skin
          * @param skin      Live skin profile whose submeshes are adjusted in place.
          * @param badSubmesh Receives a per-submesh flag, set for zero-geometry sections.
          */
-        void FixSubmeshes(fmt::M2Header* md, Skin* skin, std::vector<uint8_t>& badSubmesh,
+        void FixSubmeshes(fmt::M2Header* md, Skin* skin, std::vector<uint8>& badSubmesh,
                           bool extendedIndexStart)
         {
             badSubmesh.assign(skin->submeshCount, 0);
-            for (uint32_t i = 0; i < skin->submeshCount; ++i)
+            for (uint32 i = 0; i < skin->submeshCount; ++i)
             {
                 auto* s = &skin->submeshes[i];
                 if (s->level > 0 && !extendedIndexStart)
@@ -115,7 +116,7 @@ namespace ModernM2::Live::Skin
                 }
                 else if (s->indexCount != 0)
                 {
-                    const uint32_t start = bn::FullIndexStart(*s, extendedIndexStart);
+                    const uint32 start = bn::FullIndexStart(*s, extendedIndexStart);
                     if (start > skin->indexCount || s->indexCount > skin->indexCount - start)
                     {
                         WLOG_WARN("modern-assets: submesh %u index window past skin indexCount, parking", i);
@@ -131,16 +132,16 @@ namespace ModernM2::Live::Skin
                 }
                 else
                 {
-                    uint16_t cap = bn::kMaxBonesPerDraw;
-                    uint16_t byCombo = md->boneCombos.count > s->boneComboIndex
-                                     ? static_cast<uint16_t>(md->boneCombos.count - s->boneComboIndex) : 1;
+                    uint16 cap = bn::kMaxBonesPerDraw;
+                    uint16 byCombo = md->boneCombos.count > s->boneComboIndex
+                                     ? static_cast<uint16>(md->boneCombos.count - s->boneComboIndex) : 1;
                     if (byCombo < cap) cap = byCombo;
                     if (cap < 1)       cap = 1;
                     if (s->boneCount > cap) s->boneCount = cap;
                     if (s->boneCount < 1)   s->boneCount = 1;
                     if (s->boneInfluences == 0) s->boneInfluences = 1;
                 }
-                reinterpret_cast<uint8_t*>(s)[0x11] = 0;
+                reinterpret_cast<uint8*>(s)[0x11] = 0;
             }
         }
 
@@ -153,14 +154,14 @@ namespace ModernM2::Live::Skin
          * @param texUnitLookup textureUnitLookup array to append into.
          * @param blendOverride textureCombinerCombos array to append into.
          */
-        void DecodeBlendBits(fmt::M2Batch* b, uint16_t shaderId, uint16_t textureCount,
-                             std::vector<int16_t>& texUnitLookup, std::vector<uint16_t>& blendOverride)
+        void DecodeBlendBits(fmt::M2Batch* b, uint16 shaderId, uint16 textureCount,
+                             std::vector<int16>& texUnitLookup, std::vector<uint16>& blendOverride)
         {
-            uint16_t blend1 = (shaderId >> 4) & 0x7;
-            uint16_t blend2 = shaderId & 0x7;
+            uint16 blend1 = (shaderId >> 4) & 0x7;
+            uint16 blend2 = shaderId & 0x7;
 
             bool twoTex = textureCount > 1 && (shaderId & 0x4000) && blend1 != 0 && blend2 != 0;
-            uint16_t shaderToSave = 0;
+            uint16 shaderToSave = 0;
             if (twoTex) shaderToSave = BlendOverride(blendOverride, blend1, blend2);
             else        textureCount = 1;
 
@@ -169,12 +170,12 @@ namespace ModernM2::Live::Skin
 
             if (textureCount == 1)
             {
-                int16_t t0 = (shaderId & 0x80) ? -1 : 0;
+                int16 t0 = (shaderId & 0x80) ? -1 : 0;
                 b->textureCoordComboIndex = LookupSingle(texUnitLookup, t0);
             }
             else
             {
-                int16_t t0, t1;
+                int16 t0, t1;
                 if (shaderId & 0x80) { t0 = -1; t1 = (shaderId & 0x8) ? -1 : 0; }
                 else { t0 = 0; t1 = (shaderId & 0x8) ? -1 : ((shaderId & 0x4000) ? 1 : 0); }
                 b->textureCoordComboIndex = LookupPair(texUnitLookup, t0, t1);
@@ -199,13 +200,13 @@ namespace ModernM2::Live::Skin
          * @return true if this low code is an env split; false otherwise (caller falls through to the in-place
          *         decode).
          */
-        bool EnvSplit(uint16_t low, uint16_t shaderId, fmt::M2Batch primary, uint32_t nTransparencyLookup,
-                      uint32_t nTransformLookup,
-                      std::vector<fmt::M2Batch>& out, std::vector<int16_t>& texUnitLookup,
-                      std::vector<uint16_t>& blendOverride)
+        bool EnvSplit(uint16 low, uint16 shaderId, fmt::M2Batch primary, uint32 nTransparencyLookup,
+                      uint32 nTransformLookup,
+                      std::vector<fmt::M2Batch>& out, std::vector<int16>& texUnitLookup,
+                      std::vector<uint16>& blendOverride)
         {
             fmt::M2Batch follower = primary;
-            follower.materialIndex = static_cast<uint16_t>(primary.materialIndex + 1);
+            follower.materialIndex = static_cast<uint16>(primary.materialIndex + 1);
             follower.materialLayer = 1;
             follower.textureCount  = 1;
 
@@ -214,8 +215,8 @@ namespace ModernM2::Live::Skin
             case 0: case 3: case 9: case 17: case 24:
             {
                 primary.textureCount = 2;
-                uint16_t blendIdx = BlendOverride(blendOverride, 1, 4);
-                uint16_t tc = LookupPair(texUnitLookup, 0, -1);
+                uint16 blendIdx = BlendOverride(blendOverride, 1, 4);
+                uint16 tc = LookupPair(texUnitLookup, 0, -1);
                 primary.shaderId = blendIdx; primary.textureCoordComboIndex = tc;
                 follower.shaderId = blendIdx; follower.textureCoordComboIndex = tc;
                 out.push_back(primary); out.push_back(follower);
@@ -225,21 +226,21 @@ namespace ModernM2::Live::Skin
             {
                 primary.textureCount = 1;
                 primary.shaderId = 0; follower.shaderId = 0;
-                follower.textureComboIndex = static_cast<uint16_t>(primary.textureComboIndex + 1);
-                if (static_cast<uint32_t>(primary.textureWeightComboIndex) + 1 < nTransparencyLookup)
-                    follower.textureWeightComboIndex = static_cast<uint16_t>(primary.textureWeightComboIndex + 1);
+                follower.textureComboIndex = static_cast<uint16>(primary.textureComboIndex + 1);
+                if (static_cast<uint32>(primary.textureWeightComboIndex) + 1 < nTransparencyLookup)
+                    follower.textureWeightComboIndex = static_cast<uint16>(primary.textureWeightComboIndex + 1);
                 follower.textureTransformComboIndex = NextLookup(primary.textureTransformComboIndex, nTransformLookup);
-                int16_t t1 = (shaderId == 0x8001) ? -1 : 1;
-                uint16_t tc = LookupPair(texUnitLookup, 0, t1);
+                int16 t1 = (shaderId == 0x8001) ? -1 : 1;
+                uint16 tc = LookupPair(texUnitLookup, 0, t1);
                 primary.textureCoordComboIndex  = tc;
-                follower.textureCoordComboIndex = static_cast<uint16_t>(tc + 1);
+                follower.textureCoordComboIndex = static_cast<uint16>(tc + 1);
                 out.push_back(primary); out.push_back(follower);
                 return true;
             }
             case 2:
             {
-                uint16_t blendIdx = BlendOverride(blendOverride, 1, 3);
-                uint16_t tc = LookupPair(texUnitLookup, 0, -1);
+                uint16 blendIdx = BlendOverride(blendOverride, 1, 3);
+                uint16 tc = LookupPair(texUnitLookup, 0, -1);
                 primary.shaderId = blendIdx; primary.textureCoordComboIndex = tc;
                 follower.shaderId = blendIdx; follower.textureCoordComboIndex = tc;
                 out.push_back(primary); out.push_back(follower);
@@ -264,13 +265,13 @@ namespace ModernM2::Live::Skin
          *                            draw time; left untouched otherwise, so the caller should start it
          *                            at false.
          */
-        void DownConvertBatch(fmt::M2Batch b, uint32_t nTransparencyLookup, uint32_t nTransformLookup,
+        void DownConvertBatch(fmt::M2Batch b, uint32 nTransparencyLookup, uint32 nTransformLookup,
                               std::vector<fmt::M2Batch>& piece,
-                              std::vector<int16_t>& texUnitLookup, std::vector<uint16_t>& blendOverride,
+                              std::vector<int16>& texUnitLookup, std::vector<uint16>& blendOverride,
                               bool& outIsAddAlpha)
         {
-            uint16_t shaderId = b.shaderId;
-            uint16_t textureCount = b.textureCount;
+            uint16 shaderId = b.shaderId;
+            uint16 textureCount = b.textureCount;
             b.flags &= 0x10;
 
             if (shaderId >= kSourceShaderMin)
@@ -278,10 +279,10 @@ namespace ModernM2::Live::Skin
                 // Source shader-effect indices [0..2] are Diffuse_T1_Env effects the engine renders
                 // natively, re-based to engine index = sourceIdx+1 (index 0 is "no shader"). Emit ONE
                 // 2-texture batch (T1 + env coord); do NOT route these through the EnvSplit heuristic.
-                uint16_t sourceIdx = shaderId & 0x7fff;
+                uint16 sourceIdx = shaderId & 0x7fff;
                 if (sourceIdx <= 2)
                 {
-                    b.shaderId               = static_cast<uint16_t>(kSourceShaderMin | (sourceIdx + 1));
+                    b.shaderId               = static_cast<uint16>(kSourceShaderMin | (sourceIdx + 1));
                     b.textureCount           = 2;
                     b.textureCoordComboIndex = LookupPair(texUnitLookup, 0, -1);
                     b.flags                 &= 0x10;
@@ -289,7 +290,7 @@ namespace ModernM2::Live::Skin
                     return;
                 }
 
-                uint16_t low = shaderId & 0xFF;
+                uint16 low = shaderId & 0xFF;
                 if (EnvSplit(low, shaderId, b, nTransparencyLookup, nTransformLookup,
                              piece, texUnitLookup, blendOverride))
                     return;
@@ -326,13 +327,13 @@ namespace ModernM2::Live::Skin
          * @param blendOverride       textureCombinerCombos array to append into.
          * @param nTransparencyLookup Count of transparency-lookup entries.
          */
-        void FixTexUnits(Skin* skin, const std::vector<uint8_t>& badSubmesh,
+        void FixTexUnits(Skin* skin, const std::vector<uint8>& badSubmesh,
                          const std::vector<bn::SplitRun>& splitMap, std::vector<fmt::M2Batch>& out,
-                         std::vector<int16_t>& texUnitLookup, std::vector<uint16_t>& blendOverride,
-                         uint32_t nTransparencyLookup, uint32_t nTransformLookup)
+                         std::vector<int16>& texUnitLookup, std::vector<uint16>& blendOverride,
+                         uint32 nTransparencyLookup, uint32 nTransformLookup)
         {
             out.reserve(skin->batchCount);
-            for (uint32_t i = 0; i < skin->batchCount; ++i)
+            for (uint32 i = 0; i < skin->batchCount; ++i)
             {
                 fmt::M2Batch b = skin->batches[i];
 
@@ -344,9 +345,9 @@ namespace ModernM2::Live::Skin
                 DownConvertBatch(b, nTransparencyLookup, nTransformLookup, piece, texUnitLookup, blendOverride,
                                  isAddAlpha);
 
-                for (uint16_t s = 0; s < run.count; ++s)
+                for (uint16 s = 0; s < run.count; ++s)
                 {
-                    uint16_t sectionIdx = static_cast<uint16_t>(run.first + s);
+                    uint16 sectionIdx = static_cast<uint16>(run.first + s);
                     bool bad = sectionIdx < badSubmesh.size() && badSubmesh[sectionIdx];
                     for (const fmt::M2Batch& p : piece)
                     {
@@ -355,7 +356,7 @@ namespace ModernM2::Live::Skin
                         if (bad) nb.shaderId = 0x8000;
                         out.push_back(nb);
                         if (isAddAlpha && !bad)
-                            combiner::MarkAddAlphaBatch(skin, static_cast<uint32_t>(out.size() - 1));
+                            combiner::MarkAddAlphaBatch(skin, static_cast<uint32>(out.size() - 1));
                     }
                 }
             }
@@ -366,24 +367,24 @@ namespace ModernM2::Live::Skin
             if (!md || !skin) return;
             if (!md->textureTransforms.count || md->textureTransformCombos.count) return;
 
-            uint32_t needed = md->textureTransforms.count;
-            for (uint32_t i = 0; i < skin->batchCount; ++i)
+            uint32 needed = md->textureTransforms.count;
+            for (uint32 i = 0; i < skin->batchCount; ++i)
             {
                 const auto& b = skin->batches[i];
-                const uint32_t base = b.textureTransformComboIndex;
+                const uint32 base = b.textureTransformComboIndex;
                 if (base == 0xFFFFu) continue;
-                const uint32_t count = b.textureCount ? b.textureCount : 1u;
+                const uint32 count = b.textureCount ? b.textureCount : 1u;
                 if (base <= 0xFFFFu - count && needed < base + count)
                     needed = base + count;
             }
 
-            auto* buf = static_cast<int16_t*>(std::malloc(needed * sizeof(int16_t)));
+            auto* buf = static_cast<int16*>(std::malloc(needed * sizeof(int16)));
             if (!buf) return;
-            for (uint32_t i = 0; i < needed; ++i)
-                buf[i] = i < md->textureTransforms.count ? static_cast<int16_t>(i) : static_cast<int16_t>(-1);
+            for (uint32 i = 0; i < needed; ++i)
+                buf[i] = i < md->textureTransforms.count ? static_cast<int16>(i) : static_cast<int16>(-1);
 
             md->textureTransformCombos.count  = needed;
-            md->textureTransformCombos.offset = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(buf));
+            md->textureTransformCombos.offset = static_cast<uint32>(reinterpret_cast<uintptr_t>(buf));
             WLOG_INFO("modern-assets: '%s' synthesized %u texture-transform lookup entries", name, needed);
         }
 
@@ -395,7 +396,7 @@ namespace ModernM2::Live::Skin
         ///   0x80      : SHADOW-FORCE. Same collector: casts even when the blend mode would not qualify.
         /// Masking 0x40/0x80 away would silently re-admit geometry the file explicitly opts out of, and
         /// destroy the only shadow-exclusion channel the client natively reads.
-        constexpr uint16_t kMaterialFlagMask = 0x1Fu | 0x40u | 0x80u;
+        constexpr uint16 kMaterialFlagMask = 0x1Fu | 0x40u | 0x80u;
 
         /**
          * @brief Clamps source material blend modes the client blend table cannot index to Add, and drops
@@ -407,11 +408,11 @@ namespace ModernM2::Live::Skin
         void FixRenderFlags(fmt::M2Header* md)
         {
             if (!md->materials.count || !md->materials.offset) return;
-            auto* mats = reinterpret_cast<uint16_t*>(static_cast<uintptr_t>(md->materials.offset));
-            for (uint32_t i = 0; i < md->materials.count; ++i)
+            auto* mats = reinterpret_cast<uint16*>(static_cast<uintptr_t>(md->materials.offset));
+            for (uint32 i = 0; i < md->materials.count; ++i)
             {
-                uint16_t& flag  = mats[i * 2 + 0];
-                uint16_t& blend = mats[i * 2 + 1];
+                uint16& flag  = mats[i * 2 + 0];
+                uint16& blend = mats[i * 2 + 1];
                 if (blend > 6) { blend = 4; flag |= 0x5; }
                 flag &= kMaterialFlagMask;
             }
@@ -436,13 +437,13 @@ namespace ModernM2::Live::Skin
             skin->batchCount = bn::kMaxBatches;
         }
 
-        std::vector<uint8_t>      badSubmesh;
-        std::vector<int16_t>      texUnitLookup;
-        std::vector<uint16_t>     blendOverride;
+        std::vector<uint8>      badSubmesh;
+        std::vector<int16>      texUnitLookup;
+        std::vector<uint16>     blendOverride;
         std::vector<fmt::M2Batch> batches;
-        uint32_t nTransparencyLookup = md->textureWeightCombos.count;
+        uint32 nTransparencyLookup = md->textureWeightCombos.count;
         EnsureTextureTransformLookup(md, skin, name);
-        uint32_t nTransformLookup = md->textureTransformCombos.count;
+        uint32 nTransformLookup = md->textureTransformCombos.count;
 
         // The bone split itself already ran unconditionally (ModernM2's OnSkinFinalize) before this is
         // called; splitMap is that result. FixSubmeshes/FixTexUnits below operate on the already-split
@@ -462,29 +463,29 @@ namespace ModernM2::Live::Skin
             {
                 std::memcpy(buf, batches.data(), batches.size() * sizeof(fmt::M2Batch));
                 skin->batches    = buf;
-                skin->batchCount = static_cast<uint32_t>(batches.size());
+                skin->batchCount = static_cast<uint32>(batches.size());
             }
         }
 
         if (!texUnitLookup.empty())
         {
-            auto* buf = static_cast<int16_t*>(std::malloc(texUnitLookup.size() * sizeof(int16_t)));
+            auto* buf = static_cast<int16*>(std::malloc(texUnitLookup.size() * sizeof(int16)));
             if (buf)
             {
-                std::memcpy(buf, texUnitLookup.data(), texUnitLookup.size() * sizeof(int16_t));
-                md->textureUnitLookup.count  = static_cast<uint32_t>(texUnitLookup.size());
-                md->textureUnitLookup.offset = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(buf));
+                std::memcpy(buf, texUnitLookup.data(), texUnitLookup.size() * sizeof(int16));
+                md->textureUnitLookup.count  = static_cast<uint32>(texUnitLookup.size());
+                md->textureUnitLookup.offset = static_cast<uint32>(reinterpret_cast<uintptr_t>(buf));
             }
         }
 
         if (!blendOverride.empty())
         {
-            auto* buf = static_cast<uint16_t*>(std::malloc(blendOverride.size() * sizeof(uint16_t)));
+            auto* buf = static_cast<uint16*>(std::malloc(blendOverride.size() * sizeof(uint16)));
             if (buf)
             {
-                std::memcpy(buf, blendOverride.data(), blendOverride.size() * sizeof(uint16_t));
-                md->textureCombinerCombos.count  = static_cast<uint32_t>(blendOverride.size());
-                md->textureCombinerCombos.offset = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(buf));
+                std::memcpy(buf, blendOverride.data(), blendOverride.size() * sizeof(uint16));
+                md->textureCombinerCombos.count  = static_cast<uint32>(blendOverride.size());
+                md->textureCombinerCombos.offset = static_cast<uint32>(reinterpret_cast<uintptr_t>(buf));
                 md->globalFlags |= fmt::kFlagUseTextureCombinerCombos;
             }
         }

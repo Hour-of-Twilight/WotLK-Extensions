@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Editor/Map/TextureBrush.h>
 
 #include <Editor/Map/Adt/AlphaMap.h>
@@ -16,10 +17,10 @@ namespace MapEditor::TextureBrush
 {
 	namespace
 	{
-		constexpr int32_t kSide = Access::kChunksPerTileSide;
-		constexpr int32_t kTexelSide = Coords::kAlphaSide;
-		constexpr int32_t kTexels = kTexelSide * kTexelSide;
-		constexpr int32_t kMaxLayers = 4;
+		constexpr int32 kSide = Access::kChunksPerTileSide;
+		constexpr int32 kTexelSide = Coords::kAlphaSide;
+		constexpr int32 kTexels = kTexelSide * kTexelSide;
+		constexpr int32 kMaxLayers = 4;
 
 		float Weight(float distance, float radius, Sculpt::Falloff falloff)
 		{
@@ -41,10 +42,10 @@ namespace MapEditor::TextureBrush
 
 		struct ChunkKey
 		{
-			int32_t tileX = 0;
-			int32_t tileY = 0;
-			int32_t chunkX = 0;
-			int32_t chunkY = 0;
+			int32 tileX = 0;
+			int32 tileY = 0;
+			int32 chunkX = 0;
+			int32 chunkY = 0;
 
 			bool operator<(ChunkKey const& other) const
 			{
@@ -69,23 +70,23 @@ namespace MapEditor::TextureBrush
 		struct PaintedChunk
 		{
 			Adt::ChunkAlpha alpha;
-			std::vector<uint16_t> coverage;
-			std::vector<uint8_t> mcly;
-			std::vector<uint8_t> mcal;
+			std::vector<uint16> coverage;
+			std::vector<uint8> mcly;
+			std::vector<uint8> mcal;
 		};
 
 		constexpr float kFixedOne = 256.0f;
 		constexpr float kFullCoverage = 255.0f;
 
-		uint16_t ToFixed(float value)
+		uint16 ToFixed(float value)
 		{
 			float scaled = value * kFixedOne + 0.5f;
 			if (scaled <= 0.0f)
 				return 0;
 			if (scaled >= kFullCoverage * kFixedOne)
-				return static_cast<uint16_t>(kFullCoverage * kFixedOne);
+				return static_cast<uint16>(kFullCoverage * kFixedOne);
 
-			return static_cast<uint16_t>(scaled);
+			return static_cast<uint16>(scaled);
 		}
 
 		std::map<ChunkKey, PaintedChunk>& Painted()
@@ -104,7 +105,7 @@ namespace MapEditor::TextureBrush
 			if (!chunk->layers)
 				return mcnk.header.nLayers != 0;
 
-			for (uint32_t i = 0; i < mcnk.header.nLayers; ++i)
+			for (uint32 i = 0; i < mcnk.header.nLayers; ++i)
 			{
 				if (chunk->layers[i].textureId != fresh[i].textureId || chunk->layers[i].flags != fresh[i].flags)
 					return true;
@@ -160,10 +161,10 @@ namespace MapEditor::TextureBrush
 		// up, or take back, exactly what it gained. The terrain shader adds layers rather than
 		// stacking them, so the masks plus what the base shows through always come to full, and
 		// normalizing at the end is what keeps a texel from drifting over a long stroke.
-		bool PaintTexel(float* coverage, int32_t count, int32_t layer, float target, float t)
+		bool PaintTexel(float* coverage, int32 count, int32 layer, float target, float t)
 		{
 			float total = 0.0f;
-			for (int32_t i = 0; i < count; ++i)
+			for (int32 i = 0; i < count; ++i)
 				total += coverage[i];
 
 			float change = (target - coverage[layer]) * t;
@@ -174,7 +175,7 @@ namespace MapEditor::TextureBrush
 
 			if (others > 0.001f)
 			{
-				for (int32_t i = 0; i < count; ++i)
+				for (int32 i = 0; i < count; ++i)
 				{
 					if (i != layer)
 						coverage[i] -= change * coverage[i] / others;
@@ -183,7 +184,7 @@ namespace MapEditor::TextureBrush
 			else if (change > 0.0f)
 			{
 				// Nothing else claims any of this texel, so the painted layer already owns it.
-				for (int32_t i = 0; i < count; ++i)
+				for (int32 i = 0; i < count; ++i)
 				{
 					if (i != layer)
 						coverage[i] = 0.0f;
@@ -194,7 +195,7 @@ namespace MapEditor::TextureBrush
 				// Taking coverage off the only layer present has to give it to something. The
 				// base layer is the natural home, and when the base is what is being erased the
 				// first other layer takes it.
-				int32_t sink = layer == 0 ? 1 : 0;
+				int32 sink = layer == 0 ? 1 : 0;
 				if (sink >= count)
 					return false;
 
@@ -203,23 +204,23 @@ namespace MapEditor::TextureBrush
 
 			coverage[layer] += change;
 
-			for (int32_t i = 0; i < count; ++i)
+			for (int32 i = 0; i < count; ++i)
 				coverage[i] = coverage[i] < 0.0f ? 0.0f : (coverage[i] > 255.0f ? 255.0f : coverage[i]);
 
 			float after = 0.0f;
-			for (int32_t i = 0; i < count; ++i)
+			for (int32 i = 0; i < count; ++i)
 				after += coverage[i];
 
 			if (after <= 0.001f)
 			{
-				for (int32_t i = 0; i < count; ++i)
+				for (int32 i = 0; i < count; ++i)
 					coverage[i] = 0.0f;
 
 				coverage[0] = 255.0f;
 			}
 			else if (std::fabs(after - 255.0f) > 0.001f)
 			{
-				for (int32_t i = 0; i < count; ++i)
+				for (int32 i = 0; i < count; ++i)
 					coverage[i] *= 255.0f / after;
 			}
 
@@ -227,7 +228,7 @@ namespace MapEditor::TextureBrush
 		}
 
 		// One chunk's worth of painting. Returns how many texels changed.
-		int32_t PaintChunk(Stroke const& stroke, ChunkKey const& key, CMapChunk* chunk,
+		int32 PaintChunk(Stroke const& stroke, ChunkKey const& key, CMapChunk* chunk,
 		    Session::OpenTile& tile)
 		{
 			Adt::Mcnk* mcnk = tile.doc.ChunkAt(key.chunkX, key.chunkY);
@@ -256,22 +257,22 @@ namespace MapEditor::TextureBrush
 				state.coverage.assign(alpha.layers.size() * kTexels, 0);
 				for (size_t i = 0; i < alpha.layers.size(); ++i)
 				{
-					for (int32_t t = 0; t < kTexels; ++t)
+					for (int32 t = 0; t < kTexels; ++t)
 						state.coverage[i * kTexels + t] = ToFixed(alpha.maps[i].texel[t]);
 				}
 			}
 
-			int32_t count = static_cast<int32_t>(alpha.layers.size());
+			int32 count = static_cast<int32>(alpha.layers.size());
 			if (count < 2 || stroke.layer < 0 || stroke.layer >= count || count > kMaxLayers)
 				return 0;
 
 			float target = stroke.blend >= 0.0f ? kFullCoverage : 0.0f;
 			float rate = std::fabs(stroke.blend);
-			int32_t changed = 0;
+			int32 changed = 0;
 
-			for (int32_t row = 0; row < kTexelSide; ++row)
+			for (int32 row = 0; row < kTexelSide; ++row)
 			{
-				for (int32_t col = 0; col < kTexelSide; ++col)
+				for (int32 col = 0; col < kTexelSide; ++col)
 				{
 					C3Vector world = Coords::TexelWorldPos(chunk, row, col);
 					float weight = Weight(Coords::Distance2D(world, stroke.center), stroke.radius,
@@ -280,13 +281,13 @@ namespace MapEditor::TextureBrush
 					if (weight <= 0.0f)
 						continue;
 
-					int32_t texel = Coords::EncodeTexel(row, col);
+					int32 texel = Coords::EncodeTexel(row, col);
 
 					// Layer 0 has no mask of its own, it is simply what the others leave over, so
 					// its plane of the accumulator is filled in here rather than decoded.
 					float coverage[kMaxLayers] = {};
 					float base = kFullCoverage;
-					for (int32_t i = 1; i < count; ++i)
+					for (int32 i = 1; i < count; ++i)
 					{
 						coverage[i] = state.coverage[i * kTexels + texel] / kFixedOne;
 						base -= coverage[i];
@@ -297,11 +298,11 @@ namespace MapEditor::TextureBrush
 					if (!PaintTexel(coverage, count, stroke.layer, target, weight * rate))
 						continue;
 
-					for (int32_t i = 1; i < count; ++i)
+					for (int32 i = 1; i < count; ++i)
 					{
 						state.coverage[i * kTexels + texel] = ToFixed(coverage[i]);
 
-						uint8_t value = static_cast<uint8_t>(coverage[i] + 0.5f);
+						uint8 value = static_cast<uint8>(coverage[i] + 0.5f);
 						if (alpha.maps[i].texel[texel] == value)
 							continue;
 
@@ -324,7 +325,7 @@ namespace MapEditor::TextureBrush
 		}
 	}
 
-	void PushChunk(int32_t tileX, int32_t tileY, int32_t chunkX, int32_t chunkY, CMapChunk* chunk,
+	void PushChunk(int32 tileX, int32 tileY, int32 chunkX, int32 chunkY, CMapChunk* chunk,
 	    Adt::Mcnk const& mcnk)
 	{
 		ChunkKey key{ tileX, tileY, chunkX, chunkY };
@@ -343,7 +344,7 @@ namespace MapEditor::TextureBrush
 		Painted().clear();
 	}
 
-	int32_t Apply(Stroke const& stroke)
+	int32 Apply(Stroke const& stroke)
 	{
 		if (stroke.radius <= 0.0f || stroke.blend == 0.0f)
 			return 0;
@@ -351,16 +352,16 @@ namespace MapEditor::TextureBrush
 		C3Vector lo{ stroke.center.x - stroke.radius, stroke.center.y - stroke.radius, 0.0f };
 		C3Vector hi{ stroke.center.x + stroke.radius, stroke.center.y + stroke.radius, 0.0f };
 
-		int32_t tileX0 = std::min(Coords::TileX(lo), Coords::TileX(hi));
-		int32_t tileX1 = std::max(Coords::TileX(lo), Coords::TileX(hi));
-		int32_t tileY0 = std::min(Coords::TileY(lo), Coords::TileY(hi));
-		int32_t tileY1 = std::max(Coords::TileY(lo), Coords::TileY(hi));
+		int32 tileX0 = std::min(Coords::TileX(lo), Coords::TileX(hi));
+		int32 tileX1 = std::max(Coords::TileX(lo), Coords::TileX(hi));
+		int32 tileY0 = std::min(Coords::TileY(lo), Coords::TileY(hi));
+		int32 tileY1 = std::max(Coords::TileY(lo), Coords::TileY(hi));
 
-		int32_t changed = 0;
+		int32 changed = 0;
 
-		for (int32_t tileY = tileY0; tileY <= tileY1; ++tileY)
+		for (int32 tileY = tileY0; tileY <= tileY1; ++tileY)
 		{
-			for (int32_t tileX = tileX0; tileX <= tileX1; ++tileX)
+			for (int32 tileX = tileX0; tileX <= tileX1; ++tileX)
 			{
 				CMapArea* area = Access::GetArea(tileX, tileY);
 				if (!Access::IsAreaReady(area))
@@ -368,9 +369,9 @@ namespace MapEditor::TextureBrush
 
 				Session::OpenTile* tile = nullptr;
 
-				for (int32_t chunkY = 0; chunkY < kSide; ++chunkY)
+				for (int32 chunkY = 0; chunkY < kSide; ++chunkY)
 				{
-					for (int32_t chunkX = 0; chunkX < kSide; ++chunkX)
+					for (int32 chunkX = 0; chunkX < kSide; ++chunkX)
 					{
 						CMapChunk* chunk = Access::GetChunk(area, chunkX, chunkY);
 						if (!Coords::CircleTouchesChunk(chunk, stroke.center, stroke.radius))

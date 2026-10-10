@@ -15,8 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 #include "Models/Client/GxBindings.h"
+#include "Models/Client/WideIndices.h"
 #include "Models/Render/ShadowSpace.h"
 #include "Models/Compat/BoneBudget.h"
 
@@ -63,33 +65,33 @@ namespace
      * returns, to advance its own run cursor.
      */
     void __fastcall hkRenderBatchShadowMap(
-        void* instance, void*, uint32_t batchMode, void* skinBatch, void* drawList,
-        uint32_t drawIndex, void* skinSection, void* previousSection)
+        void* instance, void*, uint32 batchMode, void* skinBatch, void* drawList,
+        uint32 drawIndex, void* skinSection, void* previousSection)
     {
         if constexpr (ModernM2::kEnabled)
             ModernM2::Shadow::OnShadowBatch(instance, skinSection);
 
-        uint32_t* runs          = nullptr;
-        uint32_t  originalCount = 0;
-        uint32_t  chunkSize     = 0;
+        uint32* runs          = nullptr;
+        uint32  originalCount = 0;
+        uint32  chunkSize     = 0;
         void*     shared        = nullptr;
         __try
         {
             if (drawList && skinSection)
             {
-                auto* listData = *reinterpret_cast<uint32_t* const*>(drawList);
+                auto* listData = *reinterpret_cast<uint32* const*>(drawList);
                 if (listData)
                 {
                     runs = listData;
                     originalCount = runs[drawIndex * m2::kShadowRunStride + m2::kShadowRunCountField];
 
-                    const uint32_t boneCount =
+                    const uint32 boneCount =
                         static_cast<const ModernM2::Format::M2SkinSection*>(skinSection)->boneCount;
                     chunkSize = boneCount > 0
-                        ? std::max<uint32_t>(1u, bones::kMaxBonesPerDraw / boneCount)
+                        ? std::max<uint32>(1u, bones::kMaxBonesPerDraw / boneCount)
                         : originalCount;
                     shared = *reinterpret_cast<void* const*>(
-                        static_cast<uint8_t*>(instance) + m2::kOffInstShared);
+                        static_cast<uint8*>(instance) + m2::kOffInstShared);
                 }
             }
         }
@@ -98,10 +100,13 @@ namespace
             runs = nullptr; // fail safe: single native call below, run list left untouched
         }
 
+        const ModernM2::WideIndices::DrawBatchScope wide =
+            ModernM2::WideIndices::OnShadowBatchEnter(instance, skinSection);
         if (!runs || chunkSize >= originalCount)
         {
             g_origRenderBatchShadowMap(instance, nullptr, batchMode, skinBatch, drawList,
                                        drawIndex, skinSection, previousSection);
+            ModernM2::WideIndices::OnDrawBatchLeave(wide);
             return;
         }
 
@@ -111,13 +116,13 @@ namespace
             ModernM2::Native<m2::M2_SharedSetVerticesFn>(m2::kSharedSetVertices)(shared, nullptr, 0);
         }
 
-        uint32_t drawn = 0;
+        uint32 drawn = 0;
         while (drawn < originalCount)
         {
-            const uint32_t thisChunk = std::min(chunkSize, originalCount - drawn);
+            const uint32 thisChunk = std::min(chunkSize, originalCount - drawn);
             const size_t   slot      = static_cast<size_t>(drawIndex + drawn) * m2::kShadowRunStride +
                                        m2::kShadowRunCountField;
-            const uint32_t saved     = runs[slot];
+            const uint32 saved     = runs[slot];
             runs[slot] = thisChunk;
 
             g_origRenderBatchShadowMap(instance, nullptr, batchMode, skinBatch, drawList,
@@ -125,6 +130,7 @@ namespace
             runs[slot] = saved;
             drawn += thisChunk;
         }
+        ModernM2::WideIndices::OnDrawBatchLeave(wide);
     }
 
     /**
@@ -142,26 +148,26 @@ namespace
      */
     void __fastcall hkDrawBatchDoodad(void* ctx, void* edx, void* elements, void* indices)
     {
-        uint32_t* countField    = nullptr;
-        uint32_t  originalCount = 0;
-        uint32_t  chunkSize     = 0;
+        uint32* countField    = nullptr;
+        uint32  originalCount = 0;
+        uint32  chunkSize     = 0;
         __try
         {
             auto* c = static_cast<gxoff::DrawBatchContext*>(ctx);
             if (c->element)
             {
-                auto* elementBytes = static_cast<uint8_t*>(c->element);
-                countField    = reinterpret_cast<uint32_t*>(elementBytes + gxoff::kM2ElementRunLengthField);
+                auto* elementBytes = static_cast<uint8*>(c->element);
+                countField    = reinterpret_cast<uint32*>(elementBytes + gxoff::kM2ElementRunLengthField);
                 originalCount = *countField;
 
                 const void* section =
                     *reinterpret_cast<void* const*>(elementBytes + gxoff::kM2ElementSectionField);
-                const uint32_t boneCount = section
+                const uint32 boneCount = section
                     ? static_cast<const ModernM2::Format::M2SkinSection*>(section)->boneCount
                     : 0;
 
                 chunkSize = boneCount > 0
-                    ? std::max<uint32_t>(1u, bones::kMaxBonesPerDraw / boneCount)
+                    ? std::max<uint32>(1u, bones::kMaxBonesPerDraw / boneCount)
                     : originalCount;
             }
         }
@@ -176,11 +182,11 @@ namespace
             return;
         }
 
-        auto*    indexBytes = static_cast<uint8_t*>(indices);
-        uint32_t drawn       = 0;
+        auto*    indexBytes = static_cast<uint8*>(indices);
+        uint32 drawn       = 0;
         while (drawn < originalCount)
         {
-            const uint32_t thisChunk = std::min(chunkSize, originalCount - drawn);
+            const uint32 thisChunk = std::min(chunkSize, originalCount - drawn);
             *countField = thisChunk;
             g_origDrawBatchDoodad(ctx, edx, elements, indexBytes + static_cast<size_t>(drawn) * 4);
             drawn += thisChunk;

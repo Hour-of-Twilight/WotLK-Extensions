@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <ClientData/Draw.h>
 #include <Editor/GizmoDraw.h>
 #include <ClientData/GxBatch.h>
@@ -15,7 +16,7 @@ namespace GizmoDraw
 	{
 		constexpr float kPi = 3.14159265358979323846f;
 
-		CImVector Color(uint8_t b, uint8_t g, uint8_t r, uint8_t a)
+		CImVector Color(uint8 b, uint8 g, uint8 r, uint8 a)
 		{
 			CImVector color{};
 			color.b = b;
@@ -86,32 +87,32 @@ namespace GizmoDraw
 		verts[3 * kSegments + 1] = shaftBase;
 		verts[3 * kSegments + 2] = shaftTop;
 
-		uint16_t indices[kIndexCount];
+		uint16 indices[kIndexCount];
 		int k = 0;
 		for (int i = 0; i < kSegments; ++i)
 		{
 			int i0 = i;
 			int i1 = (i + 1) % kSegments;
-			indices[k++] = static_cast<uint16_t>(i0);
-			indices[k++] = static_cast<uint16_t>(kSegments + i0);
-			indices[k++] = static_cast<uint16_t>(kSegments + i1);
-			indices[k++] = static_cast<uint16_t>(i0);
-			indices[k++] = static_cast<uint16_t>(kSegments + i1);
-			indices[k++] = static_cast<uint16_t>(i1);
+			indices[k++] = static_cast<uint16>(i0);
+			indices[k++] = static_cast<uint16>(kSegments + i0);
+			indices[k++] = static_cast<uint16>(kSegments + i1);
+			indices[k++] = static_cast<uint16>(i0);
+			indices[k++] = static_cast<uint16>(kSegments + i1);
+			indices[k++] = static_cast<uint16>(i1);
 
-			indices[k++] = static_cast<uint16_t>(3 * kSegments + 1);
-			indices[k++] = static_cast<uint16_t>(i1);
-			indices[k++] = static_cast<uint16_t>(i0);
+			indices[k++] = static_cast<uint16>(3 * kSegments + 1);
+			indices[k++] = static_cast<uint16>(i1);
+			indices[k++] = static_cast<uint16>(i0);
 
 			int head0 = 2 * kSegments + i;
 			int head1 = 2 * kSegments + ((i + 1) % kSegments);
-			indices[k++] = static_cast<uint16_t>(3 * kSegments + 2);
-			indices[k++] = static_cast<uint16_t>(head0);
-			indices[k++] = static_cast<uint16_t>(head1);
+			indices[k++] = static_cast<uint16>(3 * kSegments + 2);
+			indices[k++] = static_cast<uint16>(head0);
+			indices[k++] = static_cast<uint16>(head1);
 
-			indices[k++] = static_cast<uint16_t>(3 * kSegments);
-			indices[k++] = static_cast<uint16_t>(head1);
-			indices[k++] = static_cast<uint16_t>(head0);
+			indices[k++] = static_cast<uint16>(3 * kSegments);
+			indices[k++] = static_cast<uint16>(head1);
+			indices[k++] = static_cast<uint16>(head0);
 		}
 
 		GxPrimVertexPtr(kVertCount, verts, sizeof(C3Vector), nullptr, 0, &color, 0, nullptr, 0, nullptr, 0);
@@ -120,7 +121,7 @@ namespace GizmoDraw
 		CGxBatch batch{};
 		batch.m_primType = GxPrim_Triangles;
 		batch.m_minIndex = 0;
-		batch.m_maxIndex = static_cast<uint16_t>(-1);
+		batch.m_maxIndex = static_cast<uint16>(-1);
 		batch.m_start = 0;
 		batch.m_count = kIndexCount;
 		device->Draw(&batch, 1);
@@ -148,14 +149,14 @@ namespace GizmoDraw
 			return;
 
 		C3Vector verts[2] = { a, b };
-		uint16_t indices[2] = { 0, 1 };
+		uint16 indices[2] = { 0, 1 };
 		GxPrimVertexPtr(2, verts, sizeof(C3Vector), nullptr, 0, &color, 0, nullptr, 0, nullptr, 0);
 		GxPrimIndexPtr(2, indices);
 
 		CGxBatch batch{};
 		batch.m_primType = GxPrim_Lines;
 		batch.m_minIndex = 0;
-		batch.m_maxIndex = static_cast<uint16_t>(-1);
+		batch.m_maxIndex = static_cast<uint16>(-1);
 		batch.m_start = 0;
 		batch.m_count = 2;
 		device->Draw(&batch, 1);
@@ -194,13 +195,13 @@ namespace GizmoDraw
 			}
 		}
 
-		uint16_t indices[kIndexCount];
+		uint16 indices[kIndexCount];
 		int k = 0;
 		for (int i = 0; i < kSlices; ++i)
 		{
 			indices[k++] = 0;
-			indices[k++] = static_cast<uint16_t>(1 + i);
-			indices[k++] = static_cast<uint16_t>(1 + ((i + 1) % kSlices));
+			indices[k++] = static_cast<uint16>(1 + i);
+			indices[k++] = static_cast<uint16>(1 + ((i + 1) % kSlices));
 		}
 
 		for (int stack = 0; stack < kStacks - 2; ++stack)
@@ -213,21 +214,21 @@ namespace GizmoDraw
 				int a1 = ringA + (i + 1) % kSlices;
 				int b0 = ringB + i;
 				int b1 = ringB + (i + 1) % kSlices;
-				indices[k++] = static_cast<uint16_t>(a0);
-				indices[k++] = static_cast<uint16_t>(b0);
-				indices[k++] = static_cast<uint16_t>(b1);
-				indices[k++] = static_cast<uint16_t>(a0);
-				indices[k++] = static_cast<uint16_t>(b1);
-				indices[k++] = static_cast<uint16_t>(a1);
+				indices[k++] = static_cast<uint16>(a0);
+				indices[k++] = static_cast<uint16>(b0);
+				indices[k++] = static_cast<uint16>(b1);
+				indices[k++] = static_cast<uint16>(a0);
+				indices[k++] = static_cast<uint16>(b1);
+				indices[k++] = static_cast<uint16>(a1);
 			}
 		}
 
 		int lastRing = 1 + (kStacks - 2) * kSlices;
 		for (int i = 0; i < kSlices; ++i)
 		{
-			indices[k++] = static_cast<uint16_t>(kSouthPole);
-			indices[k++] = static_cast<uint16_t>(lastRing + ((i + 1) % kSlices));
-			indices[k++] = static_cast<uint16_t>(lastRing + i);
+			indices[k++] = static_cast<uint16>(kSouthPole);
+			indices[k++] = static_cast<uint16>(lastRing + ((i + 1) % kSlices));
+			indices[k++] = static_cast<uint16>(lastRing + i);
 		}
 
 		GxPrimVertexPtr(kVertCount, verts, sizeof(C3Vector), nullptr, 0, &color, 0, nullptr, 0, nullptr, 0);
@@ -236,7 +237,7 @@ namespace GizmoDraw
 		CGxBatch batch{};
 		batch.m_primType = GxPrim_Triangles;
 		batch.m_minIndex = 0;
-		batch.m_maxIndex = static_cast<uint16_t>(-1);
+		batch.m_maxIndex = static_cast<uint16>(-1);
 		batch.m_start = 0;
 		batch.m_count = kIndexCount;
 		device->Draw(&batch, 1);
@@ -246,7 +247,7 @@ namespace GizmoDraw
 	{
 		constexpr int kSegments = 32;
 		C3Vector verts[kSegments * 3];
-		uint16_t indices[kSegments * 2 * 3];
+		uint16 indices[kSegments * 2 * 3];
 		int v = 0;
 		int k = 0;
 
@@ -278,8 +279,8 @@ namespace GizmoDraw
 			}
 			for (int i = 0; i < kSegments; ++i)
 			{
-				indices[k++] = static_cast<uint16_t>(base + i);
-				indices[k++] = static_cast<uint16_t>(base + (i + 1) % kSegments);
+				indices[k++] = static_cast<uint16>(base + i);
+				indices[k++] = static_cast<uint16>(base + (i + 1) % kSegments);
 			}
 		}
 
@@ -292,7 +293,7 @@ namespace GizmoDraw
 		CGxBatch batch{};
 		batch.m_primType = GxPrim_Lines;
 		batch.m_minIndex = 0;
-		batch.m_maxIndex = static_cast<uint16_t>(-1);
+		batch.m_maxIndex = static_cast<uint16>(-1);
 		batch.m_start = 0;
 		batch.m_count = k;
 		device->Draw(&batch, 1);
@@ -329,7 +330,7 @@ namespace GizmoDraw
 			}
 		}
 
-		uint16_t indices[kIndexCount];
+		uint16 indices[kIndexCount];
 		int k = 0;
 		for (int i = 0; i < kMajor; ++i)
 		{
@@ -341,12 +342,12 @@ namespace GizmoDraw
 				int b = nextI * kMinor + j;
 				int c = nextI * kMinor + nextJ;
 				int d = i * kMinor + nextJ;
-				indices[k++] = static_cast<uint16_t>(a);
-				indices[k++] = static_cast<uint16_t>(b);
-				indices[k++] = static_cast<uint16_t>(c);
-				indices[k++] = static_cast<uint16_t>(a);
-				indices[k++] = static_cast<uint16_t>(c);
-				indices[k++] = static_cast<uint16_t>(d);
+				indices[k++] = static_cast<uint16>(a);
+				indices[k++] = static_cast<uint16>(b);
+				indices[k++] = static_cast<uint16>(c);
+				indices[k++] = static_cast<uint16>(a);
+				indices[k++] = static_cast<uint16>(c);
+				indices[k++] = static_cast<uint16>(d);
 			}
 		}
 
@@ -355,7 +356,7 @@ namespace GizmoDraw
 		CGxBatch batch{};
 		batch.m_primType = GxPrim_Triangles;
 		batch.m_minIndex = 0;
-		batch.m_maxIndex = static_cast<uint16_t>(-1);
+		batch.m_maxIndex = static_cast<uint16>(-1);
 		batch.m_start = 0;
 		batch.m_count = kIndexCount;
 		device->Draw(&batch, 1);

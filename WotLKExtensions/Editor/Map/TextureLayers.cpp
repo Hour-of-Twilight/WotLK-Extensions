@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include <Editor/Map/TextureLayers.h>
 
 #include <ClientData/Streaming.h>
@@ -15,10 +16,10 @@ namespace MapEditor::TextureLayers
 {
 	namespace
 	{
-		constexpr int32_t kSide = Access::kChunksPerTileSide;
+		constexpr int32 kSide = Access::kChunksPerTileSide;
 
 		// MTXF bit 0, which stops CMap::LoadTerrainTexture reaching for the "_s.blp" companion.
-		constexpr int32_t kTextureNoSpecular = 0x1;
+		constexpr int32 kTextureNoSpecular = 0x1;
 
 		// Texture names the editor has handed the client. A live texture entry only borrows its
 		// name and nothing ever frees them, so these have to outlive every tile that might point at
@@ -32,9 +33,9 @@ namespace MapEditor::TextureLayers
 		// MTXF the editor owns, one per tile that has had a texture added. MTXF is one flags word
 		// per texture and CMap::LoadTerrainTexture indexes it by texture id, so a tile that has
 		// one has to keep it as long as its texture list.
-		std::map<std::pair<int32_t, int32_t>, std::vector<int32_t>>& OwnedTextureFlags()
+		std::map<std::pair<int32, int32>, std::vector<int32>>& OwnedTextureFlags()
 		{
-			static std::map<std::pair<int32_t, int32_t>, std::vector<int32_t>> flags;
+			static std::map<std::pair<int32, int32>, std::vector<int32>> flags;
 			return flags;
 		}
 
@@ -95,7 +96,7 @@ namespace MapEditor::TextureLayers
 		// exactly: the client makes an entry out of every terminator it passes, empty strings
 		// included, so any other reading would put the document's texture ids out of step with
 		// the live list that SMLayer::textureId actually indexes.
-		std::vector<std::string> SplitMtex(std::vector<uint8_t> const& blob)
+		std::vector<std::string> SplitMtex(std::vector<uint8> const& blob)
 		{
 			std::vector<std::string> out;
 
@@ -113,7 +114,7 @@ namespace MapEditor::TextureLayers
 			return out;
 		}
 
-		void JoinMtex(std::vector<std::string> const& names, std::vector<uint8_t>& out)
+		void JoinMtex(std::vector<std::string> const& names, std::vector<uint8>& out)
 		{
 			out.clear();
 			for (std::string const& name : names)
@@ -123,7 +124,7 @@ namespace MapEditor::TextureLayers
 			}
 		}
 
-		Adt::TopChunk* FindTop(Adt::AdtDocument& doc, uint32_t id)
+		Adt::TopChunk* FindTop(Adt::AdtDocument& doc, uint32 id)
 		{
 			for (Adt::TopChunk& top : doc.order)
 			{
@@ -137,7 +138,7 @@ namespace MapEditor::TextureLayers
 		// Inserts a top level chunk the tile does not have. Where it lands hardly matters, the
 		// client finds everything through the MHDR offsets the writer recomputes, but the usual
 		// order keeps other tools reading the tile.
-		Adt::TopChunk* EnsureTop(Adt::AdtDocument& doc, uint32_t id, uint32_t after)
+		Adt::TopChunk* EnsureTop(Adt::AdtDocument& doc, uint32 id, uint32 after)
 		{
 			if (Adt::TopChunk* existing = FindTop(doc, id))
 				return existing;
@@ -184,7 +185,7 @@ namespace MapEditor::TextureLayers
 		// the client's live list are grown together, because SMLayer::textureId indexes both and
 		// the two have to agree the moment a layer starts using it.
 		bool EnsureTexture(Session::OpenTile& tile, CMapArea* area, char const* texture,
-		    uint32_t& textureId, std::string& error)
+		    uint32& textureId, std::string& error)
 		{
 			Adt::TopChunk* mtex = FindTop(tile.doc, Adt::kMTEX);
 			if (!mtex)
@@ -208,7 +209,7 @@ namespace MapEditor::TextureLayers
 			{
 				if (SamePath(names[i], wanted))
 				{
-					textureId = static_cast<uint32_t>(i);
+					textureId = static_cast<uint32>(i);
 					return true;
 				}
 			}
@@ -216,7 +217,7 @@ namespace MapEditor::TextureLayers
 			OwnedNames().push_back(wanted);
 			char const* stable = OwnedNames().back().c_str();
 
-			uint32_t added = 0;
+			uint32 added = 0;
 			if (!Access::AppendTerrainTexture(area, stable, added))
 			{
 				OwnedNames().pop_back();
@@ -240,15 +241,15 @@ namespace MapEditor::TextureLayers
 
 			if (mtxf)
 			{
-				mtxf->data.resize(names.size() * sizeof(int32_t), 0);
+				mtxf->data.resize(names.size() * sizeof(int32), 0);
 
 				if (noSpecular)
 				{
-					int32_t flags = kTextureNoSpecular;
-					std::memcpy(mtxf->data.data() + added * sizeof(int32_t), &flags, sizeof(flags));
+					int32 flags = kTextureNoSpecular;
+					std::memcpy(mtxf->data.data() + added * sizeof(int32), &flags, sizeof(flags));
 				}
 
-				std::vector<int32_t>& owned = OwnedTextureFlags()[{ tile.tileX, tile.tileY }];
+				std::vector<int32>& owned = OwnedTextureFlags()[{ tile.tileX, tile.tileY }];
 				owned.assign(names.size(), 0);
 				std::memcpy(owned.data(), mtxf->data.data(), mtxf->data.size());
 				area->textureFlags = owned.data();
@@ -262,7 +263,7 @@ namespace MapEditor::TextureLayers
 		// Reads a chunk's layers, changes them, and puts the result back everywhere it has to go.
 		// Returns false when the chunk was left alone, which is not an error.
 		template <typename Edit>
-		bool EditChunk(Session::OpenTile& tile, CMapChunk* chunk, int32_t chunkX, int32_t chunkY,
+		bool EditChunk(Session::OpenTile& tile, CMapChunk* chunk, int32 chunkX, int32 chunkY,
 		    Edit&& edit)
 		{
 			Adt::Mcnk* mcnk = tile.doc.ChunkAt(chunkX, chunkY);
@@ -291,7 +292,7 @@ namespace MapEditor::TextureLayers
 		// bounding square is never opened off disk.
 		bool CircleTouchesTile(CMapArea* area, C3Vector const& center, float radius)
 		{
-			for (int32_t i = 0; i < Access::kChunksPerTile; ++i)
+			for (int32 i = 0; i < Access::kChunksPerTile; ++i)
 			{
 				if (Coords::CircleTouchesChunk(area->mapChunks[i], center, radius))
 					return true;
@@ -309,9 +310,9 @@ namespace MapEditor::TextureLayers
 			C3Vector lo{ center.x + radius, center.y + radius, 0.0f };
 			C3Vector hi{ center.x - radius, center.y - radius, 0.0f };
 
-			for (int32_t tileY = Coords::TileY(lo); tileY <= Coords::TileY(hi); ++tileY)
+			for (int32 tileY = Coords::TileY(lo); tileY <= Coords::TileY(hi); ++tileY)
 			{
-				for (int32_t tileX = Coords::TileX(lo); tileX <= Coords::TileX(hi); ++tileX)
+				for (int32 tileX = Coords::TileX(lo); tileX <= Coords::TileX(hi); ++tileX)
 				{
 					CMapArea* area = Access::GetArea(tileX, tileY);
 					if (!Access::IsAreaReady(area) || !CircleTouchesTile(area, center, radius))
@@ -322,9 +323,9 @@ namespace MapEditor::TextureLayers
 					if (!tile)
 						continue;
 
-					for (int32_t chunkY = 0; chunkY < kSide; ++chunkY)
+					for (int32 chunkY = 0; chunkY < kSide; ++chunkY)
 					{
-						for (int32_t chunkX = 0; chunkX < kSide; ++chunkX)
+						for (int32 chunkX = 0; chunkX < kSide; ++chunkX)
 						{
 							CMapChunk* chunk = Access::GetChunk(area, chunkX, chunkY);
 							if (!Coords::CircleTouchesChunk(chunk, center, radius))
@@ -344,7 +345,7 @@ namespace MapEditor::TextureLayers
 		OwnedTextureFlags().clear();
 	}
 
-	bool ListTileTextures(int32_t tileX, int32_t tileY, std::vector<std::string>& out,
+	bool ListTileTextures(int32 tileX, int32 tileY, std::vector<std::string>& out,
 	    std::string& error)
 	{
 		out.clear();
@@ -364,7 +365,7 @@ namespace MapEditor::TextureLayers
 		return true;
 	}
 
-	int32_t Add(C3Vector const& center, float radius, char const* texture, int32_t& skipped,
+	int32 Add(C3Vector const& center, float radius, char const* texture, int32& skipped,
 	    std::string& error)
 	{
 		skipped = 0;
@@ -382,13 +383,13 @@ namespace MapEditor::TextureLayers
 			return 0;
 		}
 
-		int32_t added = 0;
+		int32 added = 0;
 
 		ForEachChunk(center, radius,
-		    [&](CMapArea* area, Session::OpenTile& tile, CMapChunk* chunk, int32_t chunkX,
-		        int32_t chunkY)
+		    [&](CMapArea* area, Session::OpenTile& tile, CMapChunk* chunk, int32 chunkX,
+		        int32 chunkY)
 		{
-			uint32_t textureId = 0;
+			uint32 textureId = 0;
 			if (!EnsureTexture(tile, area, texture, textureId, error))
 			{
 				++skipped;
@@ -436,7 +437,7 @@ namespace MapEditor::TextureLayers
 		return added;
 	}
 
-	int32_t Remove(C3Vector const& center, float radius, int32_t layer, int32_t& skipped,
+	int32 Remove(C3Vector const& center, float radius, int32 layer, int32& skipped,
 	    std::string& error)
 	{
 		skipped = 0;
@@ -447,16 +448,16 @@ namespace MapEditor::TextureLayers
 			return 0;
 		}
 
-		int32_t removed = 0;
+		int32 removed = 0;
 
 		ForEachChunk(center, radius,
-		    [&](CMapArea*, Session::OpenTile& tile, CMapChunk* chunk, int32_t chunkX,
-		        int32_t chunkY)
+		    [&](CMapArea*, Session::OpenTile& tile, CMapChunk* chunk, int32 chunkX,
+		        int32 chunkY)
 		{
 			bool changed = EditChunk(tile, chunk, chunkX, chunkY,
 			    [&](Adt::ChunkAlpha& alpha)
 			{
-				if (layer >= static_cast<int32_t>(alpha.layers.size()))
+				if (layer >= static_cast<int32>(alpha.layers.size()))
 					return false;
 
 				// Nothing has to be redistributed. Coverage of the base is whatever the

@@ -1,4 +1,6 @@
 #pragma once
+
+#include <Defines.h>
 #include <SharedDefines.h>
 #include <string>
 
@@ -12,14 +14,17 @@ public:
 		minIndex = 0;
 		maxIndex = 0;
 		rows = 0;
+		stringTable = 0;
+		stringTableSize = 0;
 	}
-	uint32_t numColumns;
+	uint32 numColumns;
 	void* rows;
-	uint32_t rowSize;
-	uint32_t numRows;
+	uint32 rowSize;
+	uint32 numRows;
 	void* stringTable;
-	uint32_t minIndex;
-	uint32_t maxIndex;
+	uint32 stringTableSize;
+	uint32 minIndex;
+	uint32 maxIndex;
 
 	CDBC* LoadDB(const char* name, bool optional = false);
 	void UnloadDB();

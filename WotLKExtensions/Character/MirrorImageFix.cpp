@@ -1,4 +1,7 @@
+#include <Defines.h>
+#include <Character/HDCharacters/HDCharacters.h>
 #include <ClientDetours.h>
+#include <ClientData/WowObjects.h>
 #include <Macros.h>
 #include <cstdint>
 
@@ -28,11 +31,9 @@ namespace MirrorImageFix
 {
 	CLIENT_FUNCTION(FreeCharComponent, 0x004F16C0, __cdecl, void, (void* component))
 
-	constexpr uintptr_t kOffUnitCharComponent = 0xB4C;
-
 	// Set only while the handler runs, on the main thread. The allocator is shared with
 	// every other character, so outside the handler it must behave exactly as stock.
-	static uint8_t* sMirrorImageUnit = nullptr;
+	static uint8* sMirrorImageUnit = nullptr;
 }
 
 CLIENT_DETOUR(CharAllocComponent, 0x004F0980, __cdecl, void*, (void))
@@ -40,11 +41,11 @@ CLIENT_DETOUR(CharAllocComponent, 0x004F0980, __cdecl, void*, (void))
 	using namespace MirrorImageFix;
 	if (sMirrorImageUnit)
 	{
-		void** slot = reinterpret_cast<void**>(sMirrorImageUnit + kOffUnitCharComponent);
-		if (*slot)
+		void*& slot = ClientData::WowUnit(sMirrorImageUnit).CharComponentSlot();
+		if (slot)
 		{
-			FreeCharComponent(*slot);
-			*slot = nullptr;
+			FreeCharComponent(slot);
+			slot = nullptr;
 		}
 	}
 	return CharAllocComponent();
@@ -53,7 +54,8 @@ CLIENT_DETOUR(CharAllocComponent, 0x004F0980, __cdecl, void*, (void))
 CLIENT_DETOUR_THISCALL(CGUnit_C__OnMirrorImageData, 0x00730290, void, (void* packet))
 {
 	using namespace MirrorImageFix;
-	sMirrorImageUnit = static_cast<uint8_t*>(self);
+	HDCharacters::ComponentUnitScope hdUnit(self);
+	sMirrorImageUnit = static_cast<uint8*>(self);
 	CGUnit_C__OnMirrorImageData(self, packet);
 	sMirrorImageUnit = nullptr;
 }

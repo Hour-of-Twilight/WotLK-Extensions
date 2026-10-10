@@ -1,3 +1,4 @@
+#include <Defines.h>
 #include "ItemLevelPackets.h"
 #include "Packet.h"
 #include <CustomPacket.h>
@@ -11,21 +12,21 @@ ItemLevelPackets& ItemLevelPackets::Instance()
 	return instance;
 }
 
-void ItemLevelPackets::Handler_SMSG_ITEM_LEVEL_BREAKDOWN(void*, uint32_t, uint32_t, CDataStore* pkt)
+void ItemLevelPackets::Handler_SMSG_ITEM_LEVEL_BREAKDOWN(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint8_t subClass = r.GetUInt8();
-	uint8_t count = r.GetUInt8();
+	uint8 subClass = r.GetUInt8();
+	uint8 count = r.GetUInt8();
 
 	ItemLevelPackets& self = Instance();
 	self.m_subClass = subClass;
 	self.m_slotLevels.clear();
 	self.m_slotLevels.reserve(count);
 
-	for (uint8_t i = 0; i < count; ++i)
+	for (uint8 i = 0; i < count; ++i)
 	{
-		uint8_t slot = r.GetUInt8();
-		uint32_t level = r.GetUInt32();
+		uint8 slot = r.GetUInt8();
+		uint32 level = r.GetUInt32();
 		self.m_slotLevels[slot] = level;
 	}
 	self.m_averageItemLevel = r.GetUInt32();
@@ -62,7 +63,7 @@ int ItemLevelPackets::GetItemLevelBreakdownSlot(lua_State* L)
 		return 1;
 	}
 
-	uint8_t slot = static_cast<uint8_t>(FrameScript::GetNumber(L, 1));
+	uint8 slot = static_cast<uint8>(FrameScript::GetNumber(L, 1));
 	auto it = self.m_slotLevels.find(slot);
 	if (it == self.m_slotLevels.end())
 	{

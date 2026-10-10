@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <SharedDefines.h>
 #include <unordered_map>
 #include <vector>
@@ -221,7 +223,7 @@ private:
 
 #define sPlayer Player::Instance()
 
-__forceinline bool HasSecurityClearance(int8_t level)
+__forceinline bool HasSecurityClearance(int8 level)
 {
 	return sPlayer.GetSecurityLevel() >= level;
 }

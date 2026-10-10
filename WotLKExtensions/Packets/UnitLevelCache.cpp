@@ -1,7 +1,9 @@
+#include <Defines.h>
 #include "UnitLevelCache.h"
 #include "Packet.h"
 #include <CustomPacket.h>
 #include <ClientData/ClientFunctions.h>
+#include <ClientData/WowObjects.h>
 #include <Lua/XMLExtensions.h>
 
 UnitLevelCache& UnitLevelCache::Instance()
@@ -10,24 +12,24 @@ UnitLevelCache& UnitLevelCache::Instance()
 	return instance;
 }
 
-bool UnitLevelCache::HasPlayerItemLevel(uint64_t guid) const
+bool UnitLevelCache::HasPlayerItemLevel(uint64 guid) const
 {
 	return m_playerItemLevels.count(guid) != 0;
 }
 
-uint32_t UnitLevelCache::GetPlayerItemLevel(uint64_t guid) const
+uint32 UnitLevelCache::GetPlayerItemLevel(uint64 guid) const
 {
 	auto it = m_playerItemLevels.find(guid);
 	return it != m_playerItemLevels.end() ? it->second : 0;
 }
 
-uint8_t UnitLevelCache::GetPlayerSubClass(uint64_t guid) const
+uint8 UnitLevelCache::GetPlayerSubClass(uint64 guid) const
 {
 	auto it = m_playerSubClasses.find(guid);
 	return it != m_playerSubClasses.end() ? it->second : 0;
 }
 
-void UnitLevelCache::SetPlayerItemLevel(uint64_t guid, uint32_t ilvl, uint8_t subClass)
+void UnitLevelCache::SetPlayerItemLevel(uint64 guid, uint32 ilvl, uint8 subClass)
 {
 	m_playerItemLevels[guid] = ilvl;
 	m_playerSubClasses[guid] = subClass;
@@ -41,18 +43,18 @@ void UnitLevelCache::ClearPlayers()
 	ForgetRequests(true);
 }
 
-bool UnitLevelCache::HasCreatureDungeonLevel(uint64_t guid) const
+bool UnitLevelCache::HasCreatureDungeonLevel(uint64 guid) const
 {
 	return m_creatureDungeonLevels.count(guid) != 0;
 }
 
-uint32_t UnitLevelCache::GetCreatureDungeonLevel(uint64_t guid) const
+uint32 UnitLevelCache::GetCreatureDungeonLevel(uint64 guid) const
 {
 	auto it = m_creatureDungeonLevels.find(guid);
 	return it != m_creatureDungeonLevels.end() ? it->second : 0;
 }
 
-void UnitLevelCache::SetCreatureDungeonLevel(uint64_t guid, uint32_t level)
+void UnitLevelCache::SetCreatureDungeonLevel(uint64 guid, uint32 level)
 {
 	m_creatureDungeonLevels[guid] = level;
 	ForgetRequest(guid);
@@ -72,12 +74,12 @@ void UnitLevelCache::ClearAll()
 	m_requests.clear();
 }
 
-bool UnitLevelCache::HasUnitItemLevelOrDungeonLevel(uint64_t guid) const
+bool UnitLevelCache::HasUnitItemLevelOrDungeonLevel(uint64 guid) const
 {
 	return HasPlayerItemLevel(guid) || HasCreatureDungeonLevel(guid);
 }
 
-uint32_t UnitLevelCache::GetUnitItemLevelOrDungeonLevel(uint64_t guid) const
+uint32 UnitLevelCache::GetUnitItemLevelOrDungeonLevel(uint64 guid) const
 {
 	auto playerIt = m_playerItemLevels.find(guid);
 	if (playerIt != m_playerItemLevels.end())
@@ -90,28 +92,28 @@ uint32_t UnitLevelCache::GetUnitItemLevelOrDungeonLevel(uint64_t guid) const
 	return 0;
 }
 
-static bool IsPlayerGuid(uint64_t guid)
+static bool IsPlayerGuid(uint64 guid)
 {
 	return guid != 0 && (guid >> 48) == 0;
 }
 
-bool UnitLevelCache::WantsLevelCache(uint64_t guid)
+bool UnitLevelCache::WantsLevelCache(uint64 guid)
 {
 	if (guid == 0)
 		return false;
-	uint16_t high = static_cast<uint16_t>(guid >> 48);
+	uint16 high = static_cast<uint16>(guid >> 48);
 	return high == 0x0000 || high == 0xF130 || high == 0xF140 || high == 0xF150;
 }
 
-void UnitLevelCache::StampRequest(uint64_t guid)
+void UnitLevelCache::StampRequest(uint64 guid)
 {
 	Request& req = m_requests[guid];
-	req.lastMs = static_cast<uint32_t>(OsGetAsyncTimeMs());
+	req.lastMs = static_cast<uint32>(OsGetAsyncTimeMs());
 	if (req.attempts < kMaxAttempts)
 		++req.attempts;
 }
 
-bool UnitLevelCache::ShouldRequest(uint64_t guid) const
+bool UnitLevelCache::ShouldRequest(uint64 guid) const
 {
 	auto it = m_requests.find(guid);
 	if (it == m_requests.end())
@@ -119,11 +121,11 @@ bool UnitLevelCache::ShouldRequest(uint64_t guid) const
 	if (it->second.attempts >= kMaxAttempts)
 		return false;
 
-	uint32_t nowMs = static_cast<uint32_t>(OsGetAsyncTimeMs());
+	uint32 nowMs = static_cast<uint32>(OsGetAsyncTimeMs());
 	return (nowMs - it->second.lastMs) >= kRetryIntervalMs;
 }
 
-void UnitLevelCache::ForgetRequest(uint64_t guid)
+void UnitLevelCache::ForgetRequest(uint64 guid)
 {
 	m_requests.erase(guid);
 }
@@ -139,7 +141,7 @@ void UnitLevelCache::ForgetRequests(bool players)
 	}
 }
 
-void UnitLevelCache::SendRequest(uint64_t guid)
+void UnitLevelCache::SendRequest(uint64 guid)
 {
 	if (!WantsLevelCache(guid))
 		return;
@@ -149,7 +151,7 @@ void UnitLevelCache::SendRequest(uint64_t guid)
 	Packet(CMSG_UNIT_LEVEL_CACHE_REQUEST).PutUInt64(guid).Send();
 }
 
-void UnitLevelCache::EnsureRequested(uint64_t guid)
+void UnitLevelCache::EnsureRequested(uint64 guid)
 {
 	UnitLevelCache& self = sUnitLevelCache;
 	if (!WantsLevelCache(guid) || self.HasUnitItemLevelOrDungeonLevel(guid) || !self.ShouldRequest(guid))
@@ -159,11 +161,11 @@ void UnitLevelCache::EnsureRequested(uint64_t guid)
 	Packet(CMSG_UNIT_LEVEL_CACHE_REQUEST).PutUInt64(guid).Send();
 }
 
-void UnitLevelCache::RefreshUnitDisplays(uint64_t guid)
+void UnitLevelCache::RefreshUnitDisplays(uint64 guid)
 {
-	if (CGUnit* unit = static_cast<CGUnit*>(ClntObjMgr::ObjectPtr(guid, TYPEMASK_UNIT)))
-		if (void* namePlate = *reinterpret_cast<void**>(reinterpret_cast<uint8_t*>(unit) + 0xC38))
-			CGNamePlateFrame::UpdateLevelDisplay(namePlate, unit);
+	if (ClientData::WowUnit unit = ClientData::WowUnit::FromGuid(guid))
+		if (void* namePlate = unit.NamePlate())
+			CGNamePlateFrame::UpdateLevelDisplay(namePlate, unit.Raw());
 
 	int tokenCount = 0;
 	if (const char** tokens = Script_GetTokensFromGUID(&guid, &tokenCount))
@@ -174,7 +176,7 @@ void UnitLevelCache::RefreshUnitDisplays(uint64_t guid)
 	bool onScreen = false;
 	for (const char* token : kViewTokens)
 	{
-		uint64_t tokenGuid = 0;
+		uint64 tokenGuid = 0;
 		Script_GetGUIDFromToken(token, &tokenGuid, 0);
 		if (tokenGuid != guid)
 			continue;
@@ -195,27 +197,27 @@ void UnitLevelCache::RefreshUnitDisplays(uint64_t guid)
 
 int __stdcall UnitLevelCache::GetTooltipUnitLevel(void* unit)
 {
-	CGUnit* cgUnit = static_cast<CGUnit*>(unit);
-	uint64_t guid = cgUnit->objectBase.ObjectData->OBJECT_FIELD_GUID;
-	uint32_t dlvl = sUnitLevelCache.GetUnitItemLevelOrDungeonLevel(guid);
+	ClientData::WowUnit cgUnit(unit);
+	uint64 guid = cgUnit.Guid();
+	uint32 dlvl = sUnitLevelCache.GetUnitItemLevelOrDungeonLevel(guid);
 	if (dlvl)
 		return static_cast<int>(dlvl);
 
 	EnsureRequested(guid);
-	return cgUnit->unitData ? static_cast<int>(cgUnit->unitData->level) : 0;
+	return static_cast<int>(cgUnit.Level());
 }
 
-void UnitLevelCache::Handler_SMSG_UNIT_LEVEL_CACHE_RESPONSE(void*, uint32_t, uint32_t, CDataStore* pkt)
+void UnitLevelCache::Handler_SMSG_UNIT_LEVEL_CACHE_RESPONSE(void*, uint32, uint32, CDataStore* pkt)
 {
 	Packet r(pkt);
-	uint64_t guid = r.GetUInt64();
-	uint32_t value = r.GetUInt32();
+	uint64 guid = r.GetUInt64();
+	uint32 value = r.GetUInt32();
 	if (guid == 0 || value == 0) // not a scaled unit
 		return;
 
 	if (IsPlayerGuid(guid))
 	{
-		uint8_t subClass = r.GetUInt8();
+		uint8 subClass = r.GetUInt8();
 		sUnitLevelCache.SetPlayerItemLevel(guid, value, subClass);
 		Util::DebugOutput("UnitLevelCache: GUID %016llX  type=player  ilvl=%u  subClass=%u",
 		    (unsigned long long)guid, value, subClass);

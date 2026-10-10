@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 #include <cstdint>
 
 /**
@@ -29,7 +31,7 @@ namespace ModernM2::Live::Particles
 {
 	/// Blend mode 1 = alpha key -- the only mode the lowered source cutoff applies to. Public so
 	/// draw-frequency callers can test it BEFORE paying any per-batch lookup.
-	inline constexpr uint16_t kBlendAlphaKey = 1;
+	inline constexpr uint16 kBlendAlphaKey = 1;
 
 	/**
 	 * @brief Lowers the alpha-key cutoff to the source coverage midpoint for an alpha-key batch of a
@@ -39,5 +41,5 @@ namespace ModernM2::Live::Particles
 	 * @param blendMode   Blend mode of the batch being set up.
 	 * @param downported  True if the model was reshaped by this module.
 	 */
-	void OnSetupBatchAlpha(uint16_t blendMode, bool downported);
+	void OnSetupBatchAlpha(uint16 blendMode, bool downported);
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <ClientData/MathTypes.h>
 
 #include <cstdint>
@@ -48,5 +50,5 @@ namespace MapEditor::Sculpt
 	// closes on its own.
 	//
 	// Tiles that are not resident are skipped, since the fast path needs the client's live buffer.
-	int32_t Apply(Stroke const& stroke);
+	int32 Apply(Stroke const& stroke);
 }

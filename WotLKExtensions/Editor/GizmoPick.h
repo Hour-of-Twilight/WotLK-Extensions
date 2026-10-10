@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Defines.h>
+
 #include <ClientData/VectorMath.h>
 
 #include <cfloat>
@@ -10,7 +12,7 @@ namespace GPick
 {
 	using namespace ClientData;
 
-	enum class Axis : int32_t
+	enum class Axis : int32
 	{
 		None = -1,
 		X = 0,

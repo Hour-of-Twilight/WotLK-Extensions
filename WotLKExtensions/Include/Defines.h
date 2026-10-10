@@ -1,12 +1,15 @@
 #ifndef HOT_DEFINES
 #define HOT_DEFINES
-typedef char int8;
-typedef short int16;
-typedef int int32;
-typedef __int64 int64;
 
-typedef unsigned char uint8;
-typedef unsigned short uint16;
-typedef unsigned int uint32;
-typedef unsigned __int64 uint64;
+#include <cstdint>
+
+using int8 = std::int8_t;
+using int16 = std::int16_t;
+using int32 = std::int32_t;
+using int64 = std::int64_t;
+
+using uint8 = std::uint8_t;
+using uint16 = std::uint16_t;
+using uint32 = std::uint32_t;
+using uint64 = std::uint64_t;
 #endif

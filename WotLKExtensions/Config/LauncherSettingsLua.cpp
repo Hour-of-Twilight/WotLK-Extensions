@@ -1,6 +1,8 @@
 #include <Config/LauncherSettingsLua.h>
 
 #include <Config/LauncherSettings.h>
+#include <Character/HDCharacters/HDCharacters.h>
+#include <Character/HDCharacters/HDPatchToggle.h>
 #include <Streaming/BackgroundDownloader.h>
 #include <ClientData/ClientFunctions.h>
 #include <CustomLua.h>
@@ -16,7 +18,14 @@ int LauncherSettingsLua::SetHDPatchEnabled(lua_State* L)
 	sLauncherSettings.SetHdPatch(FrameScript::ToBoolean(L, 1));
 
 	sBackgroundDownloader.Trigger();
+	HDPatchToggle::Refresh();
 	return 0;
+}
+
+int LauncherSettingsLua::AreHDCharacterModelsAvailable(lua_State* L)
+{
+	FrameScript::PushBoolean(L, HDCharacters::IsAvailable() ? 1 : 0);
+	return 1;
 }
 
 int LauncherSettingsLua::GetDownloadSpeedLimit(lua_State* L)
@@ -36,6 +45,7 @@ void LauncherSettingsLua::Apply()
 {
 	sLua.RegisterFunction("IsHDPatchEnabled", &IsHDPatchEnabled, LuaFunctionState::ALL);
 	sLua.RegisterFunction("SetHDPatchEnabled", &SetHDPatchEnabled, LuaFunctionState::ALL);
+	sLua.RegisterFunction("AreHDCharacterModelsAvailable", &AreHDCharacterModelsAvailable, LuaFunctionState::ALL);
 	sLua.RegisterFunction("GetDownloadSpeedLimit", &GetDownloadSpeedLimit, LuaFunctionState::ALL);
 	sLua.RegisterFunction("SetDownloadSpeedLimit", &SetDownloadSpeedLimit, LuaFunctionState::ALL);
 }

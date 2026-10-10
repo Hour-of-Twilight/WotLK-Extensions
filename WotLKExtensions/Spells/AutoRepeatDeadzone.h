@@ -18,7 +18,7 @@ public:
 private:
 	AutoRepeatDeadzone() = default;
 
-	int m_percent = 100;
+	int m_percent = 0;
 };
 
 #define sAutoRepeatDeadzone AutoRepeatDeadzone::Instance()

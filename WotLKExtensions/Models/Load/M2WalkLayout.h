@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <Defines.h>
+
 // The walk is a table, not thirty hand-written passes: every header array is described once by where
 // its count+offset pair sits, how wide one record is, and which nested arrays / animation tracks live
 // inside that record. The tables are ordered exactly as the walk must run -- sequences resolve before
@@ -32,14 +34,14 @@
 namespace ModernM2::Reader::Detail
 {
     /// What a record step fixes: a plain nested count+offset pair, or an animation track head.
-    enum : uint8_t
+    enum : uint8
     {
         kStepArray = 0,
         kStepTrack = 1,
     };
 
     /// Traits that change how a header entry is walked.
-    enum : uint8_t
+    enum : uint8
     {
         kArrayPlain         = 0x00,
         kArraySequenceFlags = 0x01, ///< sequence records also take the looping-id flag pass
@@ -54,23 +56,23 @@ namespace ModernM2::Reader::Detail
      */
     struct RecordStep
     {
-        uint32_t at;
-        uint32_t stride;
-        uint8_t  kind;
+        uint32 at;
+        uint32 stride;
+        uint8  kind;
     };
 
     /** @brief One header array: where it is, how wide its records are, and what to fix inside each. */
     struct HeaderArray
     {
-        uint32_t          at;        ///< byte offset of the count+offset pair inside the header
-        uint32_t          stride;    ///< record width
-        uint8_t           traits;
+        uint32          at;        ///< byte offset of the count+offset pair inside the header
+        uint32          stride;    ///< record width
+        uint8           traits;
         const RecordStep* steps;     ///< null when the record has nothing nested
-        uint32_t          stepCount;
+        uint32          stepCount;
     };
 
     template <size_t N>
-    constexpr uint32_t StepCount(const RecordStep (&)[N]) { return static_cast<uint32_t>(N); }
+    constexpr uint32 StepCount(const RecordStep (&)[N]) { return static_cast<uint32>(N); }
 
     // --- per-record maps -------------------------------------------------------------------------
     // Bone: translation, rotation, scale.

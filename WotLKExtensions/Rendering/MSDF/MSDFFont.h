@@ -40,7 +40,10 @@ public:
     static MSDFFont* Get(FT_Face face);
     static void Register(FT_Face face, const FT_Byte* data, FT_Long size);
     static void Unregister(FT_Face face);
-    static void ClearAllCache();
+    // releaseTextures false abandons the atlas textures instead of releasing them, for the
+    // case where the device that owned them is already gone and releasing them would be a
+    // use after free.
+    static void ClearAllCache(bool releaseTextures = true);
     static void Shutdown();
 
 private:

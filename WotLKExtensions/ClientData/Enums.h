@@ -169,7 +169,7 @@ enum PlayerFlags
 	PLAYER_FLAGS_GHOST = 0x10,
 };
 
-enum CVarFlags : uint32_t
+enum CVarFlags : uint32
 {
 	CVarFlags_ReadOnly = 0x4,
 	CVarFlags_CheckTaint = 0x8,

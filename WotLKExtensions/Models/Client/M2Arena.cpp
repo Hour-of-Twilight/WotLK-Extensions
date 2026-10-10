@@ -19,6 +19,7 @@
 // fragments the 32-bit VA space). The allocator detours that route large M2 buffers into it (and the
 // standalone-VirtualAlloc fallback) live in Models/Load/M2Memory.cpp.
 
+#include <Defines.h>
 #include "Models/Client/M2Arena.h"
 #include "Models/Common/ModelHooks.h"
 #include "Models/Common/Timing.h"
@@ -35,22 +36,22 @@ namespace
 {
     // Reserve only what the observed city workload actually needs. A 256 MB reservation stranded roughly
     // 190 MB of scarce 32-bit VA while the model loader later failed to find a separate 15 MB contiguous block.
-    constexpr uint32_t kDefaultM2ArenaSizeMb = 128u;
+    constexpr uint32 kDefaultM2ArenaSizeMb = 128u;
 
     struct M2ArenaRange
     {
-        uint32_t offset = 0;
-        uint32_t size = 0;
+        uint32 offset = 0;
+        uint32 size = 0;
     };
 
-    uint32_t AlignUpU32(uint32_t value, uint32_t align)
+    uint32 AlignUpU32(uint32 value, uint32 align)
     {
         return (value + align - 1u) & ~(align - 1u);
     }
 
     std::mutex g_arenaMutex;
-    uint8_t* g_m2ArenaBase = nullptr;
-    uint32_t g_m2ArenaSize = 0;
+    uint8* g_m2ArenaBase = nullptr;
+    uint32 g_m2ArenaSize = 0;
     std::vector<M2ArenaRange> g_m2ArenaFree;
 
     /** @brief Logs a coarse 32-bit address-space snapshot around very large model allocations. */
@@ -69,13 +70,13 @@ namespace
         GetSystemInfo(&info);
         uintptr_t address = reinterpret_cast<uintptr_t>(info.lpMinimumApplicationAddress);
         const uintptr_t maximum = reinterpret_cast<uintptr_t>(info.lpMaximumApplicationAddress);
-        uint64_t committed = 0, reserved = 0, freeBytes = 0, largestFree = 0;
+        uint64 committed = 0, reserved = 0, freeBytes = 0, largestFree = 0;
         while (address < maximum)
         {
             MEMORY_BASIC_INFORMATION mbi{};
             if (!VirtualQuery(reinterpret_cast<const void*>(address), &mbi, sizeof(mbi)) || !mbi.RegionSize)
                 break;
-            const uint64_t bytes = static_cast<uint64_t>(mbi.RegionSize);
+            const uint64 bytes = static_cast<uint64>(mbi.RegionSize);
             if (mbi.State == MEM_COMMIT) committed += bytes;
             else if (mbi.State == MEM_RESERVE) reserved += bytes;
             else if (mbi.State == MEM_FREE)
@@ -88,13 +89,13 @@ namespace
             address = next;
         }
 
-        uint64_t arenaFree = 0, arenaLargest = 0;
+        uint64 arenaFree = 0, arenaLargest = 0;
         {
             std::lock_guard<std::mutex> lock(g_arenaMutex);
             for (const M2ArenaRange& range : g_m2ArenaFree)
             {
                 arenaFree += range.size;
-                arenaLargest = std::max<uint64_t>(arenaLargest, range.size);
+                arenaLargest = std::max<uint64>(arenaLargest, range.size);
             }
         }
         WLOG_INFO(
@@ -108,9 +109,9 @@ namespace
             static_cast<double>(arenaLargest) / (1024.0 * 1024.0));
     }
 
-    uint32_t M2ArenaSizeMb()
+    uint32 M2ArenaSizeMb()
     {
-        static const uint32_t mb =
+        static const uint32 mb =
             ModernM2::ConfigU32("HOT_M2_ARENA_MB", kDefaultM2ArenaSizeMb, 64, 2048);
         return mb;
     }
@@ -128,12 +129,12 @@ namespace
         if (!M2ArenaEnabled())
             return false;
 
-        const uint32_t mb = M2ArenaSizeMb();
-        const uint64_t bytes64 = static_cast<uint64_t>(mb) * 1024u * 1024u;
+        const uint32 mb = M2ArenaSizeMb();
+        const uint64 bytes64 = static_cast<uint64>(mb) * 1024u * 1024u;
         if (bytes64 > 0xffffffffu)
             return false;
 
-        auto* base = static_cast<uint8_t*>(
+        auto* base = static_cast<uint8*>(
             VirtualAlloc(nullptr, static_cast<SIZE_T>(bytes64), MEM_RESERVE, PAGE_READWRITE));
         if (!base)
         {
@@ -142,14 +143,14 @@ namespace
         }
 
         g_m2ArenaBase = base;
-        g_m2ArenaSize = static_cast<uint32_t>(bytes64);
+        g_m2ArenaSize = static_cast<uint32>(bytes64);
         g_m2ArenaFree.clear();
         g_m2ArenaFree.push_back({ 0, g_m2ArenaSize });
         WLOG_INFO("m2-memory: reserved %u MB large-model arena", mb);
         return true;
     }
 
-    bool CommitArenaRange(uint32_t offset, uint32_t size)
+    bool CommitArenaRange(uint32 offset, uint32 size)
     {
         if (!g_m2ArenaBase || size == 0)
             return false;
@@ -158,7 +159,7 @@ namespace
 
     // Inserts a range back into the free list and coalesces neighbours. List surgery only -- the
     // caller decommits (outside the mutex) when the range's pages were actually committed.
-    void InsertArenaFreeRangeLocked(uint32_t offset, uint32_t size)
+    void InsertArenaFreeRangeLocked(uint32 offset, uint32 size)
     {
         if (!g_m2ArenaBase || size == 0)
             return;
@@ -198,7 +199,7 @@ namespace
      * @param offsetOut  receives the reserved arena offset.
      * @return true when a range was reserved.
      */
-    bool ReserveArenaRangeLocked(uint32_t need, uint32_t& offsetOut)
+    bool ReserveArenaRangeLocked(uint32 need, uint32& offsetOut)
     {
         if (!EnsureM2ArenaLocked())
             return false;
@@ -228,10 +229,10 @@ namespace
 
 namespace ModernM2::Arena
 {
-	void* Alloc(uint32_t size, uint32_t* outOffset, uint32_t* outSize)
+	void* Alloc(uint32 size, uint32* outOffset, uint32* outSize)
 	{
-		const uint32_t need = AlignUpU32(size + 0x20u, 0x1000u);
-		uint32_t offset = 0;
+		const uint32 need = AlignUpU32(size + 0x20u, 0x1000u);
+		uint32 offset = 0;
 		bool reserved;
 		{
 			std::lock_guard<std::mutex> lock(g_arenaMutex);
@@ -256,7 +257,7 @@ namespace ModernM2::Arena
 		return ptr;
 	}
 
-	void Free(uint32_t offset, uint32_t size)
+	void Free(uint32 offset, uint32 size)
 	{
 		if (!g_m2ArenaBase || size == 0)
 			return;

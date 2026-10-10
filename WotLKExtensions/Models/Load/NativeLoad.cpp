@@ -31,6 +31,7 @@
 //               shipping live-engine half (skin-finalize contract rebuild, draw fixups) applies unchanged.
 //   Safety      The whole fill runs under SEH: malformed data becomes a logged failure, never a crash.
 
+#include <Defines.h>
 #include "Models/Common/ModelHooks.h"
 #include "Models/Load/NativeLoad.h"
 #include "Models/Load/M2NativeInternal.h"
@@ -57,18 +58,18 @@ namespace
     using namespace ModernM2::Reader::Detail;
 
     // ---------------------------------------------------------------- session counters
-    std::atomic<uint32_t> g_statNative{ 0 };
-    std::atomic<uint32_t> g_statFailed{ 0 };
-    std::atomic<uint32_t> g_statTexResolved{ 0 };
-    std::atomic<uint32_t> g_statTexUnresolved{ 0 };
-    std::atomic<uint32_t> g_statNormalized[kRecordNormalizerCount]{};
-    std::atomic<uint32_t> g_statSkipTxac{ 0 };
-    std::atomic<uint32_t> g_statSkipLdv1{ 0 };
-    std::atomic<uint32_t> g_statSkipAfid{ 0 };
-    std::atomic<uint32_t> g_statSkipSkid{ 0 };
-    std::atomic<uint32_t> g_statSkipOther{ 0 };
-    std::atomic<uint32_t> g_statExtSeqPending{ 0 };
-    std::atomic<uint32_t> g_statShadowGateForced{ 0 };
+    std::atomic<uint32> g_statNative{ 0 };
+    std::atomic<uint32> g_statFailed{ 0 };
+    std::atomic<uint32> g_statTexResolved{ 0 };
+    std::atomic<uint32> g_statTexUnresolved{ 0 };
+    std::atomic<uint32> g_statNormalized[kRecordNormalizerCount]{};
+    std::atomic<uint32> g_statSkipTxac{ 0 };
+    std::atomic<uint32> g_statSkipLdv1{ 0 };
+    std::atomic<uint32> g_statSkipAfid{ 0 };
+    std::atomic<uint32> g_statSkipSkid{ 0 };
+    std::atomic<uint32> g_statSkipOther{ 0 };
+    std::atomic<uint32> g_statExtSeqPending{ 0 };
+    std::atomic<uint32> g_statShadowGateForced{ 0 };
 
     /**
      * @brief The full native load: demux, in-place deltas, stock walk, TXID injection, the stock
@@ -88,8 +89,8 @@ namespace
             return;
         }
 
-        auto* buf = static_cast<uint8_t*>(mdl->header);
-        const uint32_t size = mdl->fileSize;
+        auto* buf = static_cast<uint8*>(mdl->header);
+        const uint32 size = mdl->fileSize;
         if (!buf || size < 8) { out.fail = "no buffer"; return; }
 
         Scan s;
@@ -150,6 +151,7 @@ namespace
 
         // --- the offset->pointer walk ---
         if (!WalkHeaderArrays(buf, s.bodySize, h)) { out.fail = "header walk rejected an array"; return; }
+        if (!FreeCombinerSlot(buf, s.bodySize, h, out)) { out.fail = "could not move the array off the combiner slot"; return; }
 
         // --- post-fixup injections on the now-pointer-based header ---
         InjectTxidNames(h, s, out);
@@ -176,7 +178,7 @@ namespace
         // practically every bone, so it always takes the full path; a model exported by a newer toolchain
         // can ship every bone flag empty and would not. Forcing the count to 1 puts our models on the
         // exact path stock content already takes. This writes the RUNTIME object, never the model bytes.
-        auto* animGate = reinterpret_cast<uint16_t*>(static_cast<uint8_t*>(model) +
+        auto* animGate = reinterpret_cast<uint16*>(static_cast<uint8*>(model) +
                                                      off::kOffSharedAnimGateCount);
         if (*animGate == 0)
         {
@@ -188,20 +190,20 @@ namespace
         out.shadowGateAfter = *animGate;
 
         // --- stock tail: the external-sequence table the .anim streamer indexes, then the loaded flag ---
-        uint32_t extCount = 0;
+        uint32 extCount = 0;
         if (h->sequences.count && h->sequences.offset)
         {
             auto* seqs = reinterpret_cast<fmt::M2Sequence*>(static_cast<uintptr_t>(h->sequences.offset));
-            for (uint32_t i = 0; i < h->sequences.count; ++i)
+            for (uint32 i = 0; i < h->sequences.count; ++i)
                 if (!(seqs[i].flags & 0x20u)) ++extCount;
         }
         void* extArr = ModernM2::Native<off::SMemAllocFn>(off::kSMemAlloc)(
             extCount * 4u, ".\\M2Shared.cpp", 0x2DC, 8);
-        auto* bytes = static_cast<uint8_t*>(model);
+        auto* bytes = static_cast<uint8*>(model);
         *reinterpret_cast<void**>(bytes + off::kOffModelExtSeqArray)     = extArr;
-        *reinterpret_cast<uint32_t*>(bytes + off::kOffModelExtSeqCount)  = extCount;
+        *reinterpret_cast<uint32*>(bytes + off::kOffModelExtSeqCount)  = extCount;
         mdl->flags |= 1u;
-        *reinterpret_cast<uint32_t*>(bytes + off::kOffModelExtSeqCursor) = 0;
+        *reinterpret_cast<uint32*>(bytes + off::kOffModelExtSeqCursor) = 0;
 
         out.ok = 1;
     }
@@ -243,7 +245,7 @@ namespace ModernM2::Reader
         s.texturesResolved   = g_statTexResolved.load(std::memory_order_relaxed);
         s.texturesUnresolved = g_statTexUnresolved.load(std::memory_order_relaxed);
         s.recordsNormalized  = 0;
-        for (uint32_t i = 0; i < Detail::kRecordNormalizerCount; ++i)
+        for (uint32 i = 0; i < Detail::kRecordNormalizerCount; ++i)
             s.recordsNormalized += g_statNormalized[i].load(std::memory_order_relaxed);
         s.skippedTxac        = g_statSkipTxac.load(std::memory_order_relaxed);
         s.skippedLdv1        = g_statSkipLdv1.load(std::memory_order_relaxed);
@@ -298,9 +300,9 @@ namespace ModernM2::Reader
         // in the log the moment its entry exists.
         char   norm[96]{};
         size_t at = 0;
-        for (uint32_t i = 0; i < Detail::kRecordNormalizerCount && at + 1 < sizeof norm; ++i)
+        for (uint32 i = 0; i < Detail::kRecordNormalizerCount && at + 1 < sizeof norm; ++i)
         {
-            const uint32_t n = out.normalized.records[i];
+            const uint32 n = out.normalized.records[i];
             if (!n) continue;
             g_statNormalized[i].fetch_add(n, std::memory_order_relaxed);
             const int wrote = std::snprintf(norm + at, sizeof norm - at, " %s=%u",
@@ -317,6 +319,9 @@ namespace ModernM2::Reader
         if (out.extSeqPending)
             WLOG_INFO("m2native: '%s' has %u streamed (.anim) sequence(s) -- bind pose until they arrive",
                       stem, out.extSeqPending);
+        if (out.combinerSlotBytes)
+            WLOG_INFO("m2native: '%s' header array at +0x%X (%u bytes) sat on the texture combiner slot the file does not declare, moved to an owned copy so the skin finalize can claim the slot",
+                      stem, out.combinerSlotArray, out.combinerSlotBytes);
 
         return 1;
     }
