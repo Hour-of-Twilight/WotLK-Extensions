@@ -26,6 +26,7 @@
 #include <Character/HDCharacters/HDCharacters.h>
 #include <Character/HDCharacters/HDPatchToggle.h>
 #include <FeatureCvars.h>
+#include <Lua/LuaRuntime.h>
 #include <Logger.h>
 #include <Macros.h>
 #include <windows.h>
@@ -64,6 +65,7 @@ void Main::OnAttach()
 
 	LauncherSettingsLua::Apply();
 	FeatureCvars::Apply();
+	sLuaRuntime.Apply();
 	sMpqScanner.Start();
 }
 

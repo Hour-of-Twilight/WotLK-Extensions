@@ -11,6 +11,7 @@
 #include "FirstRunCvars.h"
 #include "StartupDefaults.h"
 #include "PlayerRenderLimitCvar.h"
+#include "LuaRuntimeCvars.h"
 
 namespace FeatureCvars
 {
@@ -27,5 +28,6 @@ namespace FeatureCvars
 		FirstRunCvars::Apply();
 		StartupDefaults::Apply();
 		PlayerRenderLimitCvar::Apply();
+		LuaRuntimeCvars::Apply();
 	}
 }

@@ -53,5 +53,7 @@ namespace GlueXML
 	void RegisterFunctions();
 	static int TestGlueLua(lua_State* L);
 	static int OverrideSlotDisplay(lua_State* L);
+	static int RebuildCharacterCreateModel(lua_State* L);
+	static int RebuildCharacterSelectModel(lua_State* L);
 	static void AddGlueLuaFunctions();
 };

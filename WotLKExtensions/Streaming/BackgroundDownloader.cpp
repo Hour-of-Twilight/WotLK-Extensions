@@ -27,6 +27,7 @@
 #include <ClientDetours.h>
 #include <ClientData/ClientFunctions.h>
 #include <Config/LauncherSettings.h>
+#include <Character/HDCharacters/HDCharacters.h>
 #include <Character/HDCharacters/HDPatchToggle.h>
 #include <Helpers/Util.h>
 #include <Logger.h>
@@ -733,10 +734,32 @@ namespace Streaming
 		{
 			ClientData::ModelCache::Invalidate();
 			ClientData::ModelCache::Purge();
+			// Nothing to walk on a glue screen; those are handled by RefreshGlueModels below,
+			// which has to run later than this.
 			if (!ClientData::ObjectManager::GetActivePlayerObject())
 				return;
 			ClntObjMgr::EnumVisibleObjects(RefreshUnitModelCb, nullptr);
 			StreamLog("stream: rebuilt world models after art mount");
+		}
+
+		// The glue screens have no world objects, and purging the cache is not enough for them:
+		// the character on screen keeps the art it was built from until something re-creates it,
+		// which is why it only picks up new models once a different character or race is clicked.
+		// Only Lua knows what is being displayed, so it does the re-creating.
+		//
+		// This must run after HDPatchToggle::Refresh(). That is where the HD patch is switched on
+		// once its art lands, and where the HD path caches are invalidated - rebuilding before it
+		// just rebuilds the old art again, which is exactly what happened when this lived inside
+		// RefreshLoadedModels. In the world the equivalent rebuild is RefreshUnits, which runs
+		// inside SetEnabled and is therefore already on the right side of that flip.
+		void RefreshGlueModels()
+		{
+			if (ClientData::ObjectManager::GetActivePlayerObject())
+				return;
+			FrameScript::Execute("if StreamingRefreshGlueModels then StreamingRefreshGlueModels() end",
+			    "HoTArtRefresh",
+			    0);
+			StreamLog("stream: asked the glue UI to rebuild its model after art mount");
 		}
 
 		bool DownloadWhole(const std::string& baseUrl, const ManifestFile& mf, const std::wstring& local, ByteCounter& counter)
@@ -1270,8 +1293,17 @@ namespace Streaming
 			if (r.interfaceFiles)
 				g_uiRefreshNeeded = true;
 			if (r.artFiles)
+			{
+				// Before anything rebuilds: art has just landed, so every cached "this model
+				// has no HD version" answer taken while it was still downloading is wrong, and
+				// nothing else drops those unless the HD enabled state happens to flip.
+				HDCharacters::InvalidateArt();
 				RefreshLoadedModels();
+			}
 			HDPatchToggle::Refresh();
+			// Last, so the glue rebuilds against the HD art the line above just switched on.
+			if (r.artFiles)
+				RefreshGlueModels();
 			StreamLog("stream: batch applied, refreshed %d name(s)", (int)bp.names.size());
 		}
 

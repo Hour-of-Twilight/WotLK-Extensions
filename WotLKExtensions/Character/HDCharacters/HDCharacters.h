@@ -12,6 +12,10 @@ namespace HDCharacters
 
 	void Apply();
 	void SetEnabled(bool enabled);
+	// Drops everything cached about which HD art exists. Needed whenever new art lands:
+	// the model-path cache stores "this model has no HD version" answers as well, and
+	// those are otherwise only cleared when the enabled state itself changes.
+	void InvalidateArt();
 	bool IsEnabled();
 	bool IsAvailable();
 	bool RefreshAvailability();

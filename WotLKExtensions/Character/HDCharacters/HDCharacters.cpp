@@ -352,6 +352,16 @@ namespace HDCharacters
 		LOG_INFO << "hd characters: module ready";
 	}
 
+	// ResolveModelPath caches its answer either way, including the empty string standing
+	// for "no HD version of this model exists". Once art streams in, every one of those
+	// answers taken before it arrived is wrong, and SetEnabled below only clears them when
+	// the enabled state changes - so a model resolved while its HD file was still
+	// downloading would stay on the standard art for the rest of the session.
+	void InvalidateArt()
+	{
+		InvalidateContent();
+	}
+
 	void SetEnabled(bool enabled)
 	{
 		if (enabled && !IsAvailable())
